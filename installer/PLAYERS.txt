@@ -16,6 +16,10 @@ Multiplayer
                a VPN such as Tailscale / ZeroTier / Radmin VPN.
   Shortcut   : FPSGame.exe -- --connect 1.2.3.4:7777 --name YourName
 
+Controller: plug in any Xbox / PlayStation / generic gamepad — sticks to
+  move and look, RT shoot, LT aim, A jump, B crouch, X reload, Y next weapon,
+  LB plant/defuse, Menu = pause. Settings → Controls → Controller.
+
 Controls (change them in Settings → Controls)
   WASD move · Space jump · Ctrl crouch · C slide · Shift sprint
   Left mouse shoot · Right mouse aim · R reload · 1/2 weapons

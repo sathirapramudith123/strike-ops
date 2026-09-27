@@ -1,44 +1,55 @@
 # Changelog
 
-## Unreleased
+## v0.9.0 beta — controllers, new look, sound, 6 maps
 
-- **3 new maps:** Rooftops (vertical, bridges between roofs), Docks
-  (containers + a ship with gangways) and Bunker (small indoor, 2–8 players).
-  All support FFA, TDM and Bomb Defusal.
-- **Map selection screen** in the main menu with live previews, player
-  counts, style and supported modes.
-- **End-of-match map vote:** 3 candidates on the results screen, vote with
-  1 / 2 / 3; ties keep the normal rotation.
-- Network protocol version 3 (older clients get a version-mismatch message).
-- **Audio (Phase 3):** a different gunshot per weapon, footsteps (sprinting
-  is loud, crouch-walking nearly silent) for you and other players, jump /
-  land / slide, reload sequence, bullet impacts and near-miss whizzes, hit
-  marker / headshot / kill sounds, hurt sound.
-- Walls muffle sounds behind them (occlusion); indoor areas echo (reverb
-  zones in Warehouse, Courtyard buildings and Bunker).
-- Menu music, quiet in-match music, win/lose and Bomb Defusal stings; every
-  button clicks.
-- Settings → Audio: *Audio quality* (Low / High), *Music during matches*,
-  *Hit & kill sounds*.
-- Sounds are generated placeholders; drop files into `assets/audio/` to
-  replace them (see README → Phase 3).
-- **Opus voice codec (Phase 5b):** voice chat now uses Opus — about a third
-  of the bandwidth (≈24 kbps instead of 64), clearer speech, and lost packets
-  are rebuilt instead of leaving gaps. Players without Opus are handled
-  automatically (everyone falls back to the old codec). Can be switched off in
-  Settings → Voice. Network protocol version 4.
-- Fixed: hosting a game briefly "ended" the match before the map loaded
-  (spurious "Time's up — Draw!" and lose sound).
-- **Full hardware test (Phase 7b):** Settings → Graphics → "Full hardware
-  test" measures every preset on OpenGL and Vulkan plus what each option
-  costs on your PC (restarts the game once), recommends a preset and lets you
-  send the report to the developers. `tools/tune_presets.py` turns reports
-  into preset suggestions and per-GPU starting presets
-  (`resources/settings/gpu_tiers.cfg`, used by the first-launch auto-detect).
-- Fixed: ENet's packet throttle dropped voice and movement packets when
-  ping fluctuated (busy PC, Wi-Fi) — voice cut out and players stuttered.
-- Fixed: a listener at the edge of proximity-chat range heard made-up
-  "concealed" audio for packets the server skipped on purpose.
+**Play with a controller:** Xbox / PlayStation / generic gamepads work
+everywhere — right-stick look with deadzone, response curve and sensitivity,
+light aim assist (slows your aim over enemies, can be turned off), vibration,
+menus with the D-pad / A / B, and every button remappable in Settings →
+Controls (keyboard and controller bindings side by side). Prompts show the
+button of the device you're using.
+
+**New look:** detailed guns and soldier models (team-coloured helmet and
+vest, walking animation), concrete, metal, wood, plaster and stone surfaces,
+softer lighting — all built in code, no bigger download, about 3 % slower on
+the Low preset (Settings → Graphics → *Surface detail* is off on Low).
+
+**6 maps:** new Rooftops (vertical, roof bridges), Docks (containers, a
+ship with gangways) and Bunker (small, 2–8 players), all with FFA, TDM and
+Bomb Defusal. Pick maps on the new **map selection screen** (live previews);
+after each match everyone **votes for the next map** (1 / 2 / 3, or Y on a
+controller).
+
+**Sound:** a different gunshot per weapon, footsteps you can hear through
+the map (sprinting is loud, crouch-walking nearly silent), reloads, impacts,
+bullets whizzing past, hit / headshot / kill sounds; walls muffle sounds and
+rooms echo; menu and match music with win/lose stings. Settings → Audio:
+audio quality, match music, hit sounds.
+
+**Voice chat:** now uses the **Opus** codec — about a third of the bandwidth
+(≈24 kbps instead of 64), clearer, and lost packets are rebuilt. Players
+without Opus are handled automatically.
+
+**Help tune the game:** Settings → Graphics → **Full hardware test** (≈5 min)
+measures every preset on your PC, recommends one and lets you send the
+report to the developers.
+
+**Fixed:** voice cutting out and players stuttering when ping fluctuated
+(busy PC, Wi-Fi); hosting briefly "ended" the match before the map loaded;
+made-up audio at the edge of proximity-chat range.
+
+**Compatibility:** network protocol 4 — v0.8 players can't join v0.9 games
+(they get a "version mismatch" message).
+
+**Known limitations:** greybox level layouts and code-built models (real
+art later); presets not yet tuned from real low-end hardware (please run the
+hardware test!); builds are not code-signed yet (Windows: *More info → Run
+anyway*; macOS: right-click → Open); players pass through each other; no NAT
+punch-through (forward UDP 7777 or use a VPN).
+
+For developers: Opus GDExtension (`native/opus_voice`, `tools/build_opus.sh`),
+`tools/tune_presets.py`, code-signing steps in the release workflow
+(`docs/SIGNING.md`), smoke test fails CI on script errors.
 
 ## v0.8.0 beta — first public beta
 

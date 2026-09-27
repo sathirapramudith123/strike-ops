@@ -1,6 +1,6 @@
 ; Inno Setup script for the Windows installer.
 ; Built by the release workflow (windows-latest has Inno Setup 6), or locally:
-;   iscc /DAppVersion=0.8.0-beta /DSourceDir=..\..\builds\windows installer\windows\FPSGame.iss
+;   iscc /DAppVersion=0.9.0-beta /DSourceDir=..\..\builds\windows installer\windows\FPSGame.iss
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"

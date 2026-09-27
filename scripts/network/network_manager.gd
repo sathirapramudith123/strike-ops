@@ -173,7 +173,7 @@ func get_player_name(peer_id: int) -> String:
 	return roster.get(peer_id, {}).get("name", "Player %d" % peer_id)
 
 
-## "v0.8.0 beta" — shown in menus, bug reports and the server log.
+## "v0.9.0 beta" — shown in menus, bug reports and the server log.
 static func version_string() -> String:
 	var v: String = ProjectSettings.get_setting("application/config/version", "0.0.0")
 	var channel: String = ProjectSettings.get_setting("application/config/release_channel", "")

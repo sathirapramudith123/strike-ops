@@ -20,6 +20,7 @@
 8. **Server** — update running dedicated servers (`docker compose pull/up`
    or replace the binary) at the same time as the client release.
 
-Signing (future): the Windows exe and macOS app are not code-signed yet, so
-SmartScreen / Gatekeeper warn on first launch. Add certificates to the
-workflow (`codesign/*` export options, `signtool`) when available.
+Signing: the release workflow signs Windows (Azure Trusted Signing or a .pfx)
+and signs + notarizes macOS once the certificates are added as secrets — see
+[`SIGNING.md`](SIGNING.md). Without them builds are published unsigned
+(SmartScreen / Gatekeeper warn on first launch).

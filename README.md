@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🧪 **v0.8.0 beta** — release-ready builds for Windows, Linux, macOS and a Linux dedicated server (FFA, TDM, Bomb Defusal; 5 weapons; 6 greybox maps with a map picker + end-of-match vote; voice chat; anti-cheat).
+> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal; 5 weapons; 6 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
 
 ---
 
@@ -437,6 +437,21 @@ Overall Low preset, 3 maps, 12 bots (llvmpipe): **avg 30.2 → 37.2 FPS**, worst
 
 **Budgets enforced by the smoke test:** ≤ 90 nodes per player, one decal node per level, static batching at least halves mesh count, occluders present, dynamic resolution drops/recovers, Low turns lights off.
 
+### v0.9 — new look (built in code)
+
+Until real art arrives, everything visible is generated — no texture or model files, so the download doesn't grow:
+
+| What | How |
+|------|-----|
+| **Surfaces** | One level shader (`assets/shaders/prototype_grid.gdshader`) with material *kinds*: concrete (mottling, slab seams), brushed metal, wood planks with grain, painted plaster with grime near the floor, stone paving with per-tile tint, foliage. World-space, so any box tiles correctly. `tools/greybox.py` picks the kind per material |
+| **Surface detail** | The noise is behind a real branch on the global `surface_detail`, off on Low (*Settings → Graphics → Surface detail*) — Low pays only for seams |
+| **Guns** | `WeaponModel` builds each weapon (AR-7, V-10, M-12, LR-50, P-9) from ~15–25 boxes/cylinders: rails, handguards, muzzle devices, magazines, scope with lens, bolt, pump grooves… The iron sights keep their exact positions, so ADS alignment is unchanged |
+| **Soldiers** | `PlayerModel`: helmet, visor, vest, shoulder pads (team colour), backpack, pouches, arms holding the current gun, legs that walk and crouch |
+| **Draw calls** | `MeshBuilder` merges all parts into **one vertex-coloured surface** (+ one tinted armour surface) with a shared shader — a player is 5 draw calls, like the old capsule |
+| **Lighting** | Filmic tonemapping, softer sky ambient, warm sun, subtle glow |
+
+Measured on the software renderer (Low, 12 bots, back-to-back runs): average **35.7 → 34.4 FPS (−3.6 %)**, draw calls unchanged (~50), nodes 1,600 → 1,380. *Replacing with real art:* swap `WeaponModel` / `PlayerModel` for imported `.glb` scenes and the level materials for textured ones — the gameplay code only needs the `Muzzle` marker and hitboxes.
+
 ### Phase 7b — real-hardware tuning
 
 The presets can only be tuned on real PCs, so the game measures itself and players send the results.
@@ -574,8 +589,10 @@ tools/build_release.sh /path/to/godot --verify
 **Automated releases:** push a tag → the *Release* workflow runs all tests, builds every package + the installer and publishes a GitHub Release (tags containing `-` are pre-releases). *CI* runs the smoke and multiplayer tests on every push and pull request. Maintainer steps: [`docs/RELEASE.md`](docs/RELEASE.md).
 
 ```bash
-git tag v0.8.0-beta && git push origin v0.8.0-beta
+git tag v0.9.0-beta && git push origin v0.9.0-beta
 ```
+
+**Code signing** — the Release workflow signs the Windows exe, Opus DLL and installer (Azure Trusted Signing or a `.pfx`) and signs + notarizes the macOS app as soon as the certificates are added as GitHub secrets; until then builds are unsigned (Windows: *More info → Run anyway*, macOS: right-click → *Open*). Costs and step-by-step: [`docs/SIGNING.md`](docs/SIGNING.md).
 
 **Dedicated server** — [`server/README.md`](server/README.md): `./run_server.sh --mode tdm --map warehouse` or Docker (`server/Dockerfile`, `server/docker-compose.yml`). Measured: ~96 MB RAM and ~8 % of one CPU core with 4 players.
 
@@ -613,6 +630,18 @@ git tag v0.8.0-beta && git push origin v0.8.0-beta
 | Performance overlay | `F3` |
 
 All keys (except `Esc`) can be remapped in **Settings → Controls**; aim and crouch can be set to *toggle*.
+
+**Controller** (Xbox names — PlayStation: A = ✕, B = ○, X = □, Y = △, LB/RB = L1/R1, LT/RT = L2/R2):
+
+| Action | Button | Action | Button |
+|--------|--------|--------|--------|
+| Move / look | Left / right stick | Shoot / aim | RT / LT |
+| Jump / crouch | A / B | Reload / next weapon | X / Y |
+| Sprint / slide | L3 / R3 (stick clicks) | Interact (plant, defuse) | LB |
+| Primary / pistol | D-pad ← / → | Team / proximity voice | D-pad ↑ / ↓ |
+| Scoreboard | View (Back) | Pause | Menu (Start) |
+
+Menus: D-pad / left stick to move, **A** to select, **B** to go back. **Settings → Controls → Controller:** look sensitivity (°/s), stick deadzone, response curve (Linear / Default / Precise), invert Y, **aim assist** (slows the aim while the crosshair is on an enemy — controller only), vibration; every action has a keyboard *and* a controller binding, both remappable (`scripts/core/gamepad_input.gd`).
 
 ---
 
@@ -676,7 +705,8 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 7 — Optimization:** built-in benchmark, dynamic resolution, performance advisor, static batching + occluders + detail distance, shared decals, shader warm-up, Low-preset light cuts, better auto-detect
 - [ ] **Phase 7b — Real-hardware pass:** ✅ tools done (full hardware test with renderer restarts, shareable reports, `tools/tune_presets.py`, measured GPU tiers for auto-detect) · ⏳ waiting for reports from the minimum-spec PCs (Intel UHD 620 / Vega 8) to tune the presets
 - [x] **Phase 8 — Release (beta):** export presets, release packages + checksums, Windows installer, dedicated-server package + Docker, CI + release workflows, anti-cheat, bug reporting, changelog
-- [ ] **v1.0:** beta feedback, real art, code signing, controller support
+- [x] **v0.9 — toward v1.0:** controller support (look curve, aim assist, rumble, remapping), new look from code (procedural materials, gun + soldier models, lighting), code-signing pipeline (off until certificates exist)
+- [ ] **v1.0:** beta feedback, presets tuned from hardware reports (Phase 7b), real art (CC0 packs or an artist), certificates for signing
 
 ---
 
