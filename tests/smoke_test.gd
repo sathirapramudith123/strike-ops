@@ -862,6 +862,30 @@ func _test_maps() -> void:
 	await _walk_forward_max_y(200)
 	_check(_player.global_position.z < -7.0, "bunker: atrium doors are passable (z=%.1f)" % _player.global_position.z)
 
+	# Kasbah: A ramp onto the terrace, Mid doors, the covered B Apartments.
+	await _load_map("res://scenes/levels/kasbah.tscn")
+	await _frames(40)
+	_check(_player.is_on_floor(), "kasbah: player lands")
+	_reset_player(Vector3(28, 0.1, -10.5))
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.y > 0.95 and _player.global_position.z < -18.5,
+		"kasbah: A ramp leads up onto the site terrace (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
+	_reset_player(Vector3(0, 0.1, 4))
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.z < -6.0, "kasbah: Mid doors are passable (z=%.1f)" % _player.global_position.z)
+	_reset_player(Vector3(-32, 0.1, 22))
+	await _walk_forward_max_y(330)
+	_check(_player.global_position.z < -2.0, "kasbah: B Apartments corridor is passable (z=%.1f)" % _player.global_position.z)
+
+	# Radar + location names (built from the map's collision shapes).
+	var radar: Minimap = _level.hud._minimap
+	_check(radar._polys.size() > 60, "radar outline built from the map (%d shapes)" % radar._polys.size())
+	_check(radar.location(Vector3(28, 1.1, -24)) == "Bombsite A" and radar.location(Vector3(0, 0.1, 8)) == "Mid"
+		and radar.location(Vector3(-34, 0.1, 10)) == "B Apartments", "location names: Bombsite A, Mid, B Apartments")
+	_check(radar.location(Vector3(-28, 0.1, -20)) == "Bombsite B", "bomb site fallback / callout for B")
+	var armed := _player.loadout_weapons().all(func(w: Weapon) -> bool: return w == null or w.has_node(^"Arms"))
+	_check(armed, "first-person weapons have gloved arms")
+
 	# Every map has team spawns and bomb sites A + B.
 	for m: Dictionary in GameConfig.MAPS:
 		var lvl := (load(m.path) as PackedScene).instantiate() as Level

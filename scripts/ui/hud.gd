@@ -1,8 +1,9 @@
 class_name Hud
 extends CanvasLayer
 ## In-game HUD: crosshair, scope, hit markers, health, ammo, weapon slots,
-## reload bar, damage flash, match timer/score, kill feed, scoreboard (Tab),
-## end-of-match results and the F3 performance overlay.
+## reload bar, damage flash, radar + location name, top bar (clock, scores,
+## player cards), kill feed, scoreboard (Tab), end-of-match results and the
+## F3 performance overlay.
 
 const KILL_FEED_TIME := 5.0
 const KILL_FEED_MAX := 5
@@ -25,7 +26,11 @@ const KILL_FEED_MAX := 5
 @onready var _speakers: VBoxContainer = %Speakers
 @onready var _scope: ScopeOverlay = %ScopeOverlay
 @onready var _match_bar: Label = %MatchBar
-@onready var _weapon_slots: Label = %WeaponSlots
+@onready var _weapon_slots: VBoxContainer = %WeaponSlots
+@onready var _minimap: Minimap = %Minimap
+@onready var _location_label: Label = %LocationLabel
+@onready var _top_bar: TopBar = %TopBar
+@onready var _health_icon: Control = %HealthIcon
 @onready var _end_screen: Control = %EndScreen
 @onready var _winner_label: Label = %WinnerLabel
 @onready var _next_map_label: Label = %NextMapLabel
@@ -38,6 +43,9 @@ const KILL_FEED_MAX := 5
 
 var _player: PlayerController
 var _weapon: Weapon
+var _location_timer := 0.0
+var _feed_style: StyleBoxFlat
+var _feed_style_mine: StyleBoxFlat
 
 
 ## Performance advisor: shown when dynamic resolution can't keep up.
@@ -84,6 +92,26 @@ func _ready() -> void:
 	VoiceChat.speaking_changed.connect(_on_speaking_changed)
 	Match.state_changed.connect(_on_match_state_changed)
 	_on_match_state_changed()
+	_health_icon.draw.connect(func() -> void:
+		var c := _health_icon.size * 0.5
+		var col := _health_label.modulate
+		_health_icon.draw_rect(Rect2(c - Vector2(3.5, 10), Vector2(7, 20)), col)
+		_health_icon.draw_rect(Rect2(c - Vector2(10, 3.5), Vector2(20, 7)), col))
+	_feed_style = StyleBoxFlat.new()
+	_feed_style.bg_color = Color(0.03, 0.04, 0.05, 0.6)
+	_feed_style.set_content_margin_all(4)
+	_feed_style.content_margin_left = 10
+	_feed_style.content_margin_right = 10
+	_feed_style.set_corner_radius_all(3)
+	_feed_style_mine = _feed_style.duplicate()
+	_feed_style_mine.border_color = Color(0.9, 0.2, 0.15)
+	_feed_style_mine.set_border_width_all(2)
+	var level := get_parent() as Level
+	_top_bar.level = level
+	if level and not level.preview_only:
+		_minimap.build.call_deferred(level)
+	else:
+		_minimap.visible = false
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -126,6 +154,12 @@ func _process(delta: float) -> void:
 		_scope.amount = clampf((_weapon.ads_blend - 0.85) / 0.15, 0.0, 1.0) if _weapon.data.scoped else 0.0
 	_update_match_bar()
 	_update_bomb_hud()
+	_location_timer -= delta
+	if _location_timer <= 0.0:
+		_location_timer = 0.25
+		var level := get_parent() as Level
+		var viewer: PlayerController = level.spectating() if level and level.spectating() else _player
+		_location_label.text = _minimap.location(viewer.global_position) if viewer and _minimap.level else ""
 	if _perf_label.visible:
 		_update_perf()
 
@@ -161,6 +195,9 @@ func _on_health_changed(current: float, maximum: float) -> void:
 	_health_bar.max_value = maximum
 	_health_bar.value = current
 	_health_label.text = str(ceili(current))
+	# White when healthy, red when low (the cross icon follows).
+	_health_label.modulate = Color(1, 0.35, 0.3) if current <= maximum * 0.25 else Color.WHITE
+	_health_icon.queue_redraw()
 
 
 func _on_ammo_changed(in_magazine: int, reserve: int) -> void:
@@ -212,8 +249,12 @@ func _on_speaking_changed(peer_id: int, speaking: bool) -> void:
 
 
 func _on_kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: bool) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_END
+	var panel := PanelContainer.new()
+	row.add_child(panel)
 	var box := HBoxContainer.new()
-	box.alignment = BoxContainer.ALIGNMENT_END
+	panel.add_child(box)
 	var local_id := multiplayer.get_unique_id()
 	if killer_id >= 0 and killer_id != victim_id:
 		box.add_child(_feed_label(NetworkManager.get_player_name(killer_id), killer_id))
@@ -222,14 +263,14 @@ func _on_kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot
 	else:
 		box.add_child(_feed_label(NetworkManager.get_player_name(victim_id), victim_id))
 		box.add_child(_feed_label("  fell", -2))
-	if killer_id == local_id or victim_id == local_id:
-		box.modulate = Color(1, 1, 1, 1)
-	else:
-		box.modulate = Color(1, 1, 1, 0.8)
-	_kill_feed.add_child(box)
+	# Your own kills and deaths get a red outline (as in CS).
+	var mine := killer_id == local_id or victim_id == local_id
+	panel.add_theme_stylebox_override(&"panel", _feed_style_mine if mine else _feed_style)
+	row.modulate = Color(1, 1, 1, 1) if mine else Color(1, 1, 1, 0.9)
+	_kill_feed.add_child(row)
 	while _kill_feed.get_child_count() > KILL_FEED_MAX:
 		_kill_feed.get_child(0).queue_free()
-	get_tree().create_timer(KILL_FEED_TIME).timeout.connect(box.queue_free)
+	get_tree().create_timer(KILL_FEED_TIME).timeout.connect(row.queue_free)
 
 
 ## Kill feed / scoreboard names are coloured by team (yellow = you).
@@ -252,32 +293,33 @@ func _name_color(peer_id: int) -> Color:
 	return Color.WHITE
 
 
+## Right-hand weapon list (CS style): the current weapon bright, others dim.
 func _update_weapon_slots() -> void:
 	if _player == null:
 		return
-	var parts := PackedStringArray()
+	for child in _weapon_slots.get_children():
+		child.queue_free()
 	var ws := _player.loadout_weapons()
 	for i in ws.size():
 		if ws[i]:
-			var n := ws[i].data.display_name.get_slice(" ", 0)
-			parts.append(("[%d] %s" if i == _player.current_slot else "%d %s") % [i + 1, n])
-	_weapon_slots.text = "   ".join(parts)
+			var current := i == _player.current_slot
+			var l := Label.new()
+			l.text = "%s   %d" % [ws[i].data.display_name.get_slice(" ", 0), i + 1]
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			l.add_theme_font_size_override(&"font_size", 18 if current else 14)
+			l.add_theme_color_override(&"font_color", Color(1, 0.9, 0.55) if current else Color(1, 1, 1, 0.55))
+			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
+			l.add_theme_constant_override(&"outline_size", 4)
+			_weapon_slots.add_child(l)
 
 
+## Objective line under the top bar (the clock and scores are drawn by TopBar).
 func _update_match_bar() -> void:
-	var t := ""
-	if Match.time_limit > 0.0:
-		var secs := ceili(Match.time_left)
-		t = "%d:%02d" % [secs / 60, secs % 60]
 	match Match.mode:
 		GameConfig.Mode.PRACTICE:
 			_match_bar.text = "Practice — %s" % GameConfig.map_name(NetworkManager.current_map)
 		GameConfig.Mode.BOMB:
 			var b := Match.bomb
-			var secs := ceili(b.phase_time_left)
-			var clock := "%d:%02d" % [secs / 60, secs % 60]
-			if b.phase == BombRules.Phase.PLANTED:
-				clock = "BOMB %s" % clock
 			var my_team := Match.get_team(multiplayer.get_unique_id())
 			var role := ""
 			if my_team >= 0:
@@ -286,18 +328,17 @@ func _update_match_bar() -> void:
 					role = "Protect the bomb at %s" % b.bomb_site if attacker else "Defuse the bomb at %s!" % b.bomb_site
 				else:
 					role = "Attack — plant the bomb at A or B" if attacker else "Defend — stop the plant or defuse"
-			_match_bar.text = "Round %d · BLUE %d   %s   %d RED\n%s" % [b.round_number, Match.team_scores[0], clock,
-				Match.team_scores[1], role]
+			_match_bar.text = role
 		GameConfig.Mode.TDM:
 			var my_team := Match.get_team(multiplayer.get_unique_id())
-			_match_bar.text = "BLUE %d   %s   %d RED\n%s" % [Match.team_scores[0], t, Match.team_scores[1],
-				("You are %s — first to %d" % [GameConfig.TEAM_NAMES[my_team], Match.score_limit]) if my_team >= 0 else ""]
+			_match_bar.text = ("You are %s — first to %d" % [GameConfig.TEAM_NAMES[my_team], Match.score_limit]) \
+				if my_team >= 0 else ""
 		_:
 			var mine: int = NetworkManager.roster.get(multiplayer.get_unique_id(), {}).get("kills", 0)
 			var best := 0
 			for id: int in NetworkManager.roster:
 				best = maxi(best, NetworkManager.roster[id].kills)
-			_match_bar.text = "%s\nYou %d · Leader %d · First to %d" % [t, mine, best, Match.score_limit]
+			_match_bar.text = "You %d · Leader %d · First to %d" % [mine, best, Match.score_limit]
 
 
 ## Bomb Defusal: centre messages, plant/defuse progress, carrier hint, spectating.

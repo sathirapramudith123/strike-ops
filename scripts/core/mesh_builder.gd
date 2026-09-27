@@ -24,6 +24,9 @@ const MATERIALS := {
 	&"skin": [Color(0.78, 0.62, 0.5), 0.0],
 	&"visor": [Color(0.06, 0.07, 0.08), 0.8],
 	&"armor": [Color(1, 1, 1), 0.0],
+	&"glove": [Color(0.1, 0.1, 0.09), 0.0],
+	&"glove_pad": [Color(0.2, 0.19, 0.16), 0.0],
+	&"sleeve": [Color(0.42, 0.41, 0.32), 0.0],
 }
 const TINTED := &"armor"
 

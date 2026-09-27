@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal; 5 weapons; 6 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
+> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal; 5 weapons; 7 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
 
 ---
 
@@ -334,7 +334,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps/bridges/gangways of every map, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps/bridges/gangways of every map, the Kasbah terrace, doors and covered corridor, the radar outline and location names, first-person arms, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -452,6 +452,18 @@ Until real art arrives, everything visible is generated — no texture or model 
 
 Measured on the software renderer (Low, 12 bots, back-to-back runs): average **35.7 → 34.4 FPS (−3.6 %)**, draw calls unchanged (~50), nodes 1,600 → 1,380. *Replacing with real art:* swap `WeaponModel` / `PlayerModel` for imported `.glb` scenes and the level materials for textured ones — the gameplay code only needs the `Muzzle` marker and hitboxes.
 
+### Desert town, CS-style HUD, hands (in development)
+
+| What | How |
+|------|-----|
+| **Kasbah map** | `kasbah()` in `tools/greybox.py`: a 3-lane bomb map, original layout. New generator helpers: `cyl()` (pots, barrels, sacks, wells), `beam()` (cables, palm fronds, poles), `blocker()` (one invisible collider for a pile of sandbags), rotated boxes (`pitch`/`roll`), facades with windows/shutters/doors/balconies, market stalls, palms, and `callout()` boxes that name places |
+| **Desert materials** | New kinds in the level shader: sandstone blocks (running bond, per-block tint), weathered plaster (bricks show through patches, water stains), irregular flagstones (cellular), striped cloth. Seams stay on Low; the noise needs *Surface detail* |
+| **Radar** | `scripts/ui/minimap.gd`: built once from the map's collision shapes (floor light, cover mid, walls dark; ceilings ignored), so every map gets one. Rotates with the view; teammates, bomb sites, carrier ring, dropped/planted bomb. `location()` reads the map's `Callouts` (falls back to "Bombsite A/B") |
+| **Top bar** | `scripts/ui/top_bar.gd`: clock (red after the plant), round number, team scores and up to 5 player cards per team (+N), dead players greyed out, you outlined in yellow |
+| **Hands** | `WeaponModel.get_arms_mesh()`: gloved hands at each gun's grip and fore-end / pump / front grip (pistol: two-handed), sleeved forearms — one extra draw call, first person only |
+
+Kasbah is the busiest map (~180 draw calls at the worst view on Low vs ~120 on Courtyard, after batching) — still far below what the minimum-spec GPUs handle.
+
 ### Phase 7b — real-hardware tuning
 
 The presets can only be tuned on real PCs, so the game measures itself and players send the results.
@@ -512,7 +524,7 @@ Preset files themselves are only *suggested* — review and edit `resources/sett
 | **Team Deathmatch** | Blue vs Red, auto-balanced on join, **friendly fire off** (bullets pass through teammates), first team to **50** kills or most after **10 min** |
 | **Bomb Defusal** | Rounds, first team to **5 round wins**; sides swap after round 4. See below |
 
-Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **map vote**: the results screen offers 3 maps (the next one in the rotation + 2 random maps that support the mode); press **`1` / `2` / `3`** to vote (you can change your vote). The map with the most votes wins; ties and no votes keep the normal rotation (Test Range → Warehouse → Courtyard → Rooftops → Docks → Bunker → …). Everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
+Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **map vote**: the results screen offers 3 maps (the next one in the rotation + 2 random maps that support the mode); press **`1` / `2` / `3`** to vote (you can change your vote). The map with the most votes wins; ties and no votes keep the normal rotation (Test Range → Warehouse → Courtyard → Rooftops → Docks → Bunker → Kasbah → …). Everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
 
 **Bomb Defusal**
 
@@ -551,6 +563,7 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Rooftops | Vertical, long range | Four flat roofs linked by two bridges, ramps up from the street, parked cars as cover, sites A/B in the street |
 | Docks | Outdoor, lanes | Container stacks on a quay, a moored ship (Red spawns on its deck) with two gangways, a crane |
 | Bunker | Indoor, small (2–8 players) | Central atrium with four doors, four corner rooms, tight corridors — fast rounds |
+| Kasbah | Desert town, bomb defusal | Three lanes (A Long, Mid with doors, covered B Apartments), Connector and Short; A is a raised terrace, B a courtyard round a well |
 
 **Map selection screen** — main menu → **Map: … ▸** opens a grid of map cards with a live top-down **preview** (rendered once from the real map and cached), players, style, supported modes and a description. Maps without bomb sites are greyed out in Bomb Defusal. The choice is saved in your settings. Map metadata lives in `GameConfig.MAPS` (`scripts/core/game_config.gd`); the screen is `scenes/ui/map_select.tscn` + `scripts/ui/map_select.gd`, previews come from `scripts/ui/map_preview.gd`.
 
@@ -706,6 +719,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [ ] **Phase 7b — Real-hardware pass:** ✅ tools done (full hardware test with renderer restarts, shareable reports, `tools/tune_presets.py`, measured GPU tiers for auto-detect) · ⏳ waiting for reports from the minimum-spec PCs (Intel UHD 620 / Vega 8) to tune the presets
 - [x] **Phase 8 — Release (beta):** export presets, release packages + checksums, Windows installer, dedicated-server package + Docker, CI + release workflows, anti-cheat, bug reporting, changelog
 - [x] **v0.9 — toward v1.0:** controller support (look curve, aim assist, rumble, remapping), new look from code (procedural materials, gun + soldier models, lighting), code-signing pipeline (off until certificates exist)
+- [x] **Desert town + CS-style HUD:** Kasbah map, desert materials, radar with location names, top bar with player cards, first-person hands, new sniper model
 - [ ] **v1.0:** beta feedback, presets tuned from hardware reports (Phase 7b), real art (CC0 packs or an artist), certificates for signing
 
 ---

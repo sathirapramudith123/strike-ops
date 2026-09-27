@@ -69,6 +69,13 @@ func _ready() -> void:
 		model.mesh = WeaponModel.get_mesh(data.weapon_id)
 		model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(model)
+	var arms_mesh := WeaponModel.get_arms_mesh(data.weapon_id)
+	if arms_mesh and not has_node(^"Arms"):
+		var arms := MeshInstance3D.new()
+		arms.name = "Arms"
+		arms.mesh = arms_mesh
+		arms.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(arms)
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
 

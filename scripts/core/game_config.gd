@@ -42,6 +42,9 @@ const MAPS: Array[Dictionary] = [
 	{ "id": "bunker", "name": "Bunker", "path": "res://scenes/levels/bunker.tscn", "bomb": true,
 		"style": "Indoor · small", "players": "2–8",
 		"description": "Symmetric rooms around a pillared atrium. Fast rounds, great for 2v2." },
+	{ "id": "kasbah", "name": "Kasbah", "path": "res://scenes/levels/kasbah.tscn", "bomb": true,
+		"style": "Desert town · bomb defusal", "players": "6–16",
+		"description": "Sun-baked town: A Long, Mid and the covered B Apartments. A is a raised terrace, B a courtyard around a well." },
 ]
 
 const TEAM_NONE := -1
