@@ -131,11 +131,12 @@ Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so th
 
 ### Game audio
 
-- **3D positional audio** for gunfire, footsteps, reloads and impacts.
-- **Audio buses:** `Master` → `Music`, `SFX`, `Voice`, `UI` — each with its own volume slider.
+- **3D positional audio** for gunfire (a different sound per weapon), footsteps, jumps, landings, slides, reloads, impacts and near-miss bullet whizzes.
+- **Audio buses:** `Master` (with a limiter) → `Music`, `SFX`, `Voice`, `UI` — each with its own volume slider.
 - **Occlusion & reverb zones** so sounds behind walls are muffled and indoor areas echo.
-- **Audio quality setting:** Low (22 kHz, fewer simultaneous voices) / High (48 kHz, up to 64 voices).
-- Sound files: `.ogg` (Vorbis) for music & long sounds, `.wav` for short SFX.
+- **Audio quality setting:** Low (16 sounds at once, no reverb) / High (40 sounds, reverb, continuous occlusion).
+- **Music:** menu theme and quiet in-match music, win/lose stings.
+- Every sound works without audio files (generated placeholders); drop `.ogg`/`.wav` files into `assets/audio/` to replace them — see *Phase 3* below.
 
 ### Voice chat
 
@@ -194,7 +195,7 @@ game-develop/
 │   ├── player/              # movement, input, health
 │   ├── weapons/             # shooting, recoil, ammo
 │   ├── network/             # NetworkManager, player state sync, lag compensation
-│   ├── audio/               # audio manager, occlusion, placeholder SFX
+│   ├── audio/               # Audio autoload (pooling, occlusion, music), sound synthesiser
 │   ├── levels/              # level base script, target dummies
 │   ├── ui/                  # menus, HUD, crosshair
 │   └── voice/               # voice capture, encode/decode, playback
@@ -253,7 +254,7 @@ Then open **Godot → Import → select `project.godot` → Import & Edit**, and
 | `scripts/core/settings_manager.gd` | **SettingsManager** autoload: graphics presets, display, audio, voice chat & controls; saves to `user://settings.cfg`; auto-detects a preset on first launch |
 | `scripts/core/graphics_preset.gd` | `GraphicsPreset` resource type (render scale, FSR, AA, shadows, LOD, SSAO/SSR/SDFGI, fog…) |
 | `resources/settings/graphics_presets/*.tres` | The Low / Medium / High / Ultra presets (edit in the Inspector) |
-| `resources/audio/default_bus_layout.tres` | Audio buses; `MicCapture` (muted, with `AudioEffectCapture`) is where voice chat reads the microphone |
+| `resources/audio/default_bus_layout.tres` | Audio buses; `MicCapture` (muted, with `AudioEffectCapture`) is where voice chat reads the microphone; `SFXOccluded` (low-pass), `ReverbRoom` / `ReverbHall` feed `SFX`; limiter on `Master` |
 | `scenes/main/main_menu.tscn` | Main menu (offline / host / join) + settings panel (quality, fullscreen, V-Sync, volumes, voice chat & microphone) |
 
 **Using the settings in a level:**
@@ -331,6 +332,35 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 
 **Known limitations (next steps):** players pass through each other; no NAT punch-through or encryption; no bans or admin commands yet.
 
+### Phase 3 — audio
+
+Everything goes through the **`Audio`** autoload (`scripts/audio/audio_manager.gd`):
+
+| Feature | How it works |
+|---------|--------------|
+| **Gunfire** | Each weapon has its own shot (AR-7, V-10, M-12, LR-50, P-9); heard up to 150 m (sniper 300 m); distant shots lose their highs |
+| **Footsteps** | One step per stride: walking normal, **sprinting loud (40 m)**, **crouch-walking nearly silent (8 m)** — also for other players, from their movement. Jump, landing (louder the harder you land) and slide sounds |
+| **Reload & handling** | Mag out → mag in → bolt, timed to the reload; dry fire; weapon switch |
+| **Bullets** | Impact sound where bullets hit; enemy bullets flying within 3 m of your head **whiz** past |
+| **Feedback** | Hit marker, headshot "ding", kill confirm (can be turned off), hurt thump when you take damage |
+| **Occlusion** | A ray from your ears to each sound: if a wall is in between, the sound goes to the `SFXOccluded` bus (low-pass + quieter). Long sounds re-check while they play (High quality) |
+| **Reverb zones** | `Area3D`s on physics layer 7 (`audio_zone`) send indoor sounds to `ReverbRoom` or `ReverbHall`: Warehouse hall + drier offices, Courtyard buildings, Bunker rooms + atrium. Add one in `tools/greybox.py` with `m.reverb(pos, size, "room"/"hall", amount)` |
+| **Music** | Menu theme (calm, A minor) and a quiet tense drone in matches (can be turned off); cross-fades between them; results screen plays a **win or lose sting**. Bomb Defusal: round start, bomb planted, defused, round won/lost stings |
+| **UI** | Every button clicks and ticks on hover |
+| **Voices** | Pooled players — Low: 16 at once, High: 40; when all are busy the oldest is reused. Sounds out of range aren't played at all. Nothing plays on a dedicated server |
+
+**Settings → Audio:** five volume sliders, *Audio quality* (Low PCs get Low automatically), *Music during matches*, *Hit & kill sounds*.
+
+**Placeholder sounds → real sounds.** All sounds are synthesised at startup on a background thread (`scripts/audio/procedural_sfx.gd`, `sfx_library.gd`, `music_synth.gd`), so the game needs no audio files. To use a real sound, add a file with the sound's name — it is picked up automatically, no code changes:
+
+| Put the file in | Names |
+|-----------------|-------|
+| `assets/audio/sfx/` | `fire_rifle` `fire_smg` `fire_shotgun` `fire_sniper` `fire_pistol` `dry_fire` `mag_out` `mag_in` `bolt` `equip` `step1`–`step4` `land` `jump` `slide` `impact` `whiz` `hurt` `bomb_beep` `explosion` |
+| `assets/audio/ui/` | `hitmarker` `headshot` `kill` `ui_click` `ui_hover` `bomb_planted` `bomb_defused` `round_start` `round_win` `round_lose` `match_win` `match_lose` |
+| `assets/audio/music/` | `menu` `match` (enable *Loop* in the import settings) |
+
+Formats: `.ogg` (music, long sounds), `.wav` (short sounds) or `.mp3`. Keep mono for 3D sounds. Audio files go through Git LFS, and their license goes in `docs/CREDITS.md`.
+
 ### Phase 7 — performance
 
 **Built-in benchmark** — flies the camera through every map with 12 moving, shooting bots and reports average FPS, **1% low**, frame-time spikes, draw calls, triangles and node count (saved as JSON in `user://benchmarks/`).
@@ -350,7 +380,7 @@ Or in game: **Settings → Graphics → Run benchmark** (the result and advice a
 |--------|-----|-----------------|
 | Hide the full-screen damage-flash when transparent | A transparent full-screen quad still costs fill rate every frame | Warehouse (Low) **30.8 → 36.9 FPS (+20%)** |
 | Shared `ImpactDecals` MultiMesh per level | Every weapon had 32 decal nodes (~160 per player) | **3,743 → 1,611 nodes** with 13 players (−57%); decals are 1 draw call |
-| Lazy weapon audio players | Most weapons of most players never fire | fewer nodes per player (now **74**, budget 90) |
+| Pooled audio (Phase 3) | Weapons had their own players; now one shared pool of 16–40 voices, and out-of-range sounds are skipped | fewer nodes per player (budget 90); benchmark unchanged with 12 shooting bots |
 | `dynamic_lights` preset option (off on Low) | In the OpenGL renderer every lamp adds a pass per lit object | Warehouse **27.9 → 31.0 FPS (+11%)** |
 | **Dynamic resolution** (on by default, target 60 FPS) | Lowers the 3D resolution only while frames are slow; HUD stays sharp | reached 0.5 scale automatically: **30.8 → 37.4 FPS** in the stress test |
 | Shader warm-up on level load | OpenGL compiles shaders on first use → hitch on the first shot / first enemy | worst 1% low **9.3 → 24 FPS**, no frames over 50 ms after warm-up |
@@ -560,7 +590,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 0 — Setup:** repository, `.gitignore`, README, Godot project, Git LFS rules
 - [x] **Phase 1 — Core gameplay:** player controller, camera, one weapon, test map, HUD, pause menu
 - [x] **Phase 2 — Settings:** full settings screen (6 tabs), custom graphics editor, key remapping, hold/toggle aim & crouch, crosshair options
-- [ ] **Phase 3 — Audio:** 3D SFX, audio buses, occlusion, music
+- [x] **Phase 3 — Audio:** 3D SFX for guns/footsteps/impacts, audio buses + limiter, occlusion, reverb zones, music + stings, audio quality setting (generated placeholders, replaceable by files)
 - [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
 - [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute
 - [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)

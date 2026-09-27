@@ -72,6 +72,13 @@ var dynamic_resolution_target_fps: int = 60
 var bus_volumes: Dictionary = {
 	&"Master": 1.0, &"Music": 0.6, &"SFX": 0.9, &"Voice": 1.0, &"UI": 0.8,
 }
+## 0 = Low (16 sounds at once, no reverb), 1 = High (40 sounds, reverb +
+## continuous occlusion). Low-end PCs get Low on first launch.
+var audio_quality: int = 1
+## Quiet background music during matches (menu music is always on).
+var match_music: bool = true
+## Hit marker / headshot / kill confirmation sounds.
+var hit_sounds: bool = true
 
 # Voice chat
 var voice_enabled: bool = true
@@ -327,6 +334,9 @@ func save() -> void:
 
 	for bus: StringName in AUDIO_BUSES:
 		_config.set_value("audio", String(bus).to_lower(), bus_volumes[bus])
+	_config.set_value("audio", "quality", audio_quality)
+	_config.set_value("audio", "match_music", match_music)
+	_config.set_value("audio", "hit_sounds", hit_sounds)
 
 	_config.set_value("voice", "enabled", voice_enabled)
 	_config.set_value("voice", "mode", voice_mode)
@@ -383,6 +393,11 @@ func _load_all(first_launch: bool) -> void:
 
 	for bus: StringName in AUDIO_BUSES:
 		bus_volumes[bus] = _config.get_value("audio", String(bus).to_lower(), bus_volumes[bus])
+	if first_launch and quality == GraphicsPreset.Quality.LOW:
+		audio_quality = 0
+	audio_quality = clampi(_config.get_value("audio", "quality", audio_quality), 0, 1)
+	match_music = _config.get_value("audio", "match_music", match_music)
+	hit_sounds = _config.get_value("audio", "hit_sounds", hit_sounds)
 
 	voice_enabled = _config.get_value("voice", "enabled", voice_enabled)
 	voice_mode = _config.get_value("voice", "mode", voice_mode)

@@ -62,6 +62,7 @@ size = Vector3(0.05, 0.1, 0.28)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.21, -0.45)
 script = ExtResource("1_weapon")
 data = ExtResource("2_data")
+fire_sound_distance = 300.0
 muzzle = NodePath("Muzzle")
 muzzle_flash = NodePath("Muzzle/Flash")
 ads_position = Vector3(0, -0.085, -0.25)

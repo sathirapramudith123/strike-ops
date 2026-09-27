@@ -9,8 +9,6 @@ const BEEP_FAST := 0.12
 
 var _mesh: MeshInstance3D
 var _light: OmniLight3D
-var _beep: AudioStreamPlayer3D
-var _boom: AudioStreamPlayer3D
 var _flash: OmniLight3D
 var _beep_timer: float = 0.0
 var _flash_t: float = 0.0
@@ -31,15 +29,6 @@ func _ready() -> void:
 	_light.light_energy = 0.0
 	_light.position.y = 0.15
 	add_child(_light)
-	_beep = AudioStreamPlayer3D.new()
-	_beep.stream = ProceduralSfx.click(2200.0, 0.06)
-	_beep.bus = &"SFX"
-	add_child(_beep)
-	_boom = AudioStreamPlayer3D.new()
-	_boom.stream = ProceduralSfx.noise_burst(1.6, 3.0, 0.15, 1.0)
-	_boom.bus = &"SFX"
-	_boom.unit_size = 25.0
-	add_child(_boom)
 	_flash = OmniLight3D.new()
 	_flash.light_color = Color(1, 0.7, 0.35)
 	_flash.omni_range = 25.0
@@ -88,12 +77,12 @@ func _tick(delta: float, fraction: float) -> void:
 	_beep_timer -= delta
 	if _beep_timer <= 0.0:
 		_beep_timer = interval
-		_beep.play()
+		Audio.play_3d(&"bomb_beep", global_position, -2.0, 40.0, 1.0, 6.0)
 		_light.light_energy = 3.0
 	_light.light_energy = move_toward(_light.light_energy, 0.0, delta * 20.0)
 
 
 func _on_exploded(pos: Vector3) -> void:
 	global_position = pos + Vector3.UP * 0.5
-	_boom.play()
+	Audio.play_3d(&"explosion", global_position, 0.0, 250.0, 1.0, 25.0)
 	_flash_t = 1.0

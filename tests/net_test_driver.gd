@@ -58,6 +58,12 @@ func _run_host() -> void:
 	var moved: Variant = await _wait_for(func() -> Variant:
 		return true if client.global_position.distance_to(start) > 1.0 else null)
 	_check(moved == true, "client movement replicated to host")
+	var steps: Variant = await _wait_for(func() -> Variant:
+		var n := 0
+		for i in range(1, 5):
+			n += int(Audio.stats.get("3d:step%d" % i, 0))
+		return n if n > 0 else null)
+	_check(steps != null, "host hears the client's footsteps in 3D (%s)" % steps)
 
 	await _voice_exchange(client_id, 500.0, 440.0)
 
@@ -66,6 +72,7 @@ func _run_host() -> void:
 	_check(hurt == true, "client's shots damage the host (server-side hit)")
 	var died: Variant = await _wait_for(func() -> Variant: return true if me.health.is_dead else null)
 	_check(died == true, "host player dies")
+	_check(int(Audio.stats.get("3d:fire_rifle", 0)) > 0, "host hears the client's gunfire in 3D")
 	_check(NetworkManager.roster.get(client_id, {}).get("kills", 0) >= 1, "kill credited to client")
 	_check(NetworkManager.roster.get(1, {}).get("deaths", 0) >= 1, "death credited to host")
 	_check(_kill_feed_seen, "kill feed on host")
@@ -130,6 +137,8 @@ func _run_client() -> void:
 	Input.action_release(&"shoot")
 	Input.action_release(&"aim")
 	_check(host.health.is_dead, "host death replicated to client")
+	_check(int(Audio.stats.get("ui:hitmarker", 0)) + int(Audio.stats.get("ui:kill", 0)) > 0,
+		"client hears hit markers from the server's hit confirmation")
 	await _frames(10)
 	_check(NetworkManager.roster.get(me.peer_id, {}).get("kills", 0) >= 1, "client sees its kill in roster")
 	_check(_kill_feed_seen, "kill feed on client")

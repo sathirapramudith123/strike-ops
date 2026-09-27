@@ -150,6 +150,7 @@ func _server_slot(slot: int) -> void:
 		return
 	slot = clampi(slot, 0, 1)
 	player._equip_slot(slot)
+	player.play_equip_sound()
 	NetworkManager.send_to_ready(self, &"_client_slot", [slot], [player.peer_id])
 
 
@@ -157,6 +158,7 @@ func _server_slot(slot: int) -> void:
 func _client_slot(slot: int) -> void:
 	if multiplayer.get_remote_sender_id() == 1 and not player.is_local:
 		player._equip_slot(clampi(slot, 0, 1))
+		player.play_equip_sound()
 
 
 ## Server: respawn right now without counting a death (team switch).

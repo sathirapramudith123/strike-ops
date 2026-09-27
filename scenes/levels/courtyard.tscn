@@ -1,4 +1,4 @@
-[gd_scene load_steps=162 format=3]
+[gd_scene load_steps=164 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -590,6 +590,12 @@ size = Vector3(7.000, 0.020, 7.000)
 [sub_resource type="BoxMesh" id="Mesh_76"]
 material = SubResource("Mat_site")
 size = Vector3(7.000, 0.020, 7.000)
+
+[sub_resource type="BoxShape3D" id="Zone_1"]
+size = Vector3(10.000, 5.600, 16.000)
+
+[sub_resource type="BoxShape3D" id="Zone_2"]
+size = Vector3(10.000, 5.600, 16.000)
 
 [node name="Courtyard" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points", "bomb_sites")]
 script = ExtResource("1_level")
@@ -1332,6 +1338,36 @@ outline_modulate = Color(0, 0, 0, 0.8)
 text = "B"
 font_size = 160
 outline_size = 24
+
+[node name="AudioZones" type="Node3D" parent="."]
+
+[node name="Reverb1" type="Area3D" parent="AudioZones"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.0, 2.8, 0)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+priority = 0
+reverb_bus_enabled = true
+reverb_bus_name = &"ReverbRoom"
+reverb_bus_amount = 0.35
+reverb_bus_uniformity = 0.2
+
+[node name="Shape" type="CollisionShape3D" parent="AudioZones/Reverb1"]
+shape = SubResource("Zone_1")
+
+[node name="Reverb2" type="Area3D" parent="AudioZones"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.0, 2.8, 0)
+collision_layer = 64
+collision_mask = 0
+monitoring = false
+priority = 0
+reverb_bus_enabled = true
+reverb_bus_name = &"ReverbRoom"
+reverb_bus_amount = 0.35
+reverb_bus_uniformity = 0.2
+
+[node name="Shape" type="CollisionShape3D" parent="AudioZones/Reverb2"]
+shape = SubResource("Zone_2")
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 

@@ -63,7 +63,9 @@ func _show_toast(text: String) -> void:
 func bind_player(player: PlayerController) -> void:
 	_player = player
 	player.health.health_changed.connect(_on_health_changed)
-	player.health.damaged.connect(func(_a: float, _s: Node, _h: bool) -> void: _damage_flash.color.a = 0.35)
+	player.health.damaged.connect(func(_a: float, _s: Node, _h: bool) -> void:
+		_damage_flash.color.a = 0.35
+		Audio.play_local(&"hurt", -4.0, randf_range(0.9, 1.1)))
 	_on_health_changed(player.health.current, player.health.max_health)
 	_bind_weapon(player.current_weapon)
 
@@ -129,8 +131,14 @@ func _bind_weapon(weapon: Weapon) -> void:
 	_update_weapon_slots()
 	if not weapon.ammo_changed.is_connected(_on_ammo_changed):
 		weapon.ammo_changed.connect(_on_ammo_changed)
-		weapon.hit_confirmed.connect(func(kill: bool, _head: bool) -> void: _crosshair.show_hit(kill))
+		weapon.hit_confirmed.connect(_on_hit_confirmed)
 	_on_ammo_changed(weapon.ammo_in_magazine, weapon.ammo_reserve)
+
+
+func _on_hit_confirmed(kill: bool, head: bool) -> void:
+	_crosshair.show_hit(kill)
+	if SettingsManager.hit_sounds:
+		Audio.play_ui(&"kill" if kill else (&"headshot" if head else &"hitmarker"), -4.0 if kill else -8.0)
 
 
 func _update_crosshair() -> void:

@@ -38,6 +38,7 @@ func _run() -> void:
 	await _test_weapon_switching()
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
+	await _test_audio()
 	_test_friendly_fire_and_match_end()
 	await _test_bomb_defusal()
 	await _test_settings_menu()
@@ -367,6 +368,8 @@ func _test_friendly_fire_and_match_end() -> void:
 	_check(Match.team_scores[0] == 1, "team score counts the kill")
 	_check(Match.is_ended() and Match.winner_text == "Blue team wins!", "score limit ends the match (%s)" % Match.winner_text)
 	_check(_level.hud.get_node("%EndScreen").visible, "results screen shown")
+	_check(Audio.stats.get("ui:match_win", 0) == 1 and Audio.current_music == &"",
+		"winning team hears the win sting, music fades out")
 
 	# Map vote: rotation-next first, no duplicates, never the current map.
 	var candidates := Match.vote_maps
@@ -705,6 +708,12 @@ func _test_maps() -> void:
 		top = maxf(top, _player.global_position.y)
 	_release_all()
 	_check(top > 2.8, "warehouse: ramp reaches the catwalk (max y=%.2f)" % top)
+	# Reverb zones: the same point query the audio engine uses.
+	var hall := _reverb_zone_at(Vector3(0, 2, 0))
+	var office := _reverb_zone_at(Vector3(-18.5, 1.5, 12.5))
+	_check(hall and hall.reverb_bus_name == &"ReverbHall" and office and office.reverb_bus_name == &"ReverbRoom"
+		and office.priority > hall.priority, "warehouse: hall echo, drier offices (reverb zones)")
+	_check(_reverb_zone_at(Vector3(0, 2, 40)) == null, "no reverb outside the building")
 
 	# Courtyard: ramp inside the west building to the upper floor (3.6 m).
 	await _load_map("res://scenes/levels/courtyard.tscn")
@@ -755,6 +764,144 @@ func _test_maps() -> void:
 		var ok := lvl.blue_spawn_points.size() >= 3 and lvl.red_spawn_points.size() >= 3 and lvl.bomb_sites.size() == 2
 		lvl.free()
 		_check(ok, "%s: team spawns + bomb sites A/B" % m.name)
+
+
+## Phase 3: sound effects, occlusion, voices, music, UI and feedback sounds.
+func _test_audio() -> void:
+	for bus: StringName in [&"SFXOccluded", &"ReverbRoom", &"ReverbHall"]:
+		var idx := AudioServer.get_bus_index(bus)
+		_check(idx >= 0 and AudioServer.get_bus_send(idx) == &"SFX", "bus %s exists and feeds SFX" % bus)
+	var bad := PackedStringArray()
+	for sound in SfxLibrary.NAMES:
+		var st := SfxLibrary.get_sound(sound)
+		if st == null or st.get_length() < 0.02:
+			bad.append(sound)
+	_check(bad.is_empty(), "all %d placeholder sounds generate (%s)" % [SfxLibrary.NAMES.size(), ", ".join(bad)])
+
+	# Background generation → the level's match music starts.
+	var t := 0.0
+	while not Audio.generated and t < 30.0:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	var menu := Audio.music_stream(&"menu") as AudioStreamWAV
+	_check(Audio.generated and menu and menu.get_length() > 15.0 and menu.loop_mode == AudioStreamWAV.LOOP_FORWARD,
+		"music generated in the background (menu loop %.1f s, took %.1f s)" % [menu.get_length() if menu else 0.0, t])
+	_check(Audio.current_music == &"match" and Audio.is_music_playing(), "match music plays in a level")
+
+	# Gunfire, footsteps, hit / kill / hurt feedback.
+	_reset_player(Vector3(0, 0.1, 10))
+	await _frames(5)
+	_player.select_slot(0)
+	var rifle := _player.current_weapon
+	rifle.refill_ammo()
+	rifle._cooldown = 0.0
+	var before := Audio.stats.duplicate()
+	var fired := rifle.try_fire()
+	_check(fired and _stat_delta(before, "3d:fire_" + rifle.data.weapon_id) == 1,
+		"%s shot plays its own gunshot" % rifle.data.display_name)
+	Input.action_press(&"move_forward")
+	await _frames(90)
+	_release_all()
+	var steps := 0
+	for i in range(1, 5):
+		steps += _stat_delta(before, "local:step%d" % i)
+	_check(steps >= 2, "walking plays footsteps (%d)" % steps)
+	rifle.hit_confirmed.emit(false, false)
+	rifle.hit_confirmed.emit(false, true)
+	rifle.hit_confirmed.emit(true, false)
+	_check(_stat_delta(before, "ui:hitmarker") == 1 and _stat_delta(before, "ui:headshot") == 1
+		and _stat_delta(before, "ui:kill") == 1, "hit marker, headshot and kill sounds")
+	SettingsManager.hit_sounds = false
+	rifle.hit_confirmed.emit(false, false)
+	SettingsManager.hit_sounds = true
+	_check(_stat_delta(before, "ui:hitmarker") == 1, "hit sounds can be turned off")
+	_player.health.take_damage(5.0, null)
+	_check(_stat_delta(before, "local:hurt") == 1, "taking damage plays a hurt sound")
+
+	# Reload sequence: mag out → mag in → bolt.
+	rifle.ammo_in_magazine = 1
+	rifle.reload()
+	await get_tree().create_timer(rifle.data.reload_time + 0.2).timeout
+	_check(_stat_delta(before, "3d:mag_out") == 1 and _stat_delta(before, "3d:mag_in") == 1
+		and _stat_delta(before, "3d:bolt") == 1, "reload plays mag out, mag in, bolt")
+
+	# A remote player walking nearby is heard in 3D; a bullet past the head whizzes.
+	var other := _level.spawn_player(405, "Walker", Transform3D(Basis.IDENTITY, Vector3(3, 0, 10)))
+	await _frames(2)
+	for i in 60:
+		other.apply_remote_state(Vector3(3, 0, 10 - i * 0.1), 0.0, 0.0, other.stand_height, 0)
+		await get_tree().physics_frame
+	var remote_steps := 0
+	for i in range(1, 5):
+		remote_steps += _stat_delta(before, "3d:step%d" % i)
+	_check(remote_steps >= 2, "remote footsteps are positional (%d)" % remote_steps)
+	_level.despawn_player(405)
+	var ear := Audio.listener_position()
+	Audio.bullet_passed(ear + Vector3(0, 0, -40), ear + Vector3(1.0, 0, 20))
+	Audio.bullet_passed(ear + Vector3(0, 0, -40), ear + Vector3(10.0, 0, 20))
+	_check(_stat_delta(before, "3d:whiz") == 1, "near miss whizzes, far miss doesn't")
+
+	# Occlusion: a wall between the listener and the sound muffles it.
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(6, 6, 0.5)
+	shape.shape = box
+	wall.add_child(shape)
+	wall.position = ear + Vector3(0, 0, -4)
+	add_child(wall)
+	await _frames(2)
+	var behind := ear + Vector3(0, 0, -9)
+	_check(Audio.is_occluded(ear, behind) and not Audio.is_occluded(ear, ear + Vector3(0, 0, 3)),
+		"walls block sound (occlusion ray)")
+	var v := Audio.play_3d(&"impact", behind, 0.0, 50.0)
+	var v2 := Audio.play_3d(&"impact", ear + Vector3(2, 0, 0), 0.0, 50.0)
+	_check(v and v.bus == &"SFXOccluded" and v2 and v2.bus == &"SFX", "sound behind a wall goes to the muffled bus")
+	_check(Audio.play_3d(&"impact", ear + Vector3(0, 0, 200), 0.0, 50.0) == null, "sounds beyond their range are skipped")
+	wall.queue_free()
+
+	# Voice limit follows the audio quality; Low turns reverb off.
+	SettingsManager.audio_quality = 0
+	SettingsManager.apply_audio()
+	for i in 40:
+		Audio.play_3d(&"impact", ear + Vector3(1, 0, 0), -30.0, 50.0)
+	var room := AudioServer.get_bus_index(&"ReverbRoom")
+	_check(Audio.voice_count() <= 16 and AudioServer.is_bus_mute(room), "Low audio: max 16 sounds, no reverb (%d)" % Audio.voice_count())
+	SettingsManager.audio_quality = 1
+	SettingsManager.apply_audio()
+	_check(Audio.max_voices == 40 and not AudioServer.is_bus_mute(room), "High audio: 40 sounds, reverb on")
+
+	# Match music can be switched off; buttons click.
+	SettingsManager.match_music = false
+	SettingsManager.apply_audio()
+	await _frames(2)
+	_check(not Audio.is_music_playing(), "match music can be turned off")
+	SettingsManager.match_music = true
+	SettingsManager.apply_audio()
+	_check(Audio.is_music_playing(), "…and back on")
+	var button := Button.new()
+	add_child(button)
+	button.pressed.emit()
+	_check(_stat_delta(before, "ui:ui_click") == 1, "buttons click")
+	button.queue_free()
+
+
+func _stat_delta(before: Dictionary, key: String) -> int:
+	return int(Audio.stats.get(key, 0)) - int(before.get(key, 0))
+
+
+func _reverb_zone_at(pos: Vector3) -> Area3D:
+	var q := PhysicsPointQueryParameters3D.new()
+	q.position = pos
+	q.collide_with_areas = true
+	q.collide_with_bodies = false
+	q.collision_mask = Audio.AUDIO_ZONE_MASK
+	var best: Area3D = null
+	for hit in _level.get_world_3d().direct_space_state.intersect_point(q):
+		var a := hit.collider as Area3D
+		if a and a.reverb_bus_enabled and (best == null or a.priority > best.priority):
+			best = a
+	return best
 
 
 func _walk_forward_max_y(frames: int) -> float:

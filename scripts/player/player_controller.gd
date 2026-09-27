@@ -21,6 +21,14 @@ extends CharacterBody3D
 
 signal respawned
 
+## Footsteps: metres between steps, and [volume dB, heard up to m].
+const STRIDE_WALK := 2.2
+const STRIDE_SPRINT := 2.9
+const STRIDE_CROUCH := 1.6
+const STEP_WALK := [-6.0, 25.0]
+const STEP_SPRINT := [0.0, 40.0]
+const STEP_CROUCH := [-18.0, 8.0]
+
 @export_group("Movement")
 @export var walk_speed: float = 5.0
 @export var sprint_speed: float = 8.0
@@ -98,6 +106,9 @@ var _fell_reported: bool = false
 var _torso_material: StandardMaterial3D
 var _default_regen: float = 0.0
 var _crouch_toggled: bool = false
+var _step_distance: float = 0.0
+var _remote_vy: float = 0.0
+var _was_sliding: bool = false
 
 
 func _enter_tree() -> void:
@@ -243,10 +254,15 @@ func _physics_process(delta: float) -> void:
 		velocity.y = jump_velocity
 		_jump_buffer_timer = 0.0
 		_coyote_timer = 0.0
+		_movement_sound(&"jump", -10.0, 12.0)
 		if is_sliding:
 			_end_slide() # slide-jump keeps the momentum
 
+	var fall_speed := -velocity.y
 	move_and_slide()
+	if is_on_floor() and not on_floor and fall_speed > 3.0:
+		_landed(fall_speed)
+	_advance_footsteps(Vector2(velocity.x, velocity.z).length() * delta, is_on_floor())
 
 	_update_height(delta)
 	_update_camera(delta, on_floor)
@@ -282,7 +298,12 @@ func select_slot(slot: int) -> void:
 	if slot == current_slot or health.is_dead:
 		return
 	_equip_slot(slot)
+	play_equip_sound()
 	net_sync.send_slot(slot)
+
+
+func play_equip_sound() -> void:
+	_movement_sound(&"equip", -6.0, 12.0)
 
 
 ## Applies a slot change without replicating it (used by NetSync).
@@ -326,6 +347,7 @@ func respawn_at(xform: Transform3D, primary: String) -> void:
 
 ## Called by PlayerNetSync for remote players (interpolated state).
 func apply_remote_state(pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:
+	var previous := global_position
 	global_position = pos
 	rotation.y = yaw
 	head.rotation.x = pitch
@@ -335,6 +357,7 @@ func apply_remote_state(pos: Vector3, yaw: float, pitch: float, height: float, f
 	if not is_equal_approx(height, _height):
 		_height = height
 		_apply_height()
+	_remote_movement_sounds(previous, pos)
 
 
 func current_height() -> float:
@@ -365,6 +388,7 @@ func set_speaking(speaking: bool) -> void:
 
 func _start_slide(horizontal: Vector3) -> void:
 	is_sliding = true
+	_movement_sound(&"slide", -4.0, 25.0)
 	var boosted := horizontal + horizontal.normalized() * slide_boost
 	velocity.x = boosted.x
 	velocity.z = boosted.z
@@ -433,6 +457,63 @@ func _update_camera(delta: float, on_floor: bool) -> void:
 	if current_weapon:
 		fov *= lerpf(1.0, current_weapon.data.ads_fov_multiplier, current_weapon.ads_blend)
 	camera.fov = lerpf(camera.fov, fov, clampf(delta * 10.0, 0.0, 1.0))
+
+
+# --- Movement sounds ----------------------------------------------------------
+
+## Footsteps every stride on the ground; louder when sprinting, near-silent crouched.
+func _advance_footsteps(moved: float, grounded: bool) -> void:
+	if not grounded or is_sliding or moved <= 0.0 or not Audio.is_active():
+		return
+	_step_distance += moved
+	var stride := STRIDE_CROUCH if is_crouching else (STRIDE_SPRINT if is_sprinting else STRIDE_WALK)
+	if _step_distance < stride:
+		return
+	_step_distance = 0.0
+	if not is_local and not _ground_below():
+		return
+	var loudness: Array = STEP_CROUCH if is_crouching else (STEP_SPRINT if is_sprinting else STEP_WALK)
+	_movement_sound(StringName("step%d" % randi_range(1, 4)), loudness[0], loudness[1])
+
+
+func _landed(fall_speed: float) -> void:
+	_step_distance = STRIDE_WALK * 0.5 # first step comes soon after landing
+	_movement_sound(&"land", remap(clampf(fall_speed, 3.0, 12.0), 3.0, 12.0, -10.0, 0.0), 30.0)
+
+
+## Remote players: steps, jumps and landings guessed from their movement.
+func _remote_movement_sounds(previous: Vector3, pos: Vector3) -> void:
+	if health.is_dead or not Audio.is_active():
+		return
+	var moved := Vector2(pos.x - previous.x, pos.z - previous.z).length()
+	if moved > 3.0:
+		_remote_vy = 0.0 # teleport / respawn
+		return
+	var vy := (pos.y - previous.y) / get_physics_process_delta_time()
+	if _remote_vy < -3.0 and vy > -0.5:
+		_landed(-_remote_vy)
+	elif vy > 3.5 and _remote_vy < 1.0:
+		_movement_sound(&"jump", -10.0, 12.0)
+	_remote_vy = vy
+	if is_sliding and not _was_sliding:
+		_movement_sound(&"slide", -4.0, 25.0)
+	_was_sliding = is_sliding
+	_advance_footsteps(moved, absf(vy) < 3.0)
+
+
+func _ground_below() -> bool:
+	var from := global_position + Vector3.UP * 0.1
+	var query := PhysicsRayQueryParameters3D.create(from, from + Vector3.DOWN * 0.45, 1)
+	return not get_world_3d().direct_space_state.intersect_ray(query).is_empty()
+
+
+## The local player hears their own movement without panning; others hear it in 3D.
+func _movement_sound(sound: StringName, volume_db: float, max_distance: float) -> void:
+	if is_local:
+		Audio.play_local(sound, volume_db - 8.0, randf_range(0.92, 1.08))
+	else:
+		Audio.play_3d(sound, global_position + Vector3.UP * 0.2, volume_db, max_distance,
+			randf_range(0.92, 1.08), 3.0)
 
 
 func _on_died(_source: Node) -> void:

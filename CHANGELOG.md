@@ -10,6 +10,18 @@
 - **End-of-match map vote:** 3 candidates on the results screen, vote with
   1 / 2 / 3; ties keep the normal rotation.
 - Network protocol version 3 (older clients get a version-mismatch message).
+- **Audio (Phase 3):** a different gunshot per weapon, footsteps (sprinting
+  is loud, crouch-walking nearly silent) for you and other players, jump /
+  land / slide, reload sequence, bullet impacts and near-miss whizzes, hit
+  marker / headshot / kill sounds, hurt sound.
+- Walls muffle sounds behind them (occlusion); indoor areas echo (reverb
+  zones in Warehouse, Courtyard buildings and Bunker).
+- Menu music, quiet in-match music, win/lose and Bomb Defusal stings; every
+  button clicks.
+- Settings → Audio: *Audio quality* (Low / High), *Music during matches*,
+  *Hit & kill sounds*.
+- Sounds are generated placeholders; drop files into `assets/audio/` to
+  replace them (see README → Phase 3).
 
 ## v0.8.0 beta — first public beta
 

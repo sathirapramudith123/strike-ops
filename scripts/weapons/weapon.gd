@@ -23,9 +23,13 @@ const HIT_MASK := (1 << 0) | (1 << 2)
 @export var muzzle_flash: Node3D
 ## Viewmodel offset while aiming down sights (hip offset is the scene position).
 @export var ads_position: Vector3 = Vector3(0.0, -0.075, -0.3)
+## Optional custom sounds; empty = SfxLibrary's "fire_<weapon_id>", "dry_fire"
+## and the reload sequence ("mag_out", "mag_in", "bolt").
 @export var fire_sound: AudioStream
 @export var dry_fire_sound: AudioStream
 @export var reload_sound: AudioStream
+## Gunfire is heard up to this far (metres).
+@export var fire_sound_distance: float = 150.0
 
 var ammo_in_magazine: int
 var ammo_reserve: int
@@ -44,7 +48,8 @@ var _bloom: float = 0.0
 var _hip_position: Vector3
 var _kick: float = 0.0
 var _flash_timer: float = 0.0
-var _audio: AudioStreamPlayer3D
+var _reload_sounds_left: int = 0
+var _last_impact_sound_ms: int = 0
 var _rng := RandomNumberGenerator.new()
 var _viewmodel_meshes: Array[Node] = []
 var _server_last_shot: float = -1.0
@@ -58,12 +63,6 @@ func _ready() -> void:
 	ammo_reserve = data.starting_reserve
 	if muzzle_flash:
 		muzzle_flash.visible = false
-	if fire_sound == null:
-		fire_sound = ProceduralSfx.noise_burst(0.25, 22.0, 0.35)
-	if dry_fire_sound == null:
-		dry_fire_sound = ProceduralSfx.click(1400.0)
-	if reload_sound == null:
-		reload_sound = ProceduralSfx.click(600.0, 0.08)
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
 
@@ -83,6 +82,7 @@ func unequip() -> void:
 	is_aiming = false
 	_aim_toggled = false
 	is_reloading = false
+	_reload_sounds_left = 0
 	ads_blend = 0.0
 	visible = false
 	set_physics_process(false)
@@ -110,6 +110,7 @@ func _physics_process(delta: float) -> void:
 
 	if is_reloading:
 		_reload_timer -= delta
+		_reload_sound_step()
 		if _reload_timer <= 0.0:
 			_finish_reload()
 
@@ -131,7 +132,7 @@ func try_fire() -> bool:
 		return false
 	if ammo_in_magazine <= 0:
 		if Input.is_action_just_pressed("shoot"):
-			_play(dry_fire_sound)
+			_play(dry_fire_sound if dry_fire_sound else &"dry_fire", -4.0, 1.0, 10.0)
 		if ammo_reserve > 0:
 			reload()
 		return false
@@ -148,7 +149,7 @@ func try_fire() -> bool:
 		_rng.randf_range(-data.recoil_yaw, data.recoil_yaw) * recoil_mult)
 
 	_show_muzzle_flash()
-	_play(fire_sound, _rng.randf_range(0.95, 1.05))
+	_play_fire()
 	fired.emit()
 	ammo_changed.emit(ammo_in_magazine, ammo_reserve)
 	return true
@@ -159,7 +160,12 @@ func reload() -> void:
 		return
 	is_reloading = true
 	_reload_timer = data.reload_time
-	_play(reload_sound)
+	if reload_sound:
+		_play(reload_sound, -4.0, 1.0, 15.0)
+		_reload_sounds_left = 0
+	else:
+		_play(&"mag_out", -4.0, 1.0, 15.0)
+		_reload_sounds_left = 2
 	reload_started.emit(data.reload_time)
 	if not multiplayer.is_server() and NetworkManager.is_online():
 		_server_reload.rpc_id(1)
@@ -355,9 +361,13 @@ func _remote_fire_fx(hit_positions: PackedVector3Array, hit_normals: PackedVecto
 
 func _play_remote_fx(hit_positions: PackedVector3Array, hit_normals: PackedVector3Array) -> void:
 	_show_muzzle_flash()
-	_play(fire_sound, _rng.randf_range(0.95, 1.05))
+	_play_fire()
 	for i in mini(hit_positions.size(), hit_normals.size()):
 		_spawn_impact(hit_positions[i], hit_normals[i])
+	# Enemy bullets flying past your head crack.
+	if _player and not Match.is_friendly(_player.peer_id, multiplayer.get_unique_id()):
+		for i in mini(hit_positions.size(), 3):
+			Audio.bullet_passed(global_position, hit_positions[i])
 
 
 func _show_muzzle_flash() -> void:
@@ -397,19 +407,35 @@ func _update_flash(delta: float) -> void:
 			muzzle_flash.visible = false
 
 
-func _play(stream: AudioStream, pitch: float = 1.0) -> void:
-	if stream == null:
+func _play_fire() -> void:
+	var sound: Variant = fire_sound if fire_sound else StringName("fire_" + data.weapon_id)
+	_play(sound, 0.0, _rng.randf_range(0.95, 1.05), fire_sound_distance, 12.0)
+
+
+## Weapon sounds come from the weapon (the local player's is at the camera,
+## so it is heard at full volume and centred; others' are positional).
+func _play(sound: Variant, volume_db: float = 0.0, pitch: float = 1.0,
+		max_distance: float = 20.0, unit_size: float = 6.0) -> void:
+	Audio.play_3d(sound, global_position, volume_db, max_distance, pitch, unit_size)
+
+
+## Magazine in at 55 % of the reload, bolt / slide at 85 %.
+func _reload_sound_step() -> void:
+	if _reload_sounds_left <= 0:
 		return
-	if _audio == null:
-		# Created on first use: most weapons of most players never fire.
-		_audio = AudioStreamPlayer3D.new()
-		_audio.bus = &"SFX"
-		_audio.max_polyphony = 4
-		add_child(_audio)
-	_audio.stream = stream
-	_audio.pitch_scale = pitch
-	_audio.play()
+	var progress := 1.0 - _reload_timer / maxf(data.reload_time, 0.01)
+	if _reload_sounds_left == 2 and progress >= 0.55:
+		_reload_sounds_left = 1
+		_play(&"mag_in", -4.0, 1.0, 15.0)
+	elif _reload_sounds_left == 1 and progress >= 0.85:
+		_reload_sounds_left = 0
+		_play(&"bolt", -4.0, 1.0, 15.0)
 
 
 func _spawn_impact(pos: Vector3, normal: Vector3) -> void:
 	ImpactDecals.get_for(self).add(pos, normal)
+	# One impact sound per shot (a shotgun blast is 13 pellets).
+	var now := Time.get_ticks_msec()
+	if now - _last_impact_sound_ms > 40:
+		_last_impact_sound_ms = now
+		Audio.play_3d(&"impact", pos, -8.0, 25.0, _rng.randf_range(0.85, 1.15), 3.0)

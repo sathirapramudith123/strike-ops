@@ -7,6 +7,7 @@ extends Control
 
 func _ready() -> void:
 	%Version.text = NetworkManager.version_string()
+	Audio.play_music(&"menu")
 	%SettingsButton.pressed.connect(_show_settings)
 	_settings.closed.connect(_on_settings_closed)
 	%QuitButton.pressed.connect(get_tree().quit)

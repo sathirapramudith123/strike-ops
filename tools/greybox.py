@@ -37,6 +37,7 @@ class Map:
         self.spawns = {"ffa": [], "blue": [], "red": []}
         self.lights = []
         self.sites = []  # (name, pos)
+        self.zones = []  # (pos, size, bus, amount, priority)
         self._n = {}
 
     def _id(self, prefix):
@@ -115,6 +116,13 @@ class Map:
     def omni(self, pos, energy=1.5, rng=12.0, color=(1.0, 0.9, 0.75)):
         self.lights.append((pos, energy, rng, color))
 
+    def reverb(self, pos, size, kind="room", amount=0.4, priority=0):
+        """Indoor echo: sounds made inside this box are sent to the
+        ReverbRoom / ReverbHall bus (Area3D on physics layer 7). Overlapping
+        zones: the higher priority wins."""
+        bus = {"room": "ReverbRoom", "hall": "ReverbHall"}[kind]
+        self.zones.append((pos, size, bus, amount, priority))
+
     # ------------------------------------------------------------------
     def write(self, path, sun_rot=(-50.0, 30.0), sky=(0.32, 0.5, 0.75), fog=0.0):
         subs, nodes = [], []
@@ -156,6 +164,15 @@ class Map:
         cp, sp = math.cos(pitch), math.sin(pitch)
         sun_basis = (cy_, sy_ * sp, sy_ * cp, 0, cp, -sp, -sy_, cy_ * sp, cy_ * cp)
         sb = ", ".join(f"{v:.6f}" for v in sun_basis)
+
+        zone_nodes = []
+        for i, (pos, size, bus, amount, prio) in enumerate(self.zones):
+            zid = i + 1
+            subs.append(f'[sub_resource type="BoxShape3D" id="Zone_{zid}"]\nsize = Vector3({size[0]:.3f}, {size[1]:.3f}, {size[2]:.3f})\n')
+            zone_nodes.append(f'[node name="Reverb{zid}" type="Area3D" parent="AudioZones"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]}, {pos[1]}, {pos[2]})\n'
+                              f'collision_layer = 64\ncollision_mask = 0\nmonitoring = false\npriority = {prio}\n'
+                              f'reverb_bus_enabled = true\nreverb_bus_name = &"{bus}"\nreverb_bus_amount = {amount}\nreverb_bus_uniformity = 0.2\n'
+                              f'\n[node name="Shape" type="CollisionShape3D" parent="AudioZones/Reverb{zid}"]\nshape = SubResource("Zone_{zid}")\n')
 
         head = f'''[gd_scene load_steps={len(subs) + len(mats) + 9} format=3]
 
@@ -221,7 +238,9 @@ directional_shadow_max_distance = 100.0
         out = (head + "\n".join(mats) + "\n" + "\n".join(subs) + "\n" + root + "\n".join(nodes)
                + '\n[node name="SpawnPoints" type="Node3D" parent="."]\n\n' + "\n".join(spawn_nodes)
                + '\n[node name="Lights" type="Node3D" parent="."]\n\n' + "\n".join(light_nodes)
-               + '\n[node name="BombSites" type="Node3D" parent="."]\n\n' + "\n".join(site_nodes) + "\n" + tail)
+               + '\n[node name="BombSites" type="Node3D" parent="."]\n\n' + "\n".join(site_nodes)
+               + ('\n[node name="AudioZones" type="Node3D" parent="."]\n\n' + "\n".join(zone_nodes) if zone_nodes else "")
+               + "\n" + tail)
         with open(os.path.join(ROOT, path), "w") as f:
             f.write(out)
         print(f"wrote {path}: {len(self.boxes)} boxes, spawns blue={len(self.spawns['blue'])} red={len(self.spawns['red'])} ffa={len(self.spawns['ffa'])}")
@@ -294,6 +313,10 @@ def warehouse():
     m.spawn("red", (12, 3.1, CW_Z), 200)
     m.spawn("ffa", (-19, 0.1, -8), 90)
     m.spawn("ffa", (19, 0.1, 8), -90)
+    # Echo: the big hall, drier small offices.
+    m.reverb((0, H / 2, 0), (W, H, D), "hall", 0.45)
+    for sx in (-1, 1):
+        m.reverb((sx * (W / 2 - 3.5), 1.5, D / 2 - 3.5), (7, 3, 7), "room", 0.4, priority=1)
     m.write("scenes/levels/warehouse.tscn", sun_rot=(-65.0, 40.0), sky=(0.4, 0.45, 0.55))
 
 
@@ -358,6 +381,8 @@ def courtyard():
     m.spawn("red", (20, 0.1, -S / 2 + 5.0), 165)
     m.spawn("ffa", (-26, 0.1, 0), 90)
     m.spawn("ffa", (26, 0.1, 0), -90)
+    for sx in (-1, 1):
+        m.reverb((sx * 21.0, 2.8, 0), (10, 5.6, 16), "room", 0.35)
     m.write("scenes/levels/courtyard.tscn", sun_rot=(-45.0, -35.0), sky=(0.35, 0.55, 0.85))
 
 
@@ -486,6 +511,8 @@ def bunker():
         m.spawn("red", (x, 0.1, z), 180)
     m.spawn("ffa", (0, 0.1, 8), 0)
     m.spawn("ffa", (0, 0.1, -8), 180)
+    m.reverb((0, H / 2, 0), (S, H, S), "room", 0.4)
+    m.reverb((0, H / 2, 0), (12, H, 12), "hall", 0.4, priority=1)
     m.write("scenes/levels/bunker.tscn", sun_rot=(-70.0, 10.0), sky=(0.35, 0.4, 0.5))
 
 

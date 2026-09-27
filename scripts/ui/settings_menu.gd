@@ -216,6 +216,18 @@ func _build_audio() -> void:
 	for bus: StringName in SettingsManager.AUDIO_BUSES:
 		_add_slider(t, "%s volume" % labels[bus], 0.0, 1.0, 0.05, SettingsManager.bus_volumes[bus], "%d%%", 100.0,
 			func(v: float) -> void: SettingsManager.set_bus_volume(bus, v))
+	_add_option(t, "Audio quality", ["Low (16 sounds, no reverb)", "High (40 sounds, reverb)"],
+		SettingsManager.audio_quality, func(i: int) -> void:
+			SettingsManager.audio_quality = i
+			SettingsManager.apply_audio()
+			SettingsManager.save())
+	_add_check(t, "Music during matches", SettingsManager.match_music, func(on: bool) -> void:
+		SettingsManager.match_music = on
+		SettingsManager.apply_audio()
+		SettingsManager.save())
+	_add_check(t, "Hit & kill sounds", SettingsManager.hit_sounds, func(on: bool) -> void:
+		SettingsManager.hit_sounds = on
+		SettingsManager.save())
 
 
 func _build_voice() -> void:
@@ -436,6 +448,8 @@ func _reset_current_tab() -> void:
 		"Audio":
 			for bus: StringName in SettingsManager.AUDIO_BUSES:
 				SettingsManager.bus_volumes[bus] = defaults.bus_volumes[bus]
+			for p in ["audio_quality", "match_music", "hit_sounds"]:
+				SettingsManager.set(p, defaults.get(p))
 			SettingsManager.apply_audio()
 		"Voice":
 			for p in ["voice_enabled", "voice_mode", "voice_activation_threshold", "voice_input_device",

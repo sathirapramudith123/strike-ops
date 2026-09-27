@@ -76,6 +76,7 @@ func _ready() -> void:
 		visual.name = "BombVisual"
 		add_child(visual)
 	NetworkManager.on_level_loaded(self)
+	Audio.play_music(&"match")
 	if not NetworkManager.is_dedicated() and DisplayServer.get_name() != "headless":
 		add_child.call_deferred(ShaderWarmup.new())
 
