@@ -299,6 +299,7 @@ func apply_graphics() -> void:
 	RenderingServer.directional_shadow_atlas_set_size(g.directional_shadow_size, true)
 	RenderingServer.directional_soft_shadow_filter_set_quality(g.shadow_filter_quality)
 	RenderingServer.positional_soft_shadow_filter_set_quality(g.shadow_filter_quality)
+	RenderingServer.global_shader_parameter_set(&"surface_detail", 1.0 if g.surface_detail else 0.0)
 
 	graphics_changed.emit(g)
 

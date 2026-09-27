@@ -36,6 +36,8 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA, CUSTOM }
 @export_range(0.25, 1.5, 0.05) var draw_distance_scale: float = 1.0
 @export_range(0.0, 1.0, 0.05) var foliage_density: float = 1.0
 @export_range(0.0, 1.0, 0.05) var particle_amount: float = 1.0
+## Procedural surface detail (noise, wood grain, stone tiles) in the level shader.
+@export var surface_detail: bool = true
 
 @export_group("Shadows")
 @export var shadows_enabled: bool = true

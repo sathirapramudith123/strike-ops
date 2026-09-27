@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/weapons/shotgun.tscn" id="7_shotgun"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/sniper.tscn" id="8_sniper"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/pistol.tscn" id="9_pistol"]
+[ext_resource type="Script" path="res://scripts/player/player_model.gd" id="10_model"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 resource_local_to_scene = true
@@ -22,40 +23,6 @@ height = 1.4
 
 [sub_resource type="SphereShape3D" id="Shape_head_hitbox"]
 radius = 0.2
-
-[sub_resource type="StandardMaterial3D" id="Mat_suit"]
-albedo_color = Color(0.25, 0.32, 0.4, 1)
-roughness = 0.8
-
-[sub_resource type="StandardMaterial3D" id="Mat_skin"]
-albedo_color = Color(0.85, 0.72, 0.6, 1)
-roughness = 0.8
-
-[sub_resource type="StandardMaterial3D" id="Mat_gun"]
-albedo_color = Color(0.12, 0.12, 0.13, 1)
-roughness = 0.5
-
-[sub_resource type="CapsuleMesh" id="Mesh_torso"]
-material = SubResource("Mat_suit")
-radius = 0.3
-height = 1.45
-radial_segments = 12
-rings = 4
-
-[sub_resource type="SphereMesh" id="Mesh_head"]
-material = SubResource("Mat_skin")
-radius = 0.17
-height = 0.34
-radial_segments = 12
-rings = 6
-
-[sub_resource type="BoxMesh" id="Mesh_visor"]
-material = SubResource("Mat_gun")
-size = Vector3(0.26, 0.07, 0.1)
-
-[sub_resource type="BoxMesh" id="Mesh_gun"]
-material = SubResource("Mat_gun")
-size = Vector3(0.07, 0.1, 0.65)
 
 [node name="Player" type="CharacterBody3D" groups=["player"]]
 collision_layer = 2
@@ -85,21 +52,8 @@ shape = SubResource("Shape_body_hitbox")
 
 [node name="ThirdPerson" type="Node3D" parent="."]
 
-[node name="Torso" type="MeshInstance3D" parent="ThirdPerson"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
-mesh = SubResource("Mesh_torso")
-
-[node name="HeadMesh" type="MeshInstance3D" parent="ThirdPerson"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.6, 0)
-mesh = SubResource("Mesh_head")
-
-[node name="Visor" type="MeshInstance3D" parent="ThirdPerson"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.63, -0.13)
-mesh = SubResource("Mesh_visor")
-
-[node name="Gun" type="MeshInstance3D" parent="ThirdPerson"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.22, 1.2, -0.35)
-mesh = SubResource("Mesh_gun")
+[node name="Model" type="Node3D" parent="ThirdPerson"]
+script = ExtResource("10_model")
 
 [node name="NameTag" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)

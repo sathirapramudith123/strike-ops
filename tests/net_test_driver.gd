@@ -163,6 +163,7 @@ func _run_client() -> void:
 	_check(rotated != null, "client follows the vote to %s and respawns" % GameConfig.map_name(expected))
 	_check(not Match.is_ended(), "client sees the new match running")
 
+	await get_tree().create_timer(2.0).timeout # let the host see us on the new map too
 	NetworkManager.leave()
 	await _frames(30)
 	_finish()

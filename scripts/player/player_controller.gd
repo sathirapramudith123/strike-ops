@@ -14,7 +14,7 @@ extends CharacterBody3D
 ##   ├── Health                        ← authority = server
 ##   ├── NetSync (PlayerNetSync)
 ##   ├── BodyHitbox / Head/HeadHitbox  ← Hitbox (layer 3)
-##   ├── ThirdPerson (body mesh, hidden for the local player) + NameTag
+##   ├── ThirdPerson/Model (PlayerModel: body, legs, gun; shadow-only for the local player) + NameTag
 ##   └── Head (Node3D)                 ← pitch
 ##       └── Camera3D                  ← recoil + head bob
 ##           └── WeaponHolder (Node3D) ← weapons as children
@@ -90,6 +90,7 @@ var weapons: Dictionary = {}
 @onready var head_hitbox: Hitbox = $Head/HeadHitbox
 @onready var hitboxes: Array[Hitbox] = [body_hitbox, head_hitbox]
 @onready var _third_person: Node3D = $ThirdPerson
+@onready var _model: PlayerModel = $ThirdPerson/Model
 @onready var _name_tag: Label3D = $NameTag
 @onready var _body_hitbox_shape: CapsuleShape3D = $BodyHitbox/CollisionShape3D.shape
 @onready var _shape: CapsuleShape3D = $CollisionShape3D.shape
@@ -103,7 +104,6 @@ var _slide_cooldown_timer: float = 0.0
 var _bob_time: float = 0.0
 var _recoil := Vector2.ZERO # (pitch, yaw) in radians, applied to the camera
 var _fell_reported: bool = false
-var _torso_material: StandardMaterial3D
 var _default_regen: float = 0.0
 var _crouch_toggled: bool = false
 var _step_distance: float = 0.0
@@ -124,11 +124,6 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	_default_regen = health.regen_per_second
 	_name_tag.text = player_name
-	# Dedicated-server exports strip meshes (0 surfaces) — skip visuals there.
-	var torso := $ThirdPerson/Torso as MeshInstance3D
-	if torso.mesh and torso.mesh.get_surface_count() > 0 and torso.mesh.surface_get_material(0):
-		_torso_material = torso.mesh.surface_get_material(0).duplicate()
-		torso.material_override = _torso_material
 	NetworkManager.roster_changed.connect(_update_team_visuals)
 	_update_team_visuals()
 
@@ -186,6 +181,8 @@ func _unhandled_input(event: InputEvent) -> void:
 func _process(delta: float) -> void:
 	if is_local and input_enabled and not health.is_dead:
 		_pad_look(delta)
+	if not is_local and visible:
+		_model.animate(delta, is_crouching)
 
 
 func _physics_process(delta: float) -> void:
@@ -329,6 +326,7 @@ func equip_weapon(weapon: Weapon) -> void:
 	current_weapon = weapon
 	if weapon:
 		weapon.equip(self, camera)
+		_model.set_weapon(weapon.data.weapon_id)
 
 
 ## Called by weapons. Values are in degrees.
@@ -376,8 +374,7 @@ func _update_team_visuals() -> void:
 	var team := Match.get_team(peer_id)
 	var local_id := multiplayer.get_unique_id()
 	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, local_id)
-	if _torso_material:
-		_torso_material.albedo_color = GameConfig.team_color(team)
+	_model.set_team_color(GameConfig.team_color(team))
 	_name_tag.no_depth_test = friendly
 	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
 

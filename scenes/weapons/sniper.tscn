@@ -3,15 +3,6 @@
 [ext_resource type="Script" path="res://scripts/weapons/weapon.gd" id="1_weapon"]
 [ext_resource type="Resource" path="res://resources/weapons/sniper.tres" id="2_data"]
 
-[sub_resource type="StandardMaterial3D" id="Mat_body"]
-albedo_color = Color(0.16, 0.18, 0.14, 1)
-metallic = 0.6
-roughness = 0.45
-
-[sub_resource type="StandardMaterial3D" id="Mat_accent"]
-albedo_color = Color(0.3, 0.33, 0.24, 1)
-roughness = 0.8
-
 [sub_resource type="StandardMaterial3D" id="Mat_flash"]
 transparency = 1
 blend_mode = 1
@@ -22,42 +13,6 @@ albedo_color = Color(1, 0.55, 0.15, 0.85)
 material = SubResource("Mat_flash")
 size = Vector2(0.06, 0.06)
 
-[sub_resource type="BoxMesh" id="Mesh_0"]
-material = SubResource("Mat_body")
-size = Vector3(0.06, 0.09, 0.4)
-
-[sub_resource type="CylinderMesh" id="Mesh_1"]
-material = SubResource("Mat_body")
-top_radius = 0.013
-bottom_radius = 0.013
-height = 0.55
-radial_segments = 10
-rings = 1
-
-[sub_resource type="CylinderMesh" id="Mesh_2"]
-material = SubResource("Mat_body")
-top_radius = 0.025
-bottom_radius = 0.025
-height = 0.3
-radial_segments = 10
-rings = 1
-
-[sub_resource type="CylinderMesh" id="Mesh_3"]
-material = SubResource("Mat_body")
-top_radius = 0.032
-bottom_radius = 0.032
-height = 0.05
-radial_segments = 10
-rings = 1
-
-[sub_resource type="BoxMesh" id="Mesh_4"]
-material = SubResource("Mat_body")
-size = Vector3(0.035, 0.08, 0.06)
-
-[sub_resource type="BoxMesh" id="Mesh_5"]
-material = SubResource("Mat_accent")
-size = Vector3(0.05, 0.1, 0.28)
-
 [node name="Sniper" type="Node3D" node_paths=PackedStringArray("muzzle", "muzzle_flash")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.21, -0.45)
 script = ExtResource("1_weapon")
@@ -66,36 +21,6 @@ fire_sound_distance = 300.0
 muzzle = NodePath("Muzzle")
 muzzle_flash = NodePath("Muzzle/Flash")
 ads_position = Vector3(0, -0.085, -0.25)
-
-[node name="Receiver" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
-cast_shadow = 0
-mesh = SubResource("Mesh_0")
-
-[node name="Barrel" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0.01, -0.47)
-cast_shadow = 0
-mesh = SubResource("Mesh_1")
-
-[node name="Scope" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0.085, -0.02)
-cast_shadow = 0
-mesh = SubResource("Mesh_2")
-
-[node name="ScopeFront" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, -4.37114e-08, -1, 0, 1, -4.37114e-08, 0, 0.085, -0.18)
-cast_shadow = 0
-mesh = SubResource("Mesh_3")
-
-[node name="Magazine" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.08, -0.02)
-cast_shadow = 0
-mesh = SubResource("Mesh_4")
-
-[node name="Stock" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.02, 0.33)
-cast_shadow = 0
-mesh = SubResource("Mesh_5")
 
 [node name="Muzzle" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, -0.75)

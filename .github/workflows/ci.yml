@@ -38,7 +38,11 @@ jobs:
         run: ~/godot/godot --headless --path . --editor --quit || true
 
       - name: Smoke test
-        run: ~/godot/godot --headless --path . res://tests/smoke_test.tscn
+        run: |
+          set -o pipefail
+          ~/godot/godot --headless --path . res://tests/smoke_test.tscn 2>&1 | tee /tmp/smoke.log
+          # A script error aborts a test function without counting as a failure.
+          if grep -q "SCRIPT ERROR" /tmp/smoke.log; then echo "::error::script error in the smoke test"; exit 1; fi
 
       - name: Multiplayer tests (TDM, Bomb Defusal, anti-cheat, mixed voice codecs)
         run: tools/run_net_test.sh ~/godot/godot

@@ -164,6 +164,13 @@ toggle_perf_overlay={
 3d/physics_engine="Jolt Physics"
 common/physics_ticks_per_second=60
 
+[shader_globals]
+
+surface_detail={
+"type": "float",
+"value": 1.0
+}
+
 [rendering]
 
 renderer/rendering_method="forward_plus"

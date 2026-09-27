@@ -63,6 +63,12 @@ func _ready() -> void:
 	ammo_reserve = data.starting_reserve
 	if muzzle_flash:
 		muzzle_flash.visible = false
+	if WeaponModel.has_model(data.weapon_id) and not has_node(^"Model"):
+		var model := MeshInstance3D.new()
+		model.name = "Model"
+		model.mesh = WeaponModel.get_mesh(data.weapon_id)
+		model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(model)
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
 

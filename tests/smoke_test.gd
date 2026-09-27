@@ -428,7 +428,7 @@ func _test_shotgun_and_sniper() -> void:
 	await _frames(30)
 	_check(sniper.is_scoped(), "sniper scope engages when aiming")
 	_check(_player.camera.fov < SettingsManager.field_of_view * 0.4, "scope zooms in (fov %.0f)" % _player.camera.fov)
-	_check(not sniper.get_node("Receiver").visible, "viewmodel hidden while scoped")
+	_check(not sniper.get_node("Model").visible, "viewmodel hidden while scoped")
 	_aim_at(target.global_position + Vector3(0, 0.9, 0))
 	Input.action_press(&"shoot")
 	await _frames(2)

@@ -20,9 +20,11 @@ size = Vector3(7, 0.02, 7)
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.32, 0.5, 0.75, 1)
-sky_horizon_color = Color(0.7, 0.75, 0.8, 1)
-ground_bottom_color = Color(0.2, 0.2, 0.22, 1)
-ground_horizon_color = Color(0.7, 0.75, 0.8, 1)
+sky_horizon_color = Color(0.66, 0.7, 0.76, 1)
+sky_curve = 0.12
+ground_bottom_color = Color(0.3, 0.28, 0.26, 1)
+ground_horizon_color = Color(0.62, 0.62, 0.62, 1)
+sun_angle_max = 20.0
 
 [sub_resource type="Sky" id="Sky"]
 sky_material = SubResource("SkyMat")
@@ -31,9 +33,15 @@ sky_material = SubResource("SkyMat")
 background_mode = 2
 sky = SubResource("Sky")
 ambient_light_source = 3
+ambient_light_sky_contribution = 0.85
+ambient_light_energy = 1.0
 reflected_light_source = 2
 tonemap_mode = 2
+tonemap_exposure = 1.0
+tonemap_white = 6.0
 glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.05
 fog_enabled = false
 volumetric_fog_density = 0.01
 
@@ -44,15 +52,20 @@ shader = ExtResource("4_grid")
 [sub_resource type="ShaderMaterial" id="Mat_wall"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.62, 0.6, 0.56, 1)
-shader_parameter/line_color = Color(0.45, 0.43, 0.4, 1)
+shader_parameter/base_color = Color(0.56, 0.54, 0.5, 1)
+shader_parameter/line_color = Color(0.42, 0.4, 0.37, 1)
+shader_parameter/kind = 4
+shader_parameter/grime = 0.35
 
 [sub_resource type="ShaderMaterial" id="Mat_accent"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.3, 0.42, 0.55, 1)
-shader_parameter/line_color = Color(0.2, 0.3, 0.4, 1)
+shader_parameter/base_color = Color(0.3, 0.38, 0.46, 1)
+shader_parameter/line_color = Color(0.2, 0.26, 0.32, 1)
 shader_parameter/cell_size = 0.5
+shader_parameter/kind = 2
+shader_parameter/roughness_value = 0.5
+shader_parameter/metallic_value = 0.4
 
 [sub_resource type="BoxMesh" id="Mesh_1"]
 material = SubResource("Mat_grid")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=108 format=3]
+[gd_scene load_steps=109 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -8,9 +8,11 @@
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.35, 0.4, 0.5, 1)
-sky_horizon_color = Color(0.7, 0.75, 0.8, 1)
-ground_bottom_color = Color(0.2, 0.2, 0.22, 1)
-ground_horizon_color = Color(0.7, 0.75, 0.8, 1)
+sky_horizon_color = Color(0.66, 0.7, 0.76, 1)
+sky_curve = 0.12
+ground_bottom_color = Color(0.3, 0.28, 0.26, 1)
+ground_horizon_color = Color(0.62, 0.62, 0.62, 1)
+sun_angle_max = 20.0
 
 [sub_resource type="Sky" id="Sky"]
 sky_material = SubResource("SkyMat")
@@ -19,9 +21,15 @@ sky_material = SubResource("SkyMat")
 background_mode = 2
 sky = SubResource("Sky")
 ambient_light_source = 3
+ambient_light_sky_contribution = 0.85
+ambient_light_energy = 1.0
 reflected_light_source = 2
 tonemap_mode = 2
+tonemap_exposure = 1.0
+tonemap_white = 6.0
 glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.05
 fog_enabled = false
 fog_density = 0.0
 volumetric_fog_density = 0.01
@@ -29,59 +37,93 @@ volumetric_fog_density = 0.01
 [sub_resource type="ShaderMaterial" id="Mat_grid"]
 render_priority = 0
 shader = ExtResource("4_grid")
+shader_parameter/kind = 1
+shader_parameter/base_color = Color(0.42, 0.42, 0.41, 1)
+shader_parameter/line_color = Color(0.3, 0.3, 0.3, 1)
+shader_parameter/cell_size = 3.0
+shader_parameter/grime = 0.0
 
 [sub_resource type="ShaderMaterial" id="Mat_wall"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.62, 0.6, 0.56, 1)
-shader_parameter/line_color = Color(0.45, 0.43, 0.4, 1)
+shader_parameter/kind = 4
+shader_parameter/base_color = Color(0.56, 0.54, 0.5, 1)
+shader_parameter/line_color = Color(0.42, 0.4, 0.37, 1)
+shader_parameter/grime = 0.35
 
 [sub_resource type="ShaderMaterial" id="Mat_accent"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.3, 0.42, 0.55, 1)
-shader_parameter/line_color = Color(0.2, 0.3, 0.4, 1)
+shader_parameter/kind = 2
+shader_parameter/base_color = Color(0.3, 0.38, 0.46, 1)
+shader_parameter/line_color = Color(0.2, 0.26, 0.32, 1)
 shader_parameter/cell_size = 0.5
+shader_parameter/roughness_value = 0.5
+shader_parameter/metallic_value = 0.4
+shader_parameter/grime = 0.15
 
 [sub_resource type="ShaderMaterial" id="Mat_wood"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.55, 0.42, 0.28, 1)
-shader_parameter/line_color = Color(0.4, 0.3, 0.2, 1)
-shader_parameter/cell_size = 0.5
+shader_parameter/kind = 3
+shader_parameter/base_color = Color(0.5, 0.36, 0.22, 1)
+shader_parameter/line_color = Color(0.24, 0.16, 0.09, 1)
+shader_parameter/cell_size = 0.3
+shader_parameter/roughness_value = 0.75
+shader_parameter/grime = 0.1
 
 [sub_resource type="ShaderMaterial" id="Mat_metal"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.38, 0.4, 0.42, 1)
-shader_parameter/line_color = Color(0.28, 0.3, 0.32, 1)
-shader_parameter/cell_size = 0.5
+shader_parameter/kind = 2
+shader_parameter/base_color = Color(0.36, 0.38, 0.4, 1)
+shader_parameter/line_color = Color(0.22, 0.24, 0.26, 1)
+shader_parameter/cell_size = 1.0
+shader_parameter/roughness_value = 0.45
+shader_parameter/metallic_value = 0.6
+shader_parameter/grime = 0.2
 
 [sub_resource type="ShaderMaterial" id="Mat_stone"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.7, 0.66, 0.58, 1)
-shader_parameter/line_color = Color(0.55, 0.51, 0.45, 1)
-shader_parameter/cell_size = 2.0
+shader_parameter/kind = 5
+shader_parameter/base_color = Color(0.6, 0.57, 0.5, 1)
+shader_parameter/line_color = Color(0.36, 0.34, 0.3, 1)
+shader_parameter/cell_size = 1.5
+shader_parameter/grime = 0.25
 
 [sub_resource type="ShaderMaterial" id="Mat_blue"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.25, 0.4, 0.75, 1)
-shader_parameter/line_color = Color(0.18, 0.3, 0.6, 1)
+shader_parameter/kind = 4
+shader_parameter/base_color = Color(0.24, 0.38, 0.66, 1)
+shader_parameter/line_color = Color(0.17, 0.27, 0.5, 1)
+shader_parameter/grime = 0.3
 
 [sub_resource type="ShaderMaterial" id="Mat_red"]
 render_priority = 0
 shader = ExtResource("4_grid")
-shader_parameter/base_color = Color(0.75, 0.3, 0.25, 1)
-shader_parameter/line_color = Color(0.6, 0.2, 0.18, 1)
+shader_parameter/kind = 4
+shader_parameter/base_color = Color(0.66, 0.28, 0.23, 1)
+shader_parameter/line_color = Color(0.5, 0.19, 0.16, 1)
+shader_parameter/grime = 0.3
 
 [sub_resource type="ShaderMaterial" id="Mat_site"]
 render_priority = 0
 shader = ExtResource("4_grid")
+shader_parameter/kind = 0
 shader_parameter/base_color = Color(0.95, 0.55, 0.15, 1)
 shader_parameter/line_color = Color(0.75, 0.35, 0.1, 1)
 shader_parameter/cell_size = 0.5
+shader_parameter/grime = 0.0
+
+[sub_resource type="ShaderMaterial" id="Mat_leaf"]
+render_priority = 0
+shader = ExtResource("4_grid")
+shader_parameter/kind = 6
+shader_parameter/base_color = Color(0.25, 0.42, 0.18, 1)
+shader_parameter/line_color = Color(0.2, 0.3, 0.15, 1)
+shader_parameter/grime = 0.0
 
 [sub_resource type="BoxMesh" id="Mesh_1"]
 material = SubResource("Mat_metal")
@@ -415,7 +457,8 @@ environment = SubResource("Env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.984808, -0.163176, 0.059391, 0.000000, 0.342020, 0.939693, -0.173648, -0.925417, 0.336824, 0, 20, 0)
-light_energy = 1.1
+light_color = Color(1, 0.95, 0.86, 1)
+light_energy = 1.2
 shadow_enabled = true
 directional_shadow_max_distance = 100.0
 

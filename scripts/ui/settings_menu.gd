@@ -167,6 +167,7 @@ func _build_graphics() -> void:
 	_gfx_slider(t, "Draw distance", "draw_distance_scale", 0.25, 1.5, 0.05, "%d%%", 100.0)
 	_gfx_slider(t, "Foliage density", "foliage_density", 0.0, 1.0, 0.05, "%d%%", 100.0)
 	_gfx_slider(t, "Particles", "particle_amount", 0.0, 1.0, 0.05, "%d%%", 100.0)
+	_gfx_check(t, "Surface detail (procedural materials)", "surface_detail")
 
 	_add_section(t, "Shadows")
 	_gfx_check(t, "Shadows", "shadows_enabled")

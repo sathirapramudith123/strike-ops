@@ -18,6 +18,7 @@ mesh_lod_threshold = 4.0
 draw_distance_scale = 0.5
 foliage_density = 0.25
 particle_amount = 0.25
+surface_detail = false
 shadows_enabled = false
 directional_shadow_size = 1024
 positional_shadow_atlas_size = 0

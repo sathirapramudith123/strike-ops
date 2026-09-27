@@ -16,17 +16,22 @@ import os
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 
 MATERIALS = {
-    "grid": {},
-    "wall": {"base_color": (0.62, 0.6, 0.56), "line_color": (0.45, 0.43, 0.4)},
-    "accent": {"base_color": (0.3, 0.42, 0.55), "line_color": (0.2, 0.3, 0.4), "cell_size": 0.5},
-    "wood": {"base_color": (0.55, 0.42, 0.28), "line_color": (0.4, 0.3, 0.2), "cell_size": 0.5},
-    "metal": {"base_color": (0.38, 0.4, 0.42), "line_color": (0.28, 0.3, 0.32), "cell_size": 0.5},
-    "stone": {"base_color": (0.7, 0.66, 0.58), "line_color": (0.55, 0.51, 0.45), "cell_size": 2.0},
-    "blue": {"base_color": (0.25, 0.4, 0.75), "line_color": (0.18, 0.3, 0.6)},
-    "red": {"base_color": (0.75, 0.3, 0.25), "line_color": (0.6, 0.2, 0.18)},
-    "site": {"base_color": (0.95, 0.55, 0.15), "line_color": (0.75, 0.35, 0.1), "cell_size": 0.5},
+    # kind: 0 panels, 1 concrete, 2 metal, 3 wood, 4 painted, 5 stone paving, 6 foliage
+    # (see assets/shaders/prototype_grid.gdshader)
+    "grid": {"kind": 1, "base_color": (0.42, 0.42, 0.41), "line_color": (0.3, 0.3, 0.3), "cell_size": 3.0, "grime": 0.0},
+    "wall": {"kind": 4, "base_color": (0.56, 0.54, 0.5), "line_color": (0.42, 0.4, 0.37), "grime": 0.35},
+    "accent": {"kind": 2, "base_color": (0.3, 0.38, 0.46), "line_color": (0.2, 0.26, 0.32), "cell_size": 0.5,
+               "roughness_value": 0.5, "metallic_value": 0.4, "grime": 0.15},
+    "wood": {"kind": 3, "base_color": (0.5, 0.36, 0.22), "line_color": (0.24, 0.16, 0.09), "cell_size": 0.3,
+             "roughness_value": 0.75, "grime": 0.1},
+    "metal": {"kind": 2, "base_color": (0.36, 0.38, 0.4), "line_color": (0.22, 0.24, 0.26), "cell_size": 1.0,
+              "roughness_value": 0.45, "metallic_value": 0.6, "grime": 0.2},
+    "stone": {"kind": 5, "base_color": (0.6, 0.57, 0.5), "line_color": (0.36, 0.34, 0.3), "cell_size": 1.5, "grime": 0.25},
+    "blue": {"kind": 4, "base_color": (0.24, 0.38, 0.66), "line_color": (0.17, 0.27, 0.5), "grime": 0.3},
+    "red": {"kind": 4, "base_color": (0.66, 0.28, 0.23), "line_color": (0.5, 0.19, 0.16), "grime": 0.3},
+    "site": {"kind": 0, "base_color": (0.95, 0.55, 0.15), "line_color": (0.75, 0.35, 0.1), "cell_size": 0.5, "grime": 0.0},
+    "leaf": {"kind": 6, "base_color": (0.25, 0.42, 0.18), "line_color": (0.2, 0.3, 0.15), "grime": 0.0},
 }
-
 SITE_RADIUS = 3.5  # keep in sync with BombRules.SITE_RADIUS
 
 
@@ -184,9 +189,11 @@ class Map:
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color({sky[0]}, {sky[1]}, {sky[2]}, 1)
-sky_horizon_color = Color(0.7, 0.75, 0.8, 1)
-ground_bottom_color = Color(0.2, 0.2, 0.22, 1)
-ground_horizon_color = Color(0.7, 0.75, 0.8, 1)
+sky_horizon_color = Color(0.66, 0.7, 0.76, 1)
+sky_curve = 0.12
+ground_bottom_color = Color(0.3, 0.28, 0.26, 1)
+ground_horizon_color = Color(0.62, 0.62, 0.62, 1)
+sun_angle_max = 20.0
 
 [sub_resource type="Sky" id="Sky"]
 sky_material = SubResource("SkyMat")
@@ -195,9 +202,15 @@ sky_material = SubResource("SkyMat")
 background_mode = 2
 sky = SubResource("Sky")
 ambient_light_source = 3
+ambient_light_sky_contribution = 0.85
+ambient_light_energy = 1.0
 reflected_light_source = 2
 tonemap_mode = 2
+tonemap_exposure = 1.0
+tonemap_white = 6.0
 glow_enabled = true
+glow_intensity = 0.6
+glow_bloom = 0.05
 fog_enabled = {"true" if fog > 0 else "false"}
 fog_density = {fog}
 volumetric_fog_density = 0.01
@@ -224,7 +237,8 @@ environment = SubResource("Env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D({sb}, 0, 20, 0)
-light_energy = 1.1
+light_color = Color(1, 0.95, 0.86, 1)
+light_energy = 1.2
 shadow_enabled = true
 directional_shadow_max_distance = 100.0
 
@@ -346,7 +360,7 @@ def courtyard():
     # Trees (trunk + canopy, canopy without collision).
     for (x, z) in ((-8, -24), (8, 24), (-24, 20), (24, -20), (18, 18), (-18, -18)):
         m.box((x, 1.5, z), (0.6, 3.0, 0.6), "wood", "Trunk")
-        m.box((x, 3.8, z), (3.0, 2.2, 3.0), "accent", "Canopy", collide=False)
+        m.box((x, 3.8, z), (3.0, 2.2, 3.0), "leaf", "Canopy", collide=False)
 
     # Two-storey buildings.
     for sx in (-1, 1):
