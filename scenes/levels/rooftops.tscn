@@ -1,4 +1,4 @@
-[gd_scene load_steps=103 format=3]
+[gd_scene load_steps=102 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -115,14 +115,6 @@ shader_parameter/kind = 0
 shader_parameter/base_color = Color(0.95, 0.55, 0.15, 1)
 shader_parameter/line_color = Color(0.75, 0.35, 0.1, 1)
 shader_parameter/cell_size = 0.5
-shader_parameter/grime = 0.0
-
-[sub_resource type="ShaderMaterial" id="Mat_leaf"]
-render_priority = 0
-shader = ExtResource("4_grid")
-shader_parameter/kind = 6
-shader_parameter/base_color = Color(0.25, 0.42, 0.18, 1)
-shader_parameter/line_color = Color(0.2, 0.3, 0.15, 1)
 shader_parameter/grime = 0.0
 
 [sub_resource type="BoxMesh" id="Mesh_1"]
@@ -443,7 +435,7 @@ directional_shadow_max_distance = 100.0
 [node name="Geometry" type="Node3D" parent="."]
 
 [node name="Street1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000, -0.500, 0.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, -0.500, 0.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Street1"]
 mesh = SubResource("Mesh_1")
@@ -452,7 +444,7 @@ mesh = SubResource("Mesh_1")
 shape = SubResource("Shape_1")
 
 [node name="Boundary1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000, 3.000, -27.500)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, 3.000, -27.500)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Boundary1"]
 mesh = SubResource("Mesh_2")
@@ -461,7 +453,7 @@ mesh = SubResource("Mesh_2")
 shape = SubResource("Shape_2")
 
 [node name="Boundary2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000, 3.000, 27.500)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, 3.000, 27.500)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Boundary2"]
 mesh = SubResource("Mesh_3")
@@ -470,7 +462,7 @@ mesh = SubResource("Mesh_3")
 shape = SubResource("Shape_3")
 
 [node name="Boundary3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 27.500, 3.000, 0.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 27.500, 3.000, 0.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Boundary3"]
 mesh = SubResource("Mesh_4")
@@ -479,7 +471,7 @@ mesh = SubResource("Mesh_4")
 shape = SubResource("Shape_4")
 
 [node name="Boundary4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -27.500, 3.000, 0.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -27.500, 3.000, 0.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Boundary4"]
 mesh = SubResource("Mesh_5")
@@ -488,7 +480,7 @@ mesh = SubResource("Mesh_5")
 shape = SubResource("Shape_5")
 
 [node name="Building1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -14.000, 2.000, -14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -14.000, 2.000, -14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Building1"]
 mesh = SubResource("Mesh_6")
@@ -497,7 +489,7 @@ mesh = SubResource("Mesh_6")
 shape = SubResource("Shape_6")
 
 [node name="Parapet1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -20.850, 4.400, -14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -20.850, 4.400, -14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet1"]
 mesh = SubResource("Mesh_7")
@@ -506,7 +498,7 @@ mesh = SubResource("Mesh_7")
 shape = SubResource("Shape_7")
 
 [node name="Parapet2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -14.000, 4.400, -20.850)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -14.000, 4.400, -20.850)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet2"]
 mesh = SubResource("Mesh_8")
@@ -515,7 +507,7 @@ mesh = SubResource("Mesh_8")
 shape = SubResource("Shape_8")
 
 [node name="ACUnit1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -11.000, 4.600, -16.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -11.000, 4.600, -16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit1"]
 mesh = SubResource("Mesh_9")
@@ -524,7 +516,7 @@ mesh = SubResource("Mesh_9")
 shape = SubResource("Shape_9")
 
 [node name="ACUnit2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -16.000, 4.600, -11.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -16.000, 4.600, -11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit2"]
 mesh = SubResource("Mesh_10")
@@ -533,7 +525,7 @@ mesh = SubResource("Mesh_10")
 shape = SubResource("Shape_10")
 
 [node name="WaterTank1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -18.000, 5.250, -18.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -18.000, 5.250, -18.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/WaterTank1"]
 mesh = SubResource("Mesh_11")
@@ -542,7 +534,7 @@ mesh = SubResource("Mesh_11")
 shape = SubResource("Shape_11")
 
 [node name="Building2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -14.000, 2.000, 14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -14.000, 2.000, 14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Building2"]
 mesh = SubResource("Mesh_12")
@@ -551,7 +543,7 @@ mesh = SubResource("Mesh_12")
 shape = SubResource("Shape_12")
 
 [node name="Parapet3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -20.850, 4.400, 14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -20.850, 4.400, 14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet3"]
 mesh = SubResource("Mesh_13")
@@ -560,7 +552,7 @@ mesh = SubResource("Mesh_13")
 shape = SubResource("Shape_13")
 
 [node name="Parapet4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -14.000, 4.400, 20.850)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -14.000, 4.400, 20.850)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet4"]
 mesh = SubResource("Mesh_14")
@@ -569,7 +561,7 @@ mesh = SubResource("Mesh_14")
 shape = SubResource("Shape_14")
 
 [node name="ACUnit3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -11.000, 4.600, 16.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -11.000, 4.600, 16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit3"]
 mesh = SubResource("Mesh_15")
@@ -578,7 +570,7 @@ mesh = SubResource("Mesh_15")
 shape = SubResource("Shape_15")
 
 [node name="ACUnit4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -16.000, 4.600, 11.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -16.000, 4.600, 11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit4"]
 mesh = SubResource("Mesh_16")
@@ -587,7 +579,7 @@ mesh = SubResource("Mesh_16")
 shape = SubResource("Shape_16")
 
 [node name="WaterTank2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -18.000, 5.250, 18.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -18.000, 5.250, 18.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/WaterTank2"]
 mesh = SubResource("Mesh_17")
@@ -596,7 +588,7 @@ mesh = SubResource("Mesh_17")
 shape = SubResource("Shape_17")
 
 [node name="Building3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 14.000, 2.000, -14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 14.000, 2.000, -14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Building3"]
 mesh = SubResource("Mesh_18")
@@ -605,7 +597,7 @@ mesh = SubResource("Mesh_18")
 shape = SubResource("Shape_18")
 
 [node name="Parapet5" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 20.850, 4.400, -14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 20.850, 4.400, -14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet5"]
 mesh = SubResource("Mesh_19")
@@ -614,7 +606,7 @@ mesh = SubResource("Mesh_19")
 shape = SubResource("Shape_19")
 
 [node name="Parapet6" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 14.000, 4.400, -20.850)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 14.000, 4.400, -20.850)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet6"]
 mesh = SubResource("Mesh_20")
@@ -623,7 +615,7 @@ mesh = SubResource("Mesh_20")
 shape = SubResource("Shape_20")
 
 [node name="ACUnit5" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 11.000, 4.600, -16.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 11.000, 4.600, -16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit5"]
 mesh = SubResource("Mesh_21")
@@ -632,7 +624,7 @@ mesh = SubResource("Mesh_21")
 shape = SubResource("Shape_21")
 
 [node name="ACUnit6" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 16.000, 4.600, -11.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 16.000, 4.600, -11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit6"]
 mesh = SubResource("Mesh_22")
@@ -641,7 +633,7 @@ mesh = SubResource("Mesh_22")
 shape = SubResource("Shape_22")
 
 [node name="WaterTank3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 18.000, 5.250, -18.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 18.000, 5.250, -18.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/WaterTank3"]
 mesh = SubResource("Mesh_23")
@@ -650,7 +642,7 @@ mesh = SubResource("Mesh_23")
 shape = SubResource("Shape_23")
 
 [node name="Building4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 14.000, 2.000, 14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 14.000, 2.000, 14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Building4"]
 mesh = SubResource("Mesh_24")
@@ -659,7 +651,7 @@ mesh = SubResource("Mesh_24")
 shape = SubResource("Shape_24")
 
 [node name="Parapet7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 20.850, 4.400, 14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 20.850, 4.400, 14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet7"]
 mesh = SubResource("Mesh_25")
@@ -668,7 +660,7 @@ mesh = SubResource("Mesh_25")
 shape = SubResource("Shape_25")
 
 [node name="Parapet8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 14.000, 4.400, 20.850)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 14.000, 4.400, 20.850)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Parapet8"]
 mesh = SubResource("Mesh_26")
@@ -677,7 +669,7 @@ mesh = SubResource("Mesh_26")
 shape = SubResource("Shape_26")
 
 [node name="ACUnit7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 11.000, 4.600, 16.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 11.000, 4.600, 16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit7"]
 mesh = SubResource("Mesh_27")
@@ -686,7 +678,7 @@ mesh = SubResource("Mesh_27")
 shape = SubResource("Shape_27")
 
 [node name="ACUnit8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 16.000, 4.600, 11.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 16.000, 4.600, 11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit8"]
 mesh = SubResource("Mesh_28")
@@ -695,7 +687,7 @@ mesh = SubResource("Mesh_28")
 shape = SubResource("Shape_28")
 
 [node name="WaterTank4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 18.000, 5.250, 18.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 18.000, 5.250, 18.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/WaterTank4"]
 mesh = SubResource("Mesh_29")
@@ -704,7 +696,7 @@ mesh = SubResource("Mesh_29")
 shape = SubResource("Shape_29")
 
 [node name="Bridge1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000, 3.850, -14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, 3.850, -14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Bridge1"]
 mesh = SubResource("Mesh_30")
@@ -713,7 +705,7 @@ mesh = SubResource("Mesh_30")
 shape = SubResource("Shape_30")
 
 [node name="Bridge2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000, 3.850, 14.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, 3.850, 14.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Bridge2"]
 mesh = SubResource("Mesh_31")
@@ -776,7 +768,7 @@ mesh = SubResource("Mesh_37")
 shape = SubResource("Shape_37")
 
 [node name="Car3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000, 0.700, -18.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, 0.700, -18.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car3"]
 mesh = SubResource("Mesh_38")
@@ -785,7 +777,7 @@ mesh = SubResource("Mesh_38")
 shape = SubResource("Shape_38")
 
 [node name="Car4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 2.000, 0.700, 20.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 2.000, 0.700, 20.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car4"]
 mesh = SubResource("Mesh_39")
@@ -794,7 +786,7 @@ mesh = SubResource("Mesh_39")
 shape = SubResource("Shape_39")
 
 [node name="Car5" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -24.000, 0.700, -12.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -24.000, 0.700, -12.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car5"]
 mesh = SubResource("Mesh_40")
@@ -803,7 +795,7 @@ mesh = SubResource("Mesh_40")
 shape = SubResource("Shape_40")
 
 [node name="Car6" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 24.000, 0.700, 12.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 24.000, 0.700, 12.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car6"]
 mesh = SubResource("Mesh_41")
@@ -812,13 +804,13 @@ mesh = SubResource("Mesh_41")
 shape = SubResource("Shape_41")
 
 [node name="SiteAPlate1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -24.000, 0.010, 6.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -24.000, 0.010, 6.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/SiteAPlate1"]
 mesh = SubResource("Mesh_42")
 
 [node name="SiteBPlate1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 24.000, 0.010, -6.000)
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 24.000, 0.010, -6.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/SiteBPlate1"]
 mesh = SubResource("Mesh_43")

@@ -1,5 +1,38 @@
 # Changelog
 
+## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
+
+**Four more maps:** **Factory** (a machine hall with a catwalk and a
+storage hall around a yard of trucks, pipes and tanks), **Office** (lobby,
+open-plan office, server room, a mezzanine with two stairs), **Subway** (an
+underground station: platforms, track beds you can drop into, a parked
+train to walk through) and **Train Yard** (rows of freight cars, a
+maintenance shed, a signal tower with a balcony). All support FFA, TDM and
+Bomb Defusal.
+
+**Reload animations:** in first person the gun rolls over, the left hand
+pulls the magazine out, fetches a new one and pushes it in (the shotgun
+loads shells one by one); other players now visibly reload too — the
+soldier tips the gun and swings the left arm down — and you hear it.
+
+**New map — Kasbah:** a sun-baked desert town made for Bomb Defusal (also
+FFA and TDM): A Long, Mid with its doors, and the covered B Apartments;
+A is a raised terrace with pots, sacks and barrels, B a courtyard round a
+well. Sandstone blocks, plaster that has fallen off in patches, flagstone
+streets, shuttered windows, balconies, awnings, market stalls, palm trees
+and cables overhead — still all built in code.
+
+**New HUD:** a round **radar** in the top-left that turns with you (walls,
+cover, bomb sites, teammates, the bomb) with the **name of the place** you
+are in under it ("Bombsite A", "Mid", …); a **top bar** with the round
+clock, team scores and a card per player (greyed out when dead); health and
+ammo in dark boxes; the weapon list on the right; kill-feed entries in boxes
+(red outline for your own kills and deaths).
+
+**Hands:** first-person gloved hands and sleeves on every gun, and a new
+big-scope LR-50 sniper model (thumbhole stock, turrets, muzzle brake,
+bipod).
+
 ## v0.9.0 beta — controllers, new look, sound, 6 maps
 
 **Play with a controller:** Xbox / PlayStation / generic gamepads work

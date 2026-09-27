@@ -52,6 +52,8 @@ var _reload_sounds_left: int = 0
 var _last_impact_sound_ms: int = 0
 var _rng := RandomNumberGenerator.new()
 var _viewmodel_meshes: Array[Node] = []
+var _magazine: MeshInstance3D
+var _left_arm: MeshInstance3D
 var _server_last_shot: float = -1.0
 var _server_reload_done_at: float = 0.0
 var _aim_toggled: bool = false
@@ -64,13 +66,27 @@ func _ready() -> void:
 	if muzzle_flash:
 		muzzle_flash.visible = false
 	if WeaponModel.has_model(data.weapon_id) and not has_node(^"Model"):
-		var model := MeshInstance3D.new()
-		model.name = "Model"
-		model.mesh = WeaponModel.get_mesh(data.weapon_id)
-		model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(model)
+		# Viewmodel pieces: the gun, its magazine and both arms are separate
+		# so the reload can be animated (see _animate_reload).
+		_add_part("Model", WeaponModel.get_mesh(data.weapon_id, false))
+		_magazine = _add_part("Magazine", WeaponModel.get_magazine_mesh(data.weapon_id))
+		_add_part("ArmR", WeaponModel.get_arm_mesh(data.weapon_id, false))
+		_left_arm = _add_part("ArmL", WeaponModel.get_arm_mesh(data.weapon_id, true))
+		if data.weapon_id == "shotgun" and _magazine:
+			_magazine.visible = false # the shell only shows while loading
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
+
+
+func _add_part(part_name: String, mesh: Mesh) -> MeshInstance3D:
+	if mesh == null:
+		return null
+	var mi := MeshInstance3D.new()
+	mi.name = part_name
+	mi.mesh = mesh
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
+	return mi
 
 
 func equip(player: PlayerController, camera: Camera3D) -> void:
@@ -394,18 +410,86 @@ func _update_viewmodel(delta: float) -> void:
 	var target := _hip_position.lerp(ads_position, ads_blend)
 	target.z += _kick * 0.06
 	target.y += _kick * 0.01
-	if is_reloading:
-		target.y -= 0.12
+	var pose := _animate_reload(get_reload_progress() if is_reloading else -1.0)
+	target += pose.offset
 	# Lower the weapon while sprinting.
-	if _player.is_sprinting:
+	if _player.is_sprinting and not is_reloading:
 		target += Vector3(-0.05, -0.08, 0.05)
 	position = position.lerp(target, clampf(delta * 18.0, 0.0, 1.0))
-	rotation.x = lerpf(rotation.x, _kick * 0.08 + (-0.5 if is_reloading else 0.0), clampf(delta * 14.0, 0.0, 1.0))
+	var k := clampf(delta * 14.0, 0.0, 1.0)
+	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch, k)
+	rotation.z = lerpf(rotation.z, pose.roll, k)
 	# Looking through a scope: the HUD draws the scope, hide the gun.
 	var show_model := not is_scoped()
 	if _viewmodel_meshes and _viewmodel_meshes[0].visible != show_model:
 		for mesh in _viewmodel_meshes:
 			mesh.visible = show_model
+		if show_model and _magazine and data.weapon_id == "shotgun" and not is_reloading:
+			_magazine.visible = false
+
+
+## First-person reload: the gun rolls to show its side, the left hand pulls
+## the magazine out and down, fetches a new one and seats it (the "mag in"
+## sound plays at 55 %), then goes back; a small jolt for the bolt at 85 %.
+## Shotgun: the hand feeds three shells into the loading port. `p` = reload
+## progress 0..1, or < 0 when not reloading. Returns the gun pose.
+func _animate_reload(p: float) -> Dictionary:
+	var pose := { "offset": Vector3.ZERO, "pitch": 0.0, "roll": 0.0 }
+	var hand := Vector3.ZERO
+	var mag := Vector3.ZERO
+	var mag_visible := true
+	if p >= 0.0 and WeaponModel.HANDS.has(data.weapon_id):
+		var h: Dictionary = WeaponModel.HANDS[data.weapon_id]
+		var to_mag: Vector3 = h.mag - h.left
+		var tilt := _smooth(p, 0.0, 0.12) * (1.0 - _smooth(p, 0.82, 1.0))
+		# Raise the gun towards the centre and roll its underside to the camera.
+		pose.roll = -0.45 * tilt
+		pose.pitch = -0.08 * tilt
+		pose.offset = Vector3(-0.07, 0.05, -0.03) * tilt
+		if data.weapon_id == "shotgun":
+			# Three shells: from below up into the port and back down.
+			var cycle := fposmod((p - 0.1) / 0.24, 1.0) if p > 0.1 and p < 0.82 else -1.0
+			if cycle >= 0.0:
+				var up := sin(cycle * PI)
+				hand = to_mag * up + Vector3(0, -0.18, 0.06) * (1.0 - up)
+				mag = hand - to_mag
+				mag_visible = cycle < 0.55
+			else:
+				mag_visible = false
+			if p >= 0.86 and p < 0.96: # rack the pump
+				hand = Vector3(0, 0, 0.07) * sin((p - 0.86) / 0.1 * PI)
+		else:
+			var drop := Vector3(0, -0.34, 0.08)
+			if p < 0.12:
+				hand = to_mag * _smooth(p, 0.0, 0.12)
+			elif p < 0.3:
+				var t := _smooth(p, 0.12, 0.3)
+				hand = to_mag + drop * t
+				mag = drop * t
+			elif p < 0.42:
+				hand = to_mag + drop
+				mag_visible = false # the old magazine is gone, reaching for a new one
+			elif p < 0.55:
+				var t := 1.0 - _smooth(p, 0.42, 0.55)
+				hand = to_mag + drop * t
+				mag = drop * t
+			elif p < 0.7:
+				hand = to_mag * (1.0 - _smooth(p, 0.55, 0.7))
+			if p >= 0.84 and p < 0.92: # bolt / charging handle
+				pose.offset.z += 0.02 * sin((p - 0.84) / 0.08 * PI)
+	elif data.weapon_id == "shotgun":
+		mag_visible = false
+	if _left_arm:
+		_left_arm.position = hand
+	if _magazine:
+		_magazine.position = mag
+		if _magazine.visible != mag_visible and not is_scoped():
+			_magazine.visible = mag_visible and _player != null and _player.is_local
+	return pose
+
+
+static func _smooth(x: float, a: float, b: float) -> float:
+	return smoothstep(a, b, x)
 
 
 func _update_flash(delta: float) -> void:

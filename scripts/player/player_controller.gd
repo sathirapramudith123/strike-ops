@@ -89,6 +89,7 @@ var weapons: Dictionary = {}
 @onready var body_hitbox: Hitbox = $BodyHitbox
 @onready var head_hitbox: Hitbox = $Head/HeadHitbox
 @onready var hitboxes: Array[Hitbox] = [body_hitbox, head_hitbox]
+var _remote_reloading := false
 @onready var _third_person: Node3D = $ThirdPerson
 @onready var _model: PlayerModel = $ThirdPerson/Model
 @onready var _name_tag: Label3D = $NameTag
@@ -358,6 +359,14 @@ func apply_remote_state(pos: Vector3, yaw: float, pitch: float, height: float, f
 	is_sprinting = flags & PlayerNetSync.Flags.SPRINTING != 0
 	is_crouching = flags & PlayerNetSync.Flags.CROUCHING != 0
 	is_sliding = flags & PlayerNetSync.Flags.SLIDING != 0
+	# Others see the reload: the model swaps the magazine, with sound.
+	var reloading := flags & PlayerNetSync.Flags.RELOADING != 0
+	if reloading and not _remote_reloading and current_weapon:
+		_model.start_reload(current_weapon.data.reload_time)
+		Audio.play_3d(&"mag_out", global_position + Vector3.UP, -6.0, 15.0)
+	elif not reloading and _remote_reloading and _model.is_reloading():
+		_model.stop_reload()
+	_remote_reloading = reloading
 	if not is_equal_approx(height, _height):
 		_height = height
 		_apply_height()

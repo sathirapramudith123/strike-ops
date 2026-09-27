@@ -862,6 +862,74 @@ func _test_maps() -> void:
 	await _walk_forward_max_y(200)
 	_check(_player.global_position.z < -7.0, "bunker: atrium doors are passable (z=%.1f)" % _player.global_position.z)
 
+	# Kasbah: A ramp onto the terrace, Mid doors, the covered B Apartments.
+	await _load_map("res://scenes/levels/kasbah.tscn")
+	await _frames(40)
+	_check(_player.is_on_floor(), "kasbah: player lands")
+	_reset_player(Vector3(28, 0.1, -10.5))
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.y > 0.95 and _player.global_position.z < -18.5,
+		"kasbah: A ramp leads up onto the site terrace (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
+	_reset_player(Vector3(0, 0.1, 4))
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.z < -6.0, "kasbah: Mid doors are passable (z=%.1f)" % _player.global_position.z)
+	_reset_player(Vector3(-32, 0.1, 22))
+	await _walk_forward_max_y(330)
+	_check(_player.global_position.z < -2.0, "kasbah: B Apartments corridor is passable (z=%.1f)" % _player.global_position.z)
+
+	# Radar + location names (built from the map's collision shapes).
+	var radar: Minimap = _level.hud._minimap
+	_check(radar._polys.size() > 60, "radar outline built from the map (%d shapes)" % radar._polys.size())
+	_check(radar.location(Vector3(28, 1.1, -24)) == "Bombsite A" and radar.location(Vector3(0, 0.1, 8)) == "Mid"
+		and radar.location(Vector3(-34, 0.1, 10)) == "B Apartments", "location names: Bombsite A, Mid, B Apartments")
+	_check(radar.location(Vector3(-28, 0.1, -20)) == "Bombsite B", "bomb site fallback / callout for B")
+	var armed := _player.loadout_weapons().all(func(w: Weapon) -> bool:
+		return w == null or (w.has_node(^"ArmL") and w.has_node(^"ArmR") and w.has_node(^"Magazine")))
+	_check(armed, "first-person weapons have gloved arms and a separate magazine")
+
+	# Reload animation: the left hand pulls the magazine out and puts it back.
+	var gun := _player.current_weapon
+	gun.ammo_in_magazine = 0
+	gun.reload()
+	var arm := gun.get_node(^"ArmL") as Node3D
+	var mag := gun.get_node(^"Magazine") as Node3D
+	var lowest := 0.0
+	var mag_lowest := 0.0
+	while gun.is_reloading:
+		await get_tree().process_frame
+		lowest = minf(lowest, arm.position.y)
+		mag_lowest = minf(mag_lowest, mag.position.y)
+	await _frames(3)
+	_check(lowest < -0.2 and mag_lowest < -0.1, "reload: left hand takes the magazine out (hand %.2f, mag %.2f)" % [lowest, mag_lowest])
+	_check(arm.position.length() < 0.01 and mag.position.length() < 0.01 and mag.visible,
+		"reload: hand and magazine back in place afterwards")
+	var body := _player.get_node(^"ThirdPerson/Model") as PlayerModel
+	body.start_reload(1.0)
+	for i in 20:
+		body.animate(1.0 / 60.0, false)
+	_check(body.is_reloading() and (body.get_node(^"ArmL") as Node3D).rotation.x < -0.1,
+		"third person: the reload swings the left arm down")
+
+	# The other new maps: the player lands; a few routes are open.
+	for route: Array in [
+			["factory", Vector3(0, 0.1, 30), 0.0, func(p: Vector3) -> bool: return p.z < 12.0, "yard is open"],
+			["factory", Vector3(6.8, 0.1, -30), 0.0, func(p: Vector3) -> bool: return p.y > 3.3, "catwalk ramp in Hall A"],
+			["office", Vector3(0, 0.1, 40), 0.0, func(p: Vector3) -> bool: return p.z < 24.0, "front doors into the lobby"],
+			["office", Vector3(20, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.5, "stairs up to the mezzanine"],
+			["subway", Vector3(-15, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "west platform"],
+			["subway", Vector3(6, -1.1, -20), 0.0, func(p: Vector3) -> bool: return p.y > -0.1 and p.z < -30.0, "climb out of the track bed"],
+			["subway", Vector3(-10, 0.1, 4.7), -PI / 2, func(p: Vector3) -> bool: return p.x > -3.0, "walk through the train"],
+			["trainyard", Vector3(0, 0.1, 20), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "lane between the cars"],
+			["trainyard", Vector3(-28.9, 0.1, 7), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the tower balcony"]]:
+		if _level.name.to_lower() != route[0]:
+			await _load_map("res://scenes/levels/%s.tscn" % route[0])
+			await _frames(30)
+			_check(_player.is_on_floor(), "%s: player lands" % route[0])
+		_reset_player(route[1], route[2])
+		await _frames(2)
+		await _walk_forward_max_y(300)
+		_check((route[3] as Callable).call(_player.global_position), "%s: %s (at %s)" % [route[0], route[4], _player.global_position.snapped(Vector3.ONE * 0.1)])
+
 	# Every map has team spawns and bomb sites A + B.
 	for m: Dictionary in GameConfig.MAPS:
 		var lvl := (load(m.path) as PackedScene).instantiate() as Level

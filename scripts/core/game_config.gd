@@ -42,6 +42,21 @@ const MAPS: Array[Dictionary] = [
 	{ "id": "bunker", "name": "Bunker", "path": "res://scenes/levels/bunker.tscn", "bomb": true,
 		"style": "Indoor · small", "players": "2–8",
 		"description": "Symmetric rooms around a pillared atrium. Fast rounds, great for 2v2." },
+	{ "id": "kasbah", "name": "Kasbah", "path": "res://scenes/levels/kasbah.tscn", "bomb": true,
+		"style": "Desert town · bomb defusal", "players": "6–16",
+		"description": "Sun-baked town: A Long, Mid and the covered B Apartments. A is a raised terrace, B a courtyard around a well." },
+	{ "id": "factory", "name": "Factory", "path": "res://scenes/levels/factory.tscn", "bomb": true,
+		"style": "Industrial · halls + yard", "players": "6–16",
+		"description": "A machine hall with a catwalk (A) and a storage hall (B) around a yard of trucks, pipes and tanks." },
+	{ "id": "office", "name": "Office", "path": "res://scenes/levels/office.tscn", "bomb": true,
+		"style": "Indoor · two floors", "players": "4–12",
+		"description": "Office block: lobby and reception, open-plan office (A), server room (B), a mezzanine with two stairs." },
+	{ "id": "subway", "name": "Subway", "path": "res://scenes/levels/subway.tscn", "bomb": true,
+		"style": "Underground · platforms", "players": "4–12",
+		"description": "Station with two platforms and an island, track beds to drop into, a parked train to walk through." },
+	{ "id": "trainyard", "name": "Train Yard", "path": "res://scenes/levels/trainyard.tscn", "bomb": true,
+		"style": "Outdoor · rail lanes", "players": "6–16",
+		"description": "Rows of freight cars to weave between, a maintenance shed (A) and a signal tower with a balcony (B)." },
 ]
 
 const TEAM_NONE := -1
