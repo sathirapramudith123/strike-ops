@@ -19,6 +19,11 @@ Warehouse, Mid with a catwalk under the **Lanka Steel** building, Tunnels
 to Lower Mid and a Rail Yard along the east. Painted T / CT at the
 spawns, coconut palms, red-and-white chimneys and a Sri Lankan flag.
 
+**Buildings you can enter:** two houses in Kasbah (one on A Long looking
+over A, one by B looking over Short and the B Apartments exit) and the
+Lanka Steel building in Factory (walk through it from Mid to A). Real
+doors, stairs up to an upper floor, and windows you can shoot through.
+
 **Detail textures:** walls, floors and props now have texture and depth
 on Medium and higher: stained concrete with pores, rusty metal with
 scratches, wood grain, cracked plaster, grainy stone, corrugated sheets

@@ -905,9 +905,10 @@ def kasbah():
         (4, 18, -32, -20, 7, "plaster", "nswe"),        # CT-side of Connector
         (-18, -4, -32, -14, 8, "sandstone", "nswe"),    # CT-side of Short
         (4, 18, -15, 20, 6, "plaster_warm", "nswe"),    # between Mid and A Long (north)
-        (18, 30, -10, 20, 7, "sandstone", "nse"),
+        (18, 30, 4, 20, 7, "sandstone", "se"),           # (north part is an enterable house)
         (4, 30, 24, 34, 6, "sandstone", "nsw"),         # Palace
-        (-30, -4, -9, 20, 7, "plaster", "nswe"),        # between Mid and B Apartments
+        (-18, -4, -9, 20, 7, "plaster", "nse"),          # between Mid and B Apartments
+        (-30, -18, 3, 20, 7, "plaster", "w"),           # (north-west part is an enterable house)
         (-30, -4, 24, 34, 6, "plaster_warm", "nse"),
         (14, 28, 38, 46, 7, "plaster", "nw"),           # T spawn sides
         (-28, -14, 38, 46, 7, "sandstone", "ne"),
@@ -916,6 +917,9 @@ def kasbah():
     ]
     for (x0, x1, z0, z1, h, mat, faces) in blocks:
         _building(m, rng, x0, x1, z0, z1, h, mat, faces)
+    # Enterable houses: doors, stairs, upstairs windows over A and over B.
+    _house(m, 18, 30, -10, 4, "sandstone", doors=[("e", 3.0, 1.6), ("n", 6.0, 1.6)], windows="ne", stair_side="w")
+    _house(m, -30, -18, -9, 3, "plaster", doors=[("w", 8.5, 1.6), ("n", 5.0, 1.6)], windows="nw", stair_side="s")
 
     # --- B Apartments: a covered corridor (west lane, z 0..18) ----------
     m.box((-34, 3.5, 9), (8, 0.4, 18), "plaster", "ApartmentsCeiling")
@@ -1042,7 +1046,9 @@ def kasbah():
             ("Bombsite B", (-28, 2, -21), (20, 6, 22)),
             ("Palace", (17, 2, 22), (26, 6, 4)),
             ("Market", (-17, 2, 22), (26, 6, 4)),
-            ("CT Street", (0, 2, -35), (76, 6, 6))):
+            ("CT Street", (0, 2, -35), (76, 6, 6)),
+            ("A House", (24, 4, -3), (12, 8, 14)),
+            ("B House", (-24, 4, -3), (12, 8, 12))):
         m.callout(label, pos, size)
 
     m.reverb((11, 2.0, -17.5), (14, 4.0, 5), "room", 0.2)
@@ -1240,6 +1246,135 @@ def _gantry(m, x0, x1, z, h=9.0, mat="yellow"):
     m.box((hx, h - 3.9, z + 0.8), (0.4, 0.3, 0.2), "rust", "Hook", collide=False)
 
 
+# ----------------------------------------------------------------------
+# Enterable buildings: real door and window openings, floors, stairs.
+
+def _wall_openings(m, a, b, y0, h, t, openings, mat, name="HouseWall"):
+    """Straight axis-aligned wall band from a=(x,z) to b=(x,z), height h
+    starting at y0, with rectangular holes: openings = [(offset, width,
+    bottom, top)] measured from a and from y0."""
+    ax, az = a
+    bx, bz = b
+    along_x = abs(bx - ax) > abs(bz - az)
+    total = abs(bx - ax) if along_x else abs(bz - az)
+    sign = 1 if (bx - ax if along_x else bz - az) > 0 else -1
+
+    def piece(s0, s1, h0, h1):
+        if s1 - s0 < 0.01 or h1 - h0 < 0.01:
+            return
+        mid = (s0 + s1) / 2 * sign
+        cy = y0 + (h0 + h1) / 2
+        if along_x:
+            m.box((ax + mid, cy, az), (s1 - s0, h1 - h0, t), mat, name)
+        else:
+            m.box((ax, cy, az + mid), (t, h1 - h0, s1 - s0), mat, name)
+
+    pos = 0.0
+    for off, w, bottom, top in sorted(openings):
+        piece(pos, off, 0.0, h)
+        piece(off, off + w, 0.0, bottom)
+        piece(off, off + w, top, h)
+        # Sill / lintel trim (visual).
+        if bottom > 0.05:
+            mid = (off + w / 2) * sign
+            if along_x:
+                m.box((ax + mid, y0 + bottom - 0.04, az), (w + 0.2, 0.08, t + 0.12), "sandstone", "Sill", collide=False)
+            else:
+                m.box((ax, y0 + bottom - 0.04, az + mid), (t + 0.12, 0.08, w + 0.2), "sandstone", "Sill", collide=False)
+        pos = off + w
+    piece(pos, total, 0.0, h)
+
+
+def _rail(m, pos, size, mat="metal"):
+    """Railing: invisible collider plus a top bar, a mid bar and posts."""
+    m.blocker(pos, size)
+    long_x = size[0] > size[2]
+    length = size[0] if long_x else size[2]
+    for dy in (0.5, 0.0):
+        m.box((pos[0], pos[1] + dy - 0.03, pos[2]), (length if long_x else 0.05, 0.05, 0.05 if long_x else length), mat,
+              "RailBar", collide=False)
+    n = max(int(length // 1.2), 1)
+    for k in range(n + 1):
+        t = -length / 2 + k * length / n
+        m.box((pos[0] + (t if long_x else 0), pos[1], pos[2] + (0 if long_x else t)), (0.05, 1.0, 0.05), mat,
+              "RailPost", collide=False)
+
+
+def _house(m, x0, x1, z0, z1, mat, floors=2, fh=4.0, doors=(), windows="nsew", stair_side="s",
+           floor_mat="wood", light=(1.0, 0.85, 0.65)):
+    """A building you can walk into: doors = [(face, offset, width)] on the
+    ground floor, windows on `windows` faces (every ~3 m, every floor),
+    floors joined by a ramp stair along the `stair_side` wall ("n"/"s" run
+    along X, "e"/"w" along Z), a closed flat roof with a parapet."""
+    t = 0.3
+    faces = {"n": ((x0, z0), (x1, z0)), "s": ((x0, z1), (x1, z1)),
+             "w": ((x0, z0), (x0, z1)), "e": ((x1, z0), (x1, z1))}
+    for face, (a, b) in faces.items():
+        length = abs(b[0] - a[0]) + abs(b[1] - a[1])
+        for f in range(floors):
+            ops = []
+            if f == 0:
+                ops += [(off, w, 0.0, 2.4) for (fc, off, w) in doors if fc == face]
+            if face in windows:
+                count = int(length // 3.0)
+                for k in range(count):
+                    off = (k + 0.5) * length / count - 0.6
+                    if all(off + 1.2 < o[0] - 0.3 or off > o[0] + o[1] + 0.3 for o in ops):
+                        ops.append((off, 1.2, 1.1, 2.3))
+            _wall_openings(m, a, b, f * fh, fh, t, ops, mat)
+    # Stair: a ramp along one wall (about 25 degrees) up to each floor.
+    run = fh / math.tan(math.radians(25))
+    along_x = stair_side in "ns"
+    inner = (z0 + t / 2 + 1.0) if stair_side == "n" else (z1 - t / 2 - 1.0) if stair_side == "s" \
+        else (x0 + t / 2 + 1.0) if stair_side == "w" else (x1 - t / 2 - 1.0)
+    start = (x0 + 0.8) if along_x else (z0 + 0.8)
+    for f in range(1, floors):
+        y_lo, y_hi = (f - 1) * fh, f * fh
+        if along_x:
+            m.ramp((start, y_lo, inner), (start + run, y_hi, inner + 0.001), 1.8, floor_mat)
+        else:
+            m.ramp((inner, y_lo, start), (inner + 0.001, y_hi, start + run), 1.8, floor_mat)
+        # Floor slab with a hole over the stair.
+        y = y_hi - 0.12
+        if along_x:
+            hole0, hole1 = (inner - 1.0, inner + 1.0)
+            zz0, zz1 = z0 + t / 2, z1 - t / 2
+            if hole0 - zz0 > 0.05:
+                m.box(((x0 + x1) / 2, y, (zz0 + hole0) / 2), (x1 - x0 - t, 0.24, hole0 - zz0), floor_mat, "Floor")
+            if zz1 - hole1 > 0.05:
+                m.box(((x0 + x1) / 2, y, (hole1 + zz1) / 2), (x1 - x0 - t, 0.24, zz1 - hole1), floor_mat, "Floor")
+            rest = x1 - t / 2 - (start + run)
+            if rest > 0.05:
+                m.box(((start + run + x1 - t / 2) / 2, y, inner), (rest, 0.24, 2.0), floor_mat, "Floor")
+            # Railing round the stair hole (upstairs).
+            _rail(m, ((x0 + start + run) / 2, y + 0.62, hole0 if stair_side == "s" else hole1),
+                  (start + run - x0 - 0.3, 1.0, 0.06))
+        else:
+            hole0, hole1 = (inner - 1.0, inner + 1.0)
+            xx0, xx1 = x0 + t / 2, x1 - t / 2
+            if hole0 - xx0 > 0.05:
+                m.box(((xx0 + hole0) / 2, y, (z0 + z1) / 2), (hole0 - xx0, 0.24, z1 - z0 - t), floor_mat, "Floor")
+            if xx1 - hole1 > 0.05:
+                m.box(((hole1 + xx1) / 2, y, (z0 + z1) / 2), (xx1 - hole1, 0.24, z1 - z0 - t), floor_mat, "Floor")
+            rest = z1 - t / 2 - (start + run)
+            if rest > 0.05:
+                m.box((inner, y, (start + run + z1 - t / 2) / 2), (2.0, 0.24, rest), floor_mat, "Floor")
+            _rail(m, (hole0 if stair_side == "e" else hole1, y + 0.62, (z0 + start + run) / 2),
+                  (0.06, 1.0, start + run - z0 - 0.3))
+        _strip_light(m, (x0 + x1) / 2, y - 0.1, (z0 + z1) / 2, 1.6)
+    top = floors * fh
+    m.box(((x0 + x1) / 2, top + 0.15, (z0 + z1) / 2), (x1 - x0, 0.3, z1 - z0), mat, "HouseRoof")
+    for (pos, size) in ((((x0 + x1) / 2, top + 0.6, z0 + 0.15), (x1 - x0, 0.6, 0.3)),
+                        (((x0 + x1) / 2, top + 0.6, z1 - 0.15), (x1 - x0, 0.6, 0.3)),
+                        ((x0 + 0.15, top + 0.6, (z0 + z1) / 2), (0.3, 0.6, z1 - z0)),
+                        ((x1 - 0.15, top + 0.6, (z0 + z1) / 2), (0.3, 0.6, z1 - z0))):
+        m.box(pos, size, mat, "Parapet", collide=False)
+    _strip_light(m, (x0 + x1) / 2, fh - 0.25, (z0 + z1) / 2 + 1.5, 1.6)
+    m.omni(((x0 + x1) / 2, fh - 0.6, (z0 + z1) / 2), 0.8, 8.0, light)
+    m.reverb(((x0 + x1) / 2, top / 2, (z0 + z1) / 2), (x1 - x0, top, z1 - z0), "room", 0.35, priority=1)
+
+
+
 def factory():
     """Factory (3 lanes). A in the north under a gantry crane next to two
     silos, with a flat roof over it on the east; B in a walled yard in the
@@ -1319,10 +1454,11 @@ def factory():
     _chimney(m, 37, -45, RH, 20.0)
 
     # --- Mid: Lanka Steel building, catwalk, containers ---------------------
-    m.box((0, 4.5, -25), (12, 9, 6), "steel_blue", "LankaSteel")
-    m.box((0, 9.2, -25), (12.4, 0.4, 6.4), "corrugated", "LankaSteelRoof", collide=False)
-    m.sign((0.0, 6.6, -22.0), "s", "LANKA STEEL", color=(0.92, 0.94, 0.96), pixel=0.004)
-    _facade(m, rng, -6, 6, -28, -22, 9, "s", spacing=4)
+    # Lanka Steel: walk through it from Mid to A; stairs to the upper floor
+    # with windows over both.
+    _house(m, -6, 6, -28, -22, "steel_blue", fh=4.5, doors=[("s", 10.0, 1.6), ("n", 10.0, 1.6)], windows="nsew",
+           stair_side="s", floor_mat="metal", light=(0.95, 0.97, 1.0))
+    m.sign((0.0, 8.2, -22.0), "s", "LANKA STEEL", color=(0.92, 0.94, 0.96), pixel=0.004)
     m.box((15, 3.5, -25), (6, 7, 6), "brick", "Store")
     _facade(m, rng, 12, 18, -28, -22, 7, "s", spacing=3)
     CW = 4.0
@@ -1434,7 +1570,9 @@ def factory():
             ("Rail Yard", (35, 2, 6), (10, 8, 80)),
             ("Tunnels", (-19, 1.5, 10), (26, 3, 4)),
             ("Lower Mid", (6, 2, 10), (24, 6, 12)),
-            ("Bombsite B", (5, 2, 25), (22, 6, 18))):
+            ("Bombsite B", (5, 2, 25), (22, 6, 18)),
+            ("Lanka Steel", (0, 2.2, -25), (12, 4.5, 6)),
+            ("Lanka Upstairs", (0, 6.7, -25), (12, 4.5, 6))):
         m.callout(label, pos, size)
     m.write("scenes/levels/factory.tscn", sun_rot=(-42.0, 130.0), sky=(0.28, 0.5, 0.82), horizon=(0.72, 0.76, 0.82),
             sun_color=(1.0, 0.94, 0.84), sun_energy=1.25, ambient=0.8, ambient_color=(0.66, 0.68, 0.7),

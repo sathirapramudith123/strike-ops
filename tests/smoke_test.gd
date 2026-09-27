@@ -885,6 +885,16 @@ func _test_maps() -> void:
 	_reset_player(Vector3(-32, 0.1, 22))
 	await _walk_forward_max_y(330)
 	_check(_player.global_position.z < -2.0, "kasbah: B Apartments corridor is passable (z=%.1f)" % _player.global_position.z)
+	# Enterable houses: in through a door, up the stairs.
+	_reset_player(Vector3(32, 0.1, -6.2), PI / 2)
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.x < 25.0, "kasbah: door into the house on A Long (x=%.1f)" % _player.global_position.x)
+	_reset_player(Vector3(19.15, 0.1, -8.5), PI)
+	var upstairs := await _walk_forward_max_y(200)
+	_check(upstairs > 3.9, "kasbah: stairs to the house's upper floor (y=%.2f)" % upstairs)
+	_reset_player(Vector3(-33, 0.1, 0.3), -PI / 2)
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.x > -27.0, "kasbah: door into the house by B (x=%.1f)" % _player.global_position.x)
 
 	# Radar + location names (built from the map's collision shapes).
 	var radar: Minimap = _level.hud._minimap
@@ -929,6 +939,8 @@ func _test_maps() -> void:
 
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
+			["factory", Vector3(4.8, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.z < -29.5, "through the Lanka Steel doors to A"],
+			["factory", Vector3(-4.8, 0.1, -23.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 4.3, "stairs to Lanka Steel's upper floor"],
 			["factory", Vector3(-31, 0.1, 10), -PI / 2, func(p: Vector3) -> bool: return p.x > -7.0, "through the tunnels"],
 			["factory", Vector3(24, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the roof"],
 			["factory", Vector3(16.8, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the catwalk"],
