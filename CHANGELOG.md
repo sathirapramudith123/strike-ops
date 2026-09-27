@@ -2,6 +2,21 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Armour (Bomb Defusal):** everyone starts each round with 100 armour. It
+takes 40 % of every bullet (and wears down by that much); falls and the
+bomb ignore it. Shown next to health with a shield icon.
+
+**HUD like the concept art:** health and armour side by side with bars,
+ammo as `30 / 120` plus bullet marks for the magazine, a little face on
+every player card in the top bar (helmets and caps for Blue, beanies and
+balaclavas for Red), a big **map name banner** ("KASBAH — BOMB DEFUSAL")
+when a map loads and at each round start, and a warmer radar with boxed
+site letters, teammates' view direction and a ring on the planted bomb.
+
+**Map dressing:** red **"A →" / "B →" signs painted on the walls** of all
+new maps, hanging rugs, fruit stalls (oranges, tomatoes), wooden barrels,
+more sandbags, fuller palm trees and castle towers over Kasbah.
+
 **Four more maps:** **Factory** (a machine hall with a catwalk and a
 storage hall around a yard of trucks, pipes and tanks), **Office** (lobby,
 open-plan office, server room, a mezzanine with two stairs), **Subway** (an

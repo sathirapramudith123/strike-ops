@@ -38,6 +38,7 @@ shape = SubResource("CapsuleShape3D_body")
 script = ExtResource("2_health")
 regen_delay = 5.0
 regen_per_second = 15.0
+uses_armor = true
 
 [node name="NetSync" type="Node" parent="."]
 script = ExtResource("4_net")

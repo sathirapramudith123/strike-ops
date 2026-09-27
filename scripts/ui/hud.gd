@@ -31,6 +31,11 @@ const KILL_FEED_MAX := 5
 @onready var _location_label: Label = %LocationLabel
 @onready var _top_bar: TopBar = %TopBar
 @onready var _health_icon: Control = %HealthIcon
+@onready var _armor_group: Control = %ArmorGroup
+@onready var _armor_icon: Control = %ArmorIcon
+@onready var _armor_label: Label = %ArmorLabel
+@onready var _armor_bar: ProgressBar = %ArmorBar
+@onready var _ammo_icons: Control = %AmmoIcons
 @onready var _end_screen: Control = %EndScreen
 @onready var _winner_label: Label = %WinnerLabel
 @onready var _next_map_label: Label = %NextMapLabel
@@ -44,6 +49,10 @@ const KILL_FEED_MAX := 5
 var _player: PlayerController
 var _weapon: Weapon
 var _location_timer := 0.0
+var _banner: VBoxContainer
+var _banner_time := 0.0
+var _banner_round := -1
+const BANNER_TIME := 6.0
 var _feed_style: StyleBoxFlat
 var _feed_style_mine: StyleBoxFlat
 
@@ -71,6 +80,8 @@ func _show_toast(text: String) -> void:
 func bind_player(player: PlayerController) -> void:
 	_player = player
 	player.health.health_changed.connect(_on_health_changed)
+	player.health.armor_changed.connect(_on_armor_changed)
+	_on_armor_changed(player.health.armor)
 	player.health.damaged.connect(func(_a: float, _s: Node, _h: bool) -> void:
 		_damage_flash.color.a = 0.35
 		GamepadInput.rumble(0.6, 0.4, 0.2)
@@ -97,6 +108,24 @@ func _ready() -> void:
 		var col := _health_label.modulate
 		_health_icon.draw_rect(Rect2(c - Vector2(3.5, 10), Vector2(7, 20)), col)
 		_health_icon.draw_rect(Rect2(c - Vector2(10, 3.5), Vector2(20, 7)), col))
+	# Shield outline for armour.
+	_armor_icon.draw.connect(func() -> void:
+		var c := _armor_icon.size * 0.5
+		var shield := PackedVector2Array([c + Vector2(-9, -10), c + Vector2(9, -10), c + Vector2(9, 0),
+			c + Vector2(0, 11), c + Vector2(-9, 0)])
+		_armor_icon.draw_colored_polygon(shield, Color(1, 1, 1, 0.25))
+		_armor_icon.draw_polyline(shield + PackedVector2Array([shield[0]]), Color.WHITE, 2.5))
+	_armor_group.visible = false
+	# Magazine as bullet marks: bright = rounds left (CS style).
+	_ammo_icons.draw.connect(func() -> void:
+		if _weapon == null:
+			return
+		var marks := 5
+		var lit := ceili(float(_weapon.ammo_in_magazine) / maxf(_weapon.data.magazine_size, 1) * marks)
+		for i in marks:
+			var x := 4.0 + i * 9.0
+			var col := Color(1, 0.92, 0.7) if i < lit else Color(1, 1, 1, 0.2)
+			_ammo_icons.draw_line(Vector2(x, 18), Vector2(x + 6, 4), col, 3.0))
 	_feed_style = StyleBoxFlat.new()
 	_feed_style.bg_color = Color(0.03, 0.04, 0.05, 0.6)
 	_feed_style.set_content_margin_all(4)
@@ -106,6 +135,7 @@ func _ready() -> void:
 	_feed_style_mine = _feed_style.duplicate()
 	_feed_style_mine.border_color = Color(0.9, 0.2, 0.15)
 	_feed_style_mine.set_border_width_all(2)
+	_build_banner()
 	var level := get_parent() as Level
 	_top_bar.level = level
 	if level and not level.preview_only:
@@ -154,6 +184,7 @@ func _process(delta: float) -> void:
 		_scope.amount = clampf((_weapon.ads_blend - 0.85) / 0.15, 0.0, 1.0) if _weapon.data.scoped else 0.0
 	_update_match_bar()
 	_update_bomb_hud()
+	_update_banner(delta)
 	_location_timer -= delta
 	if _location_timer <= 0.0:
 		_location_timer = 0.25
@@ -200,7 +231,68 @@ func _on_health_changed(current: float, maximum: float) -> void:
 	_health_icon.queue_redraw()
 
 
+## "KASBAH / BOMB DEFUSAL" in the top-right when a map loads and when each
+## Bomb Defusal round starts; fades out after a few seconds. The kill feed
+## moves down while it is shown.
+func _build_banner() -> void:
+	_banner = VBoxContainer.new()
+	_banner.name = "MapBanner"
+	_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_banner.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_banner.offset_left = -420.0
+	_banner.offset_right = -24.0
+	_banner.offset_top = 14.0
+	_banner.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_banner.add_theme_constant_override(&"separation", -6)
+	for spec: Array in [["Title", 44, Color(0.97, 0.94, 0.86)], ["Subtitle", 20, Color(1, 0.78, 0.45)]]:
+		var l := Label.new()
+		l.name = spec[0]
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		l.add_theme_font_size_override(&"font_size", spec[1])
+		l.add_theme_color_override(&"font_color", spec[2])
+		l.add_theme_color_override(&"font_outline_color", Color(0, 0, 0, 0.85))
+		l.add_theme_constant_override(&"outline_size", 8)
+		_banner.add_child(l)
+	add_child(_banner)
+	_banner.visible = false
+
+
+func show_banner() -> void:
+	var level := get_parent()
+	var path: String = level.scene_file_path if level and level.scene_file_path != "" else NetworkManager.current_map
+	var map_name := GameConfig.map_name(path)
+	(_banner.get_node(^"Title") as Label).text = map_name.to_upper()
+	(_banner.get_node(^"Subtitle") as Label).text = GameConfig.MODE_NAMES[Match.mode].to_upper()
+	_banner_time = BANNER_TIME
+	_banner.visible = true
+
+
+func _update_banner(delta: float) -> void:
+	if _banner_round < 0 and get_parent() is Level and not NetworkManager.is_dedicated():
+		_banner_round = 0
+		show_banner()
+	if Match.mode == GameConfig.Mode.BOMB and Match.bomb.round_number != _banner_round and Match.bomb.round_number > 0:
+		_banner_round = Match.bomb.round_number
+		show_banner()
+	if _banner_time > 0.0:
+		_banner_time -= delta
+		_banner.modulate.a = clampf(_banner_time / 1.0, 0.0, 1.0)
+		if _banner_time <= 0.0:
+			_banner.visible = false
+	_kill_feed.offset_top = 104.0 if _banner.visible else 16.0
+	_kill_feed.offset_bottom = _kill_feed.offset_top + 184.0
+
+
+## Armour: shown while you have some (Bomb Defusal gives 100 each round).
+func _on_armor_changed(armor: float) -> void:
+	_armor_group.visible = armor > 0.0 or Match.mode == GameConfig.Mode.BOMB
+	_armor_label.text = str(ceili(armor))
+	_armor_bar.value = armor
+	_armor_group.modulate.a = 1.0 if armor > 0.0 else 0.45
+
+
 func _on_ammo_changed(in_magazine: int, reserve: int) -> void:
+	_ammo_icons.queue_redraw()
 	_ammo_label.text = str(in_magazine)
 	_reserve_label.text = "/ %d" % reserve
 	var low := _weapon and in_magazine <= _weapon.data.magazine_size / 4

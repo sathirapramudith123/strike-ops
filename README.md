@@ -465,6 +465,10 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 | **Reload (others)** | `PlayerNetSync` sends a `RELOADING` flag; `PlayerModel` tips the gun and swings its separate left arm; the *mag out* sound plays at the player |
 | **More maps** | `factory()`, `office()`, `subway()`, `trainyard()` in `tools/greybox.py`; new helpers for trucks, containers, freight cars, rails, desks, strip lights; new materials (brick, tile, carpet, glass, gravel, sleepers…) and an emissive *lamp* kind so indoor maps stay lit on Low, where real lights are off |
 
+| **Armour** | `Health.uses_armor` (players): 100 at each Bomb Defusal round (and spawn), absorbs `ARMOR_ABSORB` = 40 % of weapon damage; synced with health; falls/bomb ignore it |
+| **HUD details** | Health + armour row with bars, ammo bullet marks, drawn faces on top-bar cards (`TopBar._draw_face`), map name banner (`Hud.show_banner`, 6 s), radar with boxed sites and teammate view ticks |
+| **Wall signs** | `m.sign(pos, face, "A", toward=(x, z))` in `tools/greybox.py`: a painted Label3D letter + arrow boxes pointing towards a place; plus `_rug()`, `_tower()`, fruit crates on stalls |
+
 Draw calls at the worst view on Low (after batching): Courtyard ~120, Kasbah ~185, Factory ~190, Office / Train Yard ~205, Subway ~235 — still well within what the minimum-spec GPUs handle.
 
 ### Phase 7b — real-hardware tuning
@@ -726,6 +730,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [ ] **Phase 7b — Real-hardware pass:** ✅ tools done (full hardware test with renderer restarts, shareable reports, `tools/tune_presets.py`, measured GPU tiers for auto-detect) · ⏳ waiting for reports from the minimum-spec PCs (Intel UHD 620 / Vega 8) to tune the presets
 - [x] **Phase 8 — Release (beta):** export presets, release packages + checksums, Windows installer, dedicated-server package + Docker, CI + release workflows, anti-cheat, bug reporting, changelog
 - [x] **v0.9 — toward v1.0:** controller support (look curve, aim assist, rumble, remapping), new look from code (procedural materials, gun + soldier models, lighting), code-signing pipeline (off until certificates exist)
+- [x] **Concept-art pass (code only):** armour, health/armour/ammo HUD, faces in the top bar, map banner, painted A/B signs, rugs, fruit stalls, barrels, towers
 - [x] **Maps + CS-style HUD:** Kasbah, Factory, Office, Subway and Train Yard; radar with location names, top bar with player cards; first-person hands, new sniper model; reload animations in first and third person
 - [ ] **v1.0:** beta feedback, presets tuned from hardware reports (Phase 7b), real art (CC0 packs or an artist), certificates for signing
 

@@ -750,7 +750,7 @@ mesh = SubResource("Mesh_35")
 shape = SubResource("Shape_35")
 
 [node name="Car1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, -3.000, 0.700, -3.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -3.000, 0.700, -3.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car1"]
 mesh = SubResource("Mesh_36")
@@ -759,7 +759,7 @@ mesh = SubResource("Mesh_36")
 shape = SubResource("Shape_36")
 
 [node name="Car2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, 4.000, 0.700, 3.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 4.000, 0.700, 3.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car2"]
 mesh = SubResource("Mesh_37")

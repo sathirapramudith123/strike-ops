@@ -10,6 +10,7 @@ signal health_changed(current: float, maximum: float)
 signal damaged(amount: float, source: Node, is_headshot: bool)
 signal died(source: Node)
 signal revived
+signal armor_changed(armor: float)
 
 const NET_GROUP := &"net_health"
 
@@ -17,8 +18,15 @@ const NET_GROUP := &"net_health"
 ## Seconds without damage before regeneration starts (0 = no regen).
 @export var regen_delay: float = 0.0
 @export var regen_per_second: float = 0.0
+## Players get armour (Bomb Defusal only, full at each round start). While
+## there is armour, it takes ARMOR_ABSORB of every weapon hit and loses that
+## much; the rest hurts. Falls and the bomb ignore armour.
+@export var uses_armor: bool = false
+const MAX_ARMOR := 100.0
+const ARMOR_ABSORB := 0.4
 
 var current: float
+var armor: float = 0.0
 var is_dead: bool = false
 ## Whether the most recent hit was a headshot (used for kill feed).
 var last_hit_headshot: bool = false
@@ -35,6 +43,9 @@ var _regen_sync_timer: float = 0.0
 
 func _ready() -> void:
 	current = max_health
+	# Same rule on every peer, so players who spawn mid-freeze have armour too.
+	if uses_armor and Match.mode == GameConfig.Mode.BOMB:
+		armor = MAX_ARMOR
 	add_to_group(NET_GROUP)
 
 
@@ -65,13 +76,19 @@ func take_damage(amount: float, source: Node = null, is_headshot: bool = false, 
 	last_hit_headshot = is_headshot
 	last_cause = cause
 	silent_death = false
-	current = maxf(current - amount, 0.0)
+	var hurt := amount
+	if armor > 0.0 and source != null:
+		var absorbed := minf(amount * ARMOR_ABSORB, armor)
+		armor -= absorbed
+		hurt = amount - absorbed
+	current = maxf(current - hurt, 0.0)
 	var killed := current <= 0.0
 	if killed:
 		is_dead = true
-	_broadcast(amount, is_headshot)
-	damaged.emit(amount, source, is_headshot)
+	_broadcast(hurt, is_headshot)
+	damaged.emit(hurt, source, is_headshot)
 	health_changed.emit(current, max_health)
+	armor_changed.emit(armor)
 	if killed:
 		died.emit(source)
 	return killed
@@ -92,9 +109,11 @@ func revive() -> void:
 		return
 	is_dead = false
 	current = max_health
+	armor = MAX_ARMOR if uses_armor and Match.mode == GameConfig.Mode.BOMB else 0.0
 	_time_since_damage = 0.0
 	_broadcast(0.0)
 	health_changed.emit(current, max_health)
+	armor_changed.emit(armor)
 	revived.emit()
 
 
@@ -122,17 +141,20 @@ func is_protected() -> bool:
 ## Server only: sends the current state to one peer (late joiners).
 func send_state_to(peer_id: int) -> void:
 	if is_inside_tree():
-		_net_sync.rpc_id(peer_id, current, is_dead, 0.0, false)
+		_net_sync.rpc_id(peer_id, current, is_dead, 0.0, false, armor)
 
 
 func _broadcast(damage_amount: float, is_headshot: bool = false) -> void:
-	NetworkManager.send_to_ready(self, &"_net_sync", [current, is_dead, damage_amount, is_headshot])
+	NetworkManager.send_to_ready(self, &"_net_sync", [current, is_dead, damage_amount, is_headshot, armor])
 
 
 @rpc("authority", "call_remote", "reliable")
-func _net_sync(new_current: float, new_dead: bool, damage_amount: float, is_headshot: bool) -> void:
+func _net_sync(new_current: float, new_dead: bool, damage_amount: float, is_headshot: bool, new_armor: float = 0.0) -> void:
 	var was_dead := is_dead
 	current = new_current
+	if new_armor != armor:
+		armor = new_armor
+		armor_changed.emit(armor)
 	is_dead = new_dead
 	last_hit_headshot = is_headshot
 	if damage_amount > 0.0:

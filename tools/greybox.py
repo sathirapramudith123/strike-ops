@@ -83,6 +83,17 @@ MATERIALS = {
                "roughness_value": 0.35, "metallic_value": 0.7, "grime": 0.15},
     "lamp": {"kind": 11, "base_color": (1.0, 0.95, 0.85), "line_color": (1.0, 0.95, 0.85), "grime": 0.0},
     "lamp_red": {"kind": 11, "base_color": (1.0, 0.15, 0.1), "line_color": (1.0, 0.15, 0.1), "grime": 0.0},
+    # Paint, rugs, fruit (market dressing).
+    "paint_red": {"kind": 4, "base_color": (0.62, 0.1, 0.07), "line_color": (0.62, 0.1, 0.07), "grime": 0.0,
+                  "roughness_value": 0.9},
+    "rug_red": {"kind": 10, "base_color": (0.55, 0.12, 0.1), "line_color": (0.85, 0.6, 0.25), "cell_size": 0.12,
+                "roughness_value": 1.0, "grime": 0.0},
+    "rug_blue": {"kind": 10, "base_color": (0.15, 0.22, 0.45), "line_color": (0.82, 0.7, 0.5), "cell_size": 0.1,
+                 "roughness_value": 1.0, "grime": 0.0},
+    "fruit_orange": {"kind": 9, "base_color": (0.95, 0.5, 0.08), "line_color": (0.3, 0.17, 0.05), "cell_size": 0.07,
+                     "roughness_value": 0.6, "grime": 0.0},
+    "fruit_red": {"kind": 9, "base_color": (0.75, 0.1, 0.07), "line_color": (0.25, 0.06, 0.04), "cell_size": 0.07,
+                  "roughness_value": 0.5, "grime": 0.0},
     "sack": {"kind": 10, "base_color": (0.66, 0.6, 0.46), "line_color": (0.62, 0.56, 0.43), "cell_size": 0.5,
              "roughness_value": 1.0, "grime": 0.0},
 }
@@ -97,6 +108,7 @@ class Map:
         self.lights = []
         self.sites = []  # (name, pos)
         self.callouts = []  # (label, pos, size)
+        self.signs = []  # (text, pos, yaw)
         self.zones = []  # (pos, size, bus, amount, priority)
         self._n = {}
 
@@ -106,7 +118,7 @@ class Map:
 
     @staticmethod
     def _basis(yaw=0.0, pitch=0.0, roll=0.0):
-        """Columns of Ry(yaw) · Rx(pitch) · Rz(roll) (degrees)."""
+        """Ry(yaw) · Rx(pitch) · Rz(roll) (degrees), as the 9 numbers of a .tscn Transform3D."""
         cy, sy = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
         cp, sp = math.cos(math.radians(pitch)), math.sin(math.radians(pitch))
         cr, sr = math.cos(math.radians(roll)), math.sin(math.radians(roll))
@@ -117,7 +129,8 @@ class Map:
         def mul(a, b):
             return tuple(tuple(sum(a[i][k] * b[k][j] for k in range(3)) for j in range(3)) for i in range(3))
         m = mul(mul(ry, rx), rz)
-        return tuple(m[r][c] for c in range(3) for r in range(3))
+        # Godot's text format lists the basis row by row.
+        return tuple(m[r][c] for r in range(3) for c in range(3))
 
     def box(self, pos, size, mat="grid", name="Box", yaw=0.0, collide=True, pitch=0.0, roll=0.0):
         self.boxes.append((self._id(name), pos, ("box", size), self._basis(yaw, pitch, roll), mat, collide))
@@ -142,6 +155,30 @@ class Map:
         pitch = -math.degrees(math.atan2(dy, h))
         mid = ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2)
         self.box(mid, (width or thickness, thickness, length), mat, name, yaw=yaw, pitch=pitch, collide=collide)
+
+    def sign(self, pos, face, text, toward=None):
+        """Letter painted on a wall ("A", "B"), with an arrow towards the
+        world point `toward` (x, z). `face` = the wall face it is on
+        ("n", "s", "e", "w"); pos is on that face."""
+        normal = {"s": (0, 1), "n": (0, -1), "e": (1, 0), "w": (-1, 0)}[face]
+        # Label3D text reads from its local +Z: turn that to the wall's normal.
+        yaw = {"s": 0.0, "n": 180.0, "e": -90.0, "w": 90.0}[face]
+        x, y, z = pos
+        # In front of window frames and shutters (they stick out ~0.11 m).
+        px, pz = x + normal[0] * 0.13, z + normal[1] * 0.13
+        self.signs.append((text, (px, y, pz), yaw))
+        if toward is None:
+            return
+        # Right, as seen by someone facing the wall.
+        rx, rz = normal[1], -normal[0]
+        side = 1 if (toward[0] - x) * rx + (toward[1] - z) * rz > 0 else -1
+        dx, dz = rx * side, rz * side
+        ax, az = px + dx * 0.75, pz + dz * 0.75
+        bx, bz = ax + dx * 1.0, az + dz * 1.0
+        yy = y - 0.05
+        self.beam((ax, yy, az), (bx, yy, bz), 0.12, "paint_red", "Arrow", width=0.02)
+        for up in (1, -1):
+            self.beam((bx, yy, bz), (bx - dx * 0.35, yy + up * 0.3, bz - dz * 0.35), 0.12, "paint_red", "Arrow", width=0.02)
 
     def callout(self, label, pos, size):
         """Location name shown under the minimap while inside this box."""
@@ -295,6 +332,13 @@ class Map:
         for i, (label, pos, size) in enumerate(self.callouts):
             callout_nodes.append(f'[node name="Callout{i + 1}" type="Marker3D" parent="Callouts"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]}, {pos[1]}, {pos[2]})\n'
                                  f'metadata/label = "{label}"\nmetadata/size = Vector3({size[0]}, {size[1]}, {size[2]})\n')
+        sign_nodes = []
+        for i, (text, pos, yaw) in enumerate(self.signs):
+            c, sn = math.cos(math.radians(yaw)), math.sin(math.radians(yaw))
+            sign_nodes.append(f'[node name="Sign{i + 1}" type="Label3D" parent="Signs"]\n'
+                              f'transform = Transform3D({c:.6f}, 0, {-sn:.6f}, 0, 1, 0, {sn:.6f}, 0, {c:.6f}, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n'
+                              f'pixel_size = 0.0045\ndouble_sided = false\nalpha_cut = 1\nmodulate = Color(0.68, 0.1, 0.07, 0.95)\n'
+                              f'text = "{text}"\nfont_size = 256\noutline_size = 0\n')
         head = f'''[gd_scene load_steps={len(subs) + len(mats) + 9} format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
@@ -371,6 +415,7 @@ directional_shadow_max_distance = 100.0
                + '\n[node name="BombSites" type="Node3D" parent="."]\n\n' + "\n".join(site_nodes)
                + ('\n[node name="AudioZones" type="Node3D" parent="."]\n\n' + "\n".join(zone_nodes) if zone_nodes else "")
                + ('\n[node name="Callouts" type="Node3D" parent="."]\n\n' + "\n".join(callout_nodes) if callout_nodes else "")
+               + ('\n[node name="Signs" type="Node3D" parent="."]\n\n' + "\n".join(sign_nodes) if sign_nodes else "")
                + "\n" + tail)
         with open(os.path.join(ROOT, path), "w") as f:
             f.write(out)
@@ -766,21 +811,53 @@ def _palm(m, x, z, height=6.0, lean=(0.6, 0.3)):
     top = (x + lean[0], height, z + lean[1])
     m.beam((x, 0.0, z), (x + lean[0] * 0.4, height * 0.5, z + lean[1] * 0.4), 0.32, "wood", "Trunk", collide=True)
     m.beam((x + lean[0] * 0.4, height * 0.5, z + lean[1] * 0.4), top, 0.26, "wood", "Trunk", collide=False)
-    for k in range(7):
-        a = math.radians(k * 360 / 7 + 10)
-        tip = (top[0] + math.cos(a) * 2.6, height - 1.1, top[2] + math.sin(a) * 2.6)
-        m.beam(top, tip, 0.05, "palm", "Frond", width=0.7)
+    for ring in (0.0, 0.35, 0.7):
+        m.cyl((x + lean[0] * ring, height * ring + 0.3, z + lean[1] * ring), 0.2, 0.12, "wood", "TrunkRing",
+              collide=False, segments=8)
+    # Fronds: up and out, then drooping (two segments each), plus a few dates.
+    for k in range(9):
+        a = math.radians(k * 40 + 10)
+        mid = (top[0] + math.cos(a) * 1.5, height + 0.35, top[2] + math.sin(a) * 1.5)
+        tip = (top[0] + math.cos(a) * 3.0, height - 0.9, top[2] + math.sin(a) * 3.0)
+        m.beam(top, mid, 0.05, "palm", "Frond", width=0.75)
+        m.beam(mid, tip, 0.05, "palm", "Frond", width=0.6)
+    m.box((top[0], height - 0.35, top[2]), (0.5, 0.4, 0.5), "clay", "Dates", collide=False)
 
 
 def _stall(m, x, z, yaw_face="s", cloth="cloth_red"):
     """Market stall: table, goods, two poles and a sloped awning."""
     out = {"s": 1, "n": -1}[yaw_face]
     m.box((x, 0.45, z), (2.4, 0.9, 1.0), "wood", "Stall")
-    for gx in (-0.7, 0.0, 0.7):
-        m.box((x + gx, 1.0, z), (0.5, 0.2, 0.5), "clay", "Goods", collide=False)
+    # Crates of oranges and tomatoes on the table.
+    for i, gx in enumerate((-0.7, 0.0, 0.7)):
+        m.box((x + gx, 1.01, z), (0.62, 0.22, 0.46), "wood", "FruitCrate", collide=False)
+        m.box((x + gx, 1.13, z), (0.56, 0.06, 0.4), ("fruit_orange", "fruit_red", "fruit_orange")[i], "Fruit",
+              collide=False)
     for px in (-1.15, 1.15):
         m.box((x + px, 1.2, z + out * 0.9), (0.08, 2.4, 0.08), "wood", "Pole", collide=False)
     m.box((x, 2.35, z + out * 0.35), (2.7, 0.05, 1.9), cloth, "Awning", pitch=out * 14, collide=False)
+
+
+def _rug(m, x, y, z, face, mat="rug_red", w=1.3, h=1.9):
+    """A rug hung on a wall face (thin, visual)."""
+    n = {"s": (0, 1), "n": (0, -1), "e": (1, 0), "w": (-1, 0)}[face]
+    size = (w, h, 0.03) if face in "ns" else (0.03, h, w)
+    m.box((x + n[0] * 0.03, y, z + n[1] * 0.03), size, mat, "Rug", collide=False)
+
+
+def _tower(m, x, z, base, h, mat="sandstone", w=5.0):
+    """Castle-style tower standing on a roof (visual only): slit windows,
+    crenellations."""
+    m.box((x, base + h / 2, z), (w, h, w), mat, "Tower", collide=False)
+    m.box((x, base + h + 0.15, z), (w + 0.4, 0.3, w + 0.4), mat, "TowerLedge", collide=False)
+    for i in range(4):
+        t = -w / 2 + 0.45 + i * (w - 0.9) / 3
+        for (dx, dz) in ((t, -w / 2), (t, w / 2), (-w / 2, t), (w / 2, t)):
+            m.box((x + dx, base + h + 0.75, z + dz), (0.8, 0.9, 0.8), mat, "Merlon", collide=False)
+    for fy in (base + 3.0, base + h - 2.5):
+        for (dx, dz, sx, sz) in ((0, -w / 2 - 0.02, 0.4, 0.05), (0, w / 2 + 0.02, 0.4, 0.05),
+                                 (-w / 2 - 0.02, 0, 0.05, 0.4), (w / 2 + 0.02, 0, 0.05, 0.4)):
+            m.box((x + dx, fy, z + dz), (sx, 1.3, sz), "dark", "Slit", collide=False)
 
 
 def _cable(m, a, b):
@@ -960,6 +1037,27 @@ def kasbah():
         m.callout(label, pos, size)
 
     m.reverb((11, 2.0, -17.5), (14, 4.0, 5), "room", 0.2)
+    # Painted directions (as in CS), market rugs, wooden barrels, sandbags, a tower.
+    m.sign((4.0, 2.5, 2.5), "w", "A", toward=(11, -17))
+    m.sign((-4.0, 2.5, 2.5), "e", "B", toward=(-11, -11))
+    m.sign((20.0, 2.5, 34.0), "s", "A", toward=(34, 30))
+    m.sign((-20.0, 2.5, 34.0), "s", "B", toward=(-34, 20))
+    m.sign((30.0, 2.5, 4.0), "e", "A", toward=(34, -10))
+    m.sign((-30.0, 2.5, -5.0), "w", "B", toward=(-34, -14))
+    m.sign((10.0, 2.5, -32.0), "n", "A", toward=(24, -32))
+    m.sign((-10.0, 2.5, -32.0), "n", "B", toward=(-24, -32))
+    for (x, mat) in ((-13.0, "rug_red"), (-7.5, "rug_blue")):
+        _rug(m, x, 1.7, 34.0, "s", mat)
+    _rug(m, 4.0, 1.8, 26.5, "w", "rug_red")
+    _rug(m, 4.0, 1.8, 32.0, "w", "rug_blue")
+    _rug(m, -36.5, 1.6, -31.75, "s", "rug_blue")
+    for (x, z) in ((-3.2, 25.5), (35.4, -15.6), (36.2, -16.3), (-21.0, -15.0), (-21.7, -15.6), (13.5, 44.3)):
+        _barrel(m, x, z, "wood")
+    _sandbags(m, (30.6, -5.0), (32.3, -5.0))
+    _sandbags(m, (20.0, -29.5), (23.0, -29.5))
+    _tower(m, 11.0, -26.0, 7.0, 9.0)
+    _tower(m, -12.0, -24.0, 8.0, 6.0, "plaster_warm", 4.0)
+
     m.write("scenes/levels/kasbah.tscn", sun_rot=(-52.0, 150.0), sky=(0.22, 0.47, 0.85), horizon=(0.62, 0.74, 0.88),
             sun_color=(1.0, 0.9, 0.74), sun_energy=1.3, ambient=0.75, fog=0.002, fog_color=(0.85, 0.8, 0.72),
             ambient_color=(0.8, 0.68, 0.55))
@@ -1194,6 +1292,11 @@ def factory():
             ("Bombsite B", (-21, 2, -27), (14, 6, 14)),
             ("CT Offices", (-2, 2, -31), (12, 6, 22))):
         m.callout(label, pos, size)
+    m.sign((18.0, 3.0, -7.75), "s", "A", toward=(26, -8))
+    m.sign((-23.0, 2.6, -13.75), "s", "B", toward=(-29, -14))
+    m.sign((3.75, 2.6, -24.0), "w", "A", toward=(4, -30))
+    m.sign((-7.75, 2.6, -26.0), "e", "B", toward=(-8, -32))
+
     m.write("scenes/levels/factory.tscn", sun_rot=(-48.0, 120.0), sky=(0.32, 0.46, 0.66), horizon=(0.66, 0.7, 0.74),
             sun_color=(1.0, 0.93, 0.82), sun_energy=1.15, ambient=0.8, ambient_color=(0.62, 0.64, 0.66))
 
@@ -1323,6 +1426,9 @@ def office():
     m.reverb((17, 1.6, 9), (14, 3.2, 42), "room", 0.3, priority=1)
     m.reverb((-17, 1.6, 9), (14, 3.2, 42), "room", 0.35, priority=1)
     m.reverb((0, 1.6, -21), (48, 3.2, 18), "room", 0.35, priority=1)
+    m.sign((12.5, 3.3, 30.2), "s", "A", toward=(26, 30))
+    m.sign((-12.5, 3.3, 30.2), "s", "B", toward=(-26, 30))
+
     m.write("scenes/levels/office.tscn", sun_rot=(-40.0, 200.0), sky=(0.3, 0.5, 0.8), horizon=(0.7, 0.74, 0.8),
             sun_energy=1.1, ambient=0.9, ambient_color=(0.72, 0.72, 0.72))
 
@@ -1442,6 +1548,11 @@ def subway():
         m.callout(label, pos, size)
     m.reverb((0, 2, 0), (2 * X, 7, 2 * Z), "hall", 0.5)
     m.reverb((-6, 1.2, -3), (3.4, 2.4, 30), "room", 0.3, priority=1)
+    m.sign((-26.0, 2.6, -12.0), "e", "B", toward=(-17, -6))
+    m.sign((26.0, 2.6, -28.0), "w", "A", toward=(18, -18))
+    m.sign((-26.0, 2.6, 28.0), "e", "B", toward=(-26, 0))
+    m.sign((26.0, 2.6, 28.0), "w", "A", toward=(26, 0))
+
     m.write("scenes/levels/subway.tscn", sun_rot=(-80.0, 0.0), sky=(0.1, 0.1, 0.12), horizon=(0.2, 0.2, 0.22),
             sun_color=(1, 1, 1), sun_energy=0.0, sun_shadow=False, ambient=1.1, ambient_color=(0.78, 0.8, 0.84))
 
@@ -1540,6 +1651,9 @@ def trainyard():
             ("West Side", (-32, 2, 20), (16, 6, 50))):
         m.callout(label, pos, size)
     m.reverb((32, 3.5, -18), (13, 7, 26), "room", 0.25)
+    m.sign((-30.0, 2.2, -5.0), "e", "B", toward=(-31, -22))
+    m.sign((24.0, 1.9, 20.0), "w", "A", toward=(30, -17))
+
     m.write("scenes/levels/trainyard.tscn", sun_rot=(-35.0, 70.0), sky=(0.34, 0.48, 0.68), horizon=(0.76, 0.72, 0.66),
             sun_color=(1.0, 0.86, 0.68), sun_energy=1.2, ambient=0.8, ambient_color=(0.66, 0.64, 0.62),
             fog=0.003, fog_color=(0.8, 0.74, 0.66))

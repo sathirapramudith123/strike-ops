@@ -536,6 +536,15 @@ func _test_bomb_defusal() -> void:
 	await _frames(30)
 	_check(b.phase == BombRules.Phase.LIVE, "round goes live after freeze")
 	_check(b.bomb_carrier == 1 and b.bomb_state == BombRules.BombState.CARRIED, "the attacker gets the bomb when the round goes live")
+	# Armour: full each Bomb Defusal round; soaks 40 % of a weapon hit.
+	_check(is_equal_approx(_player.health.armor, 100.0), "bomb round starts with 100 armour")
+	_player.health.take_damage(50.0, defender)
+	_check(is_equal_approx(_player.health.current, 70.0) and is_equal_approx(_player.health.armor, 80.0),
+		"armour takes 40 %% of a hit (health %.0f, armour %.0f)" % [_player.health.current, _player.health.armor])
+	_check(_level.hud._armor_label.text == "80" and _level.hud._armor_group.visible, "HUD shows the armour")
+	_player.health.take_damage(10.0, null, false, "Fall")
+	_check(is_equal_approx(_player.health.current, 60.0), "falls ignore armour")
+	_player.health.heal(100.0)
 
 	# Drop + pick up.
 	b.on_player_down(1, _player.global_position + Vector3(0.5, 0, 0))
@@ -880,6 +889,10 @@ func _test_maps() -> void:
 	# Radar + location names (built from the map's collision shapes).
 	var radar: Minimap = _level.hud._minimap
 	_check(radar._polys.size() > 60, "radar outline built from the map (%d shapes)" % radar._polys.size())
+	_check((_level.hud._banner.get_node(^"Title") as Label).text == "KASBAH", "map name banner shows KASBAH")
+	var signs := _level.get_node_or_null(^"Signs")
+	_check(signs != null and signs.get_child_count() >= 8, "painted A/B direction signs on the walls")
+	_check(is_zero_approx(_player.health.armor), "no armour outside Bomb Defusal")
 	_check(radar.location(Vector3(28, 1.1, -24)) == "Bombsite A" and radar.location(Vector3(0, 0.1, 8)) == "Mid"
 		and radar.location(Vector3(-34, 0.1, 10)) == "B Apartments", "location names: Bombsite A, Mid, B Apartments")
 	_check(radar.location(Vector3(-28, 0.1, -20)) == "Bombsite B", "bomb site fallback / callout for B")

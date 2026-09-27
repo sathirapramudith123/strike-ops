@@ -1,4 +1,4 @@
-[gd_scene load_steps=936 format=3]
+[gd_scene load_steps=943 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -232,6 +232,15 @@ shader_parameter/kind = 11
 shader_parameter/base_color = Color(1.0, 0.95, 0.85, 1)
 shader_parameter/line_color = Color(1.0, 0.95, 0.85, 1)
 shader_parameter/grime = 0.0
+
+[sub_resource type="ShaderMaterial" id="Mat_paint_red"]
+render_priority = 0
+shader = ExtResource("4_grid")
+shader_parameter/kind = 4
+shader_parameter/base_color = Color(0.62, 0.1, 0.07, 1)
+shader_parameter/line_color = Color(0.62, 0.1, 0.07, 1)
+shader_parameter/grime = 0.0
+shader_parameter/roughness_value = 0.9
 
 [sub_resource type="BoxMesh" id="Mesh_1"]
 material = SubResource("Mat_concrete")
@@ -3832,6 +3841,30 @@ size = Vector3(0.600, 0.900, 5.000)
 [sub_resource type="BoxShape3D" id="Shape_785"]
 size = Vector3(0.600, 0.900, 5.000)
 
+[sub_resource type="BoxMesh" id="Mesh_786"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 1.000)
+
+[sub_resource type="BoxMesh" id="Mesh_787"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_788"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_789"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 1.000)
+
+[sub_resource type="BoxMesh" id="Mesh_790"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_791"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
 [sub_resource type="BoxShape3D" id="Zone_1"]
 size = Vector3(20.000, 7.400, 42.000)
 
@@ -3969,13 +4002,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_16")
 
 [node name="Shutter1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -28.113, 11.500, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -28.113, 11.500, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter1"]
 mesh = SubResource("Mesh_17")
 
 [node name="Shutter2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -26.553, 11.500, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -26.553, 11.500, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter2"]
 mesh = SubResource("Mesh_18")
@@ -4053,13 +4086,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_30")
 
 [node name="Shutter3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -17.447, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -17.447, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter3"]
 mesh = SubResource("Mesh_31")
 
 [node name="Shutter4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -15.887, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -15.887, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter4"]
 mesh = SubResource("Mesh_32")
@@ -4158,13 +4191,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_47")
 
 [node name="Shutter5" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -17.447, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -17.447, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter5"]
 mesh = SubResource("Mesh_48")
 
 [node name="Shutter6" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -15.887, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -15.887, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter6"]
 mesh = SubResource("Mesh_49")
@@ -4251,13 +4284,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_62")
 
 [node name="Shutter7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -12.113, 8.300, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -12.113, 8.300, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter7"]
 mesh = SubResource("Mesh_63")
 
 [node name="Shutter8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -10.553, 8.300, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -10.553, 8.300, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter8"]
 mesh = SubResource("Mesh_64")
@@ -4287,13 +4320,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_68")
 
 [node name="Shutter9" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -6.780, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -6.780, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter9"]
 mesh = SubResource("Mesh_69")
 
 [node name="Shutter10" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -5.220, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -5.220, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter10"]
 mesh = SubResource("Mesh_70")
@@ -4323,13 +4356,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_74")
 
 [node name="Shutter11" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -1.447, 1.900, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -1.447, 1.900, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter11"]
 mesh = SubResource("Mesh_75")
 
 [node name="Shutter12" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 0.113, 1.900, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 0.113, 1.900, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter12"]
 mesh = SubResource("Mesh_76")
@@ -4416,13 +4449,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_89")
 
 [node name="Shutter13" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -12.113, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -12.113, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter13"]
 mesh = SubResource("Mesh_90")
 
 [node name="Shutter14" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -10.553, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -10.553, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter14"]
 mesh = SubResource("Mesh_91")
@@ -4440,13 +4473,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_93")
 
 [node name="Shutter15" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -12.113, 8.300, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -12.113, 8.300, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter15"]
 mesh = SubResource("Mesh_94")
 
 [node name="Shutter16" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -10.553, 8.300, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -10.553, 8.300, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter16"]
 mesh = SubResource("Mesh_95")
@@ -4464,13 +4497,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_97")
 
 [node name="Shutter17" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -6.780, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -6.780, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter17"]
 mesh = SubResource("Mesh_98")
 
 [node name="Shutter18" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -5.220, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -5.220, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter18"]
 mesh = SubResource("Mesh_99")
@@ -4488,13 +4521,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_101")
 
 [node name="Shutter19" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -6.780, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -6.780, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter19"]
 mesh = SubResource("Mesh_102")
 
 [node name="Shutter20" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -5.220, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -5.220, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter20"]
 mesh = SubResource("Mesh_103")
@@ -4524,13 +4557,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_107")
 
 [node name="Shutter21" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -1.447, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -1.447, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter21"]
 mesh = SubResource("Mesh_108")
 
 [node name="Shutter22" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 0.113, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 0.113, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter22"]
 mesh = SubResource("Mesh_109")
@@ -4548,13 +4581,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_111")
 
 [node name="Shutter23" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -1.447, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -1.447, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter23"]
 mesh = SubResource("Mesh_112")
 
 [node name="Shutter24" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 0.113, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 0.113, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter24"]
 mesh = SubResource("Mesh_113")
@@ -4629,13 +4662,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_124")
 
 [node name="Shutter25" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 9.220, 1.900, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 9.220, 1.900, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter25"]
 mesh = SubResource("Mesh_125")
 
 [node name="Shutter26" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 10.780, 1.900, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 10.780, 1.900, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter26"]
 mesh = SubResource("Mesh_126")
@@ -4653,13 +4686,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_128")
 
 [node name="Shutter27" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 9.220, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 9.220, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter27"]
 mesh = SubResource("Mesh_129")
 
 [node name="Shutter28" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 10.780, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 10.780, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter28"]
 mesh = SubResource("Mesh_130")
@@ -4713,13 +4746,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_138")
 
 [node name="Shutter29" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 14.553, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 14.553, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter29"]
 mesh = SubResource("Mesh_139")
 
 [node name="Shutter30" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 16.113, 5.100, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 16.113, 5.100, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter30"]
 mesh = SubResource("Mesh_140")
@@ -4737,13 +4770,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_142")
 
 [node name="Shutter31" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 14.553, 11.500, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 14.553, 11.500, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter31"]
 mesh = SubResource("Mesh_143")
 
 [node name="Shutter32" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 16.113, 11.500, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 16.113, 11.500, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter32"]
 mesh = SubResource("Mesh_144")
@@ -4794,13 +4827,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_151")
 
 [node name="Shutter33" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 3.887, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 3.887, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter33"]
 mesh = SubResource("Mesh_152")
 
 [node name="Shutter34" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 5.447, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 5.447, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter34"]
 mesh = SubResource("Mesh_153")
@@ -4818,13 +4851,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_155")
 
 [node name="Shutter35" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 3.887, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 3.887, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter35"]
 mesh = SubResource("Mesh_156")
 
 [node name="Shutter36" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 5.447, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 5.447, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter36"]
 mesh = SubResource("Mesh_157")
@@ -4842,13 +4875,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_159")
 
 [node name="Shutter37" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 3.887, 8.300, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 3.887, 8.300, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter37"]
 mesh = SubResource("Mesh_160")
 
 [node name="Shutter38" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 5.447, 8.300, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 5.447, 8.300, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter38"]
 mesh = SubResource("Mesh_161")
@@ -4878,13 +4911,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_165")
 
 [node name="Shutter39" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 9.220, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 9.220, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter39"]
 mesh = SubResource("Mesh_166")
 
 [node name="Shutter40" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 10.780, 5.100, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 10.780, 5.100, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter40"]
 mesh = SubResource("Mesh_167")
@@ -5019,13 +5052,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_188")
 
 [node name="Shutter41" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 20.220, 8.300, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 20.220, 8.300, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter41"]
 mesh = SubResource("Mesh_189")
 
 [node name="Shutter42" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 21.780, 8.300, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 21.780, 8.300, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter42"]
 mesh = SubResource("Mesh_190")
@@ -5079,13 +5112,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_198")
 
 [node name="Shutter43" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 26.220, 8.300, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 26.220, 8.300, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter43"]
 mesh = SubResource("Mesh_199")
 
 [node name="Shutter44" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 27.780, 8.300, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 27.780, 8.300, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter44"]
 mesh = SubResource("Mesh_200")
@@ -5103,13 +5136,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_202")
 
 [node name="Shutter45" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 26.220, 11.500, -33.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 26.220, 11.500, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter45"]
 mesh = SubResource("Mesh_203")
 
 [node name="Shutter46" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 27.780, 11.500, -33.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 27.780, 11.500, -33.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter46"]
 mesh = SubResource("Mesh_204")
@@ -5184,13 +5217,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_215")
 
 [node name="Shutter47" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 26.220, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 26.220, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter47"]
 mesh = SubResource("Mesh_216")
 
 [node name="Shutter48" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 27.780, 1.900, 47.700)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 27.780, 1.900, 47.700)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter48"]
 mesh = SubResource("Mesh_217")
@@ -5313,13 +5346,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_236")
 
 [node name="Shutter49" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 11.500, -32.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 11.500, -32.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter49"]
 mesh = SubResource("Mesh_237")
 
 [node name="Shutter50" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 11.500, -30.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 11.500, -30.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter50"]
 mesh = SubResource("Mesh_238")
@@ -5337,13 +5370,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_240")
 
 [node name="Shutter51" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 1.900, -26.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 1.900, -26.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter51"]
 mesh = SubResource("Mesh_241")
 
 [node name="Shutter52" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 1.900, -25.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 1.900, -25.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter52"]
 mesh = SubResource("Mesh_242")
@@ -5361,13 +5394,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_244")
 
 [node name="Shutter53" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -26.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -26.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter53"]
 mesh = SubResource("Mesh_245")
 
 [node name="Shutter54" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -25.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -25.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter54"]
 mesh = SubResource("Mesh_246")
@@ -5433,13 +5466,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_256")
 
 [node name="Shutter55" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -21.447)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -21.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter55"]
 mesh = SubResource("Mesh_257")
 
 [node name="Shutter56" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -19.887)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -19.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter56"]
 mesh = SubResource("Mesh_258")
@@ -5526,13 +5559,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_271")
 
 [node name="Shutter57" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -32.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -32.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter57"]
 mesh = SubResource("Mesh_272")
 
 [node name="Shutter58" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -30.553)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -30.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter58"]
 mesh = SubResource("Mesh_273")
@@ -5610,13 +5643,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_285")
 
 [node name="Shutter59" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -26.780)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -26.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter59"]
 mesh = SubResource("Mesh_286")
 
 [node name="Shutter60" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -25.220)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -25.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter60"]
 mesh = SubResource("Mesh_287")
@@ -5646,13 +5679,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_291")
 
 [node name="Shutter61" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, -21.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, -21.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter61"]
 mesh = SubResource("Mesh_292")
 
 [node name="Shutter62" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, -19.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, -19.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter62"]
 mesh = SubResource("Mesh_293")
@@ -5682,13 +5715,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_297")
 
 [node name="Shutter63" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, -21.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, -21.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter63"]
 mesh = SubResource("Mesh_298")
 
 [node name="Shutter64" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, -19.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, -19.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter64"]
 mesh = SubResource("Mesh_299")
@@ -5706,13 +5739,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_301")
 
 [node name="Shutter65" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -21.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -21.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter65"]
 mesh = SubResource("Mesh_302")
 
 [node name="Shutter66" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -19.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -19.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter66"]
 mesh = SubResource("Mesh_303")
@@ -5775,13 +5808,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_312")
 
 [node name="Shutter67" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -16.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -16.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter67"]
 mesh = SubResource("Mesh_313")
 
 [node name="Shutter68" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -14.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -14.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter68"]
 mesh = SubResource("Mesh_314")
@@ -5799,13 +5832,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_316")
 
 [node name="Shutter69" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, -16.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, -16.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter69"]
 mesh = SubResource("Mesh_317")
 
 [node name="Shutter70" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, -14.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, -14.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter70"]
 mesh = SubResource("Mesh_318")
@@ -5823,13 +5856,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_320")
 
 [node name="Shutter71" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -10.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -10.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter71"]
 mesh = SubResource("Mesh_321")
 
 [node name="Shutter72" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -9.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -9.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter72"]
 mesh = SubResource("Mesh_322")
@@ -5883,13 +5916,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_330")
 
 [node name="Shutter73" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -5.447)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -5.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter73"]
 mesh = SubResource("Mesh_331")
 
 [node name="Shutter74" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -3.887)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -3.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter74"]
 mesh = SubResource("Mesh_332")
@@ -5952,13 +5985,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_341")
 
 [node name="Shutter75" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -16.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -16.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter75"]
 mesh = SubResource("Mesh_342")
 
 [node name="Shutter76" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -14.553)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -14.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter76"]
 mesh = SubResource("Mesh_343")
@@ -6000,13 +6033,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_349")
 
 [node name="Shutter77" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -16.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -16.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter77"]
 mesh = SubResource("Mesh_350")
 
 [node name="Shutter78" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -14.553)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -14.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter78"]
 mesh = SubResource("Mesh_351")
@@ -6036,13 +6069,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_355")
 
 [node name="Shutter79" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -10.780)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -10.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter79"]
 mesh = SubResource("Mesh_356")
 
 [node name="Shutter80" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -9.220)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -9.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter80"]
 mesh = SubResource("Mesh_357")
@@ -6060,13 +6093,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_359")
 
 [node name="Shutter81" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, -10.780)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, -10.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter81"]
 mesh = SubResource("Mesh_360")
 
 [node name="Shutter82" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, -9.220)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, -9.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter82"]
 mesh = SubResource("Mesh_361")
@@ -6096,13 +6129,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_365")
 
 [node name="Shutter83" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -5.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -5.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter83"]
 mesh = SubResource("Mesh_366")
 
 [node name="Shutter84" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -3.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -3.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter84"]
 mesh = SubResource("Mesh_367")
@@ -6132,13 +6165,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_371")
 
 [node name="Shutter85" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -5.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -5.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter85"]
 mesh = SubResource("Mesh_372")
 
 [node name="Shutter86" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, -3.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, -3.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter86"]
 mesh = SubResource("Mesh_373")
@@ -6201,13 +6234,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_382")
 
 [node name="Shutter87" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, -0.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, -0.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter87"]
 mesh = SubResource("Mesh_383")
 
 [node name="Shutter88" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, 1.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, 1.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter88"]
 mesh = SubResource("Mesh_384")
@@ -6249,13 +6282,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_390")
 
 [node name="Shutter89" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 5.220)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 5.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter89"]
 mesh = SubResource("Mesh_391")
 
 [node name="Shutter90" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 6.780)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 6.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter90"]
 mesh = SubResource("Mesh_392")
@@ -6285,13 +6318,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_396")
 
 [node name="Shutter91" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, 10.553)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, 10.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter91"]
 mesh = SubResource("Mesh_397")
 
 [node name="Shutter92" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 5.100, 12.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 5.100, 12.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter92"]
 mesh = SubResource("Mesh_398")
@@ -6354,13 +6387,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_407")
 
 [node name="Shutter93" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, -0.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, -0.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter93"]
 mesh = SubResource("Mesh_408")
 
 [node name="Shutter94" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 1.447)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 1.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter94"]
 mesh = SubResource("Mesh_409")
@@ -6378,13 +6411,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_411")
 
 [node name="Shutter95" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, -0.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, -0.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter95"]
 mesh = SubResource("Mesh_412")
 
 [node name="Shutter96" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 1.447)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 1.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter96"]
 mesh = SubResource("Mesh_413")
@@ -6414,13 +6447,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_417")
 
 [node name="Shutter97" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 5.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 5.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter97"]
 mesh = SubResource("Mesh_418")
 
 [node name="Shutter98" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 6.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 6.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter98"]
 mesh = SubResource("Mesh_419")
@@ -6450,13 +6483,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_423")
 
 [node name="Shutter99" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 5.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 5.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter99"]
 mesh = SubResource("Mesh_424")
 
 [node name="Shutter100" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 6.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 6.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter100"]
 mesh = SubResource("Mesh_425")
@@ -6555,13 +6588,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_440")
 
 [node name="Shutter101" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 11.500, 15.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 11.500, 15.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter101"]
 mesh = SubResource("Mesh_441")
 
 [node name="Shutter102" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 11.500, 17.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 11.500, 17.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter102"]
 mesh = SubResource("Mesh_442")
@@ -6579,13 +6612,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_444")
 
 [node name="Shutter103" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 1.900, 21.220)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 1.900, 21.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter103"]
 mesh = SubResource("Mesh_445")
 
 [node name="Shutter104" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 1.900, 22.780)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 1.900, 22.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter104"]
 mesh = SubResource("Mesh_446")
@@ -6603,13 +6636,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_448")
 
 [node name="Shutter105" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 21.220)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 21.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter105"]
 mesh = SubResource("Mesh_449")
 
 [node name="Shutter106" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 22.780)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 22.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter106"]
 mesh = SubResource("Mesh_450")
@@ -6696,13 +6729,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_463")
 
 [node name="Shutter107" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 15.887)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 15.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter107"]
 mesh = SubResource("Mesh_464")
 
 [node name="Shutter108" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 17.447)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 17.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter108"]
 mesh = SubResource("Mesh_465")
@@ -6792,13 +6825,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_479")
 
 [node name="Shutter109" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 26.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 26.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter109"]
 mesh = SubResource("Mesh_480")
 
 [node name="Shutter110" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 1.900, 28.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 1.900, 28.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter110"]
 mesh = SubResource("Mesh_481")
@@ -6816,13 +6849,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_483")
 
 [node name="Shutter111" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 26.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 26.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter111"]
 mesh = SubResource("Mesh_484")
 
 [node name="Shutter112" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 28.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 28.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter112"]
 mesh = SubResource("Mesh_485")
@@ -6840,13 +6873,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_487")
 
 [node name="Shutter113" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 26.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 26.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter113"]
 mesh = SubResource("Mesh_488")
 
 [node name="Shutter114" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 28.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 28.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter114"]
 mesh = SubResource("Mesh_489")
@@ -6909,13 +6942,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_498")
 
 [node name="Shutter115" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 1.900, 31.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 1.900, 31.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter115"]
 mesh = SubResource("Mesh_499")
 
 [node name="Shutter116" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 1.900, 33.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 1.900, 33.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter116"]
 mesh = SubResource("Mesh_500")
@@ -6945,13 +6978,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_504")
 
 [node name="Shutter117" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 31.887)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 31.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter117"]
 mesh = SubResource("Mesh_505")
 
 [node name="Shutter118" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 33.447)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 33.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter118"]
 mesh = SubResource("Mesh_506")
@@ -7005,13 +7038,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_514")
 
 [node name="Shutter119" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 42.553)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 42.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter119"]
 mesh = SubResource("Mesh_515")
 
 [node name="Shutter120" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, 29.700, 8.300, 44.113)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, 29.700, 8.300, 44.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter120"]
 mesh = SubResource("Mesh_516")
@@ -7086,13 +7119,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_527")
 
 [node name="Shutter121" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, 31.887)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, 31.887)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter121"]
 mesh = SubResource("Mesh_528")
 
 [node name="Shutter122" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 11.500, 33.447)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 11.500, 33.447)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter122"]
 mesh = SubResource("Mesh_529")
@@ -7122,13 +7155,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_533")
 
 [node name="Shutter123" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 37.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 37.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter123"]
 mesh = SubResource("Mesh_534")
 
 [node name="Shutter124" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 38.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 38.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter124"]
 mesh = SubResource("Mesh_535")
@@ -7158,13 +7191,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_539")
 
 [node name="Shutter125" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 37.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 37.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter125"]
 mesh = SubResource("Mesh_540")
 
 [node name="Shutter126" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 38.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 38.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter126"]
 mesh = SubResource("Mesh_541")
@@ -7206,13 +7239,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_547")
 
 [node name="Shutter127" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 42.553)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 42.553)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter127"]
 mesh = SubResource("Mesh_548")
 
 [node name="Shutter128" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 8.300, 44.113)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 8.300, 44.113)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter128"]
 mesh = SubResource("Mesh_549")
@@ -7356,13 +7389,13 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_571")
 
 [node name="Shutter129" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 46.220)
+transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 46.220)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter129"]
 mesh = SubResource("Mesh_572")
 
 [node name="Shutter130" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.500000, 0.000000, -0.866025, 0.000000, 1.000000, 0.000000, 0.866025, 0.000000, 0.500000, -29.700, 5.100, 47.780)
+transform = Transform3D(0.500000, 0.000000, 0.866025, 0.000000, 1.000000, 0.000000, -0.866025, 0.000000, 0.500000, -29.700, 5.100, 47.780)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Shutter130"]
 mesh = SubResource("Mesh_573")
@@ -7857,7 +7890,7 @@ mesh = SubResource("Mesh_641")
 shape = SubResource("Shape_641")
 
 [node name="Desk1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -16.000, 3.975, -26.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, -16.000, 3.975, -26.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk1"]
 mesh = SubResource("Mesh_642")
@@ -7866,13 +7899,13 @@ mesh = SubResource("Mesh_642")
 shape = SubResource("Shape_642")
 
 [node name="Monitor1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -16.000, 4.580, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, -16.000, 4.580, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor1"]
 mesh = SubResource("Mesh_643")
 
 [node name="MonitorStand1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -16.000, 4.400, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, -16.000, 4.400, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand1"]
 mesh = SubResource("Mesh_644")
@@ -7884,7 +7917,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_645")
 
 [node name="Desk2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -6.000, 3.975, -26.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, -6.000, 3.975, -26.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk2"]
 mesh = SubResource("Mesh_646")
@@ -7893,13 +7926,13 @@ mesh = SubResource("Mesh_646")
 shape = SubResource("Shape_646")
 
 [node name="Monitor2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -6.000, 4.580, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, -6.000, 4.580, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor2"]
 mesh = SubResource("Mesh_647")
 
 [node name="MonitorStand2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -6.000, 4.400, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, -6.000, 4.400, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand2"]
 mesh = SubResource("Mesh_648")
@@ -7911,7 +7944,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_649")
 
 [node name="Desk3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 6.000, 3.975, -26.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 6.000, 3.975, -26.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk3"]
 mesh = SubResource("Mesh_650")
@@ -7920,13 +7953,13 @@ mesh = SubResource("Mesh_650")
 shape = SubResource("Shape_650")
 
 [node name="Monitor3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 6.000, 4.580, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 6.000, 4.580, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor3"]
 mesh = SubResource("Mesh_651")
 
 [node name="MonitorStand3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 6.000, 4.400, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 6.000, 4.400, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand3"]
 mesh = SubResource("Mesh_652")
@@ -7938,7 +7971,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_653")
 
 [node name="Desk4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 16.000, 3.975, -26.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 16.000, 3.975, -26.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk4"]
 mesh = SubResource("Mesh_654")
@@ -7947,13 +7980,13 @@ mesh = SubResource("Mesh_654")
 shape = SubResource("Shape_654")
 
 [node name="Monitor4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 16.000, 4.580, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 16.000, 4.580, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor4"]
 mesh = SubResource("Mesh_655")
 
 [node name="MonitorStand4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 16.000, 4.400, -25.800)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 16.000, 4.400, -25.800)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand4"]
 mesh = SubResource("Mesh_656")
@@ -8049,7 +8082,7 @@ mesh = SubResource("Mesh_667")
 shape = SubResource("Shape_667")
 
 [node name="Leaves1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.819152, 0.000000, 0.573576, 0.000000, 1.000000, 0.000000, -0.573576, 0.000000, 0.819152, -8.500, 0.950, 28.500)
+transform = Transform3D(0.819152, 0.000000, -0.573576, 0.000000, 1.000000, 0.000000, 0.573576, 0.000000, 0.819152, -8.500, 0.950, 28.500)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Leaves1"]
 mesh = SubResource("Mesh_668")
@@ -8064,7 +8097,7 @@ mesh = SubResource("Mesh_669")
 shape = SubResource("Shape_669")
 
 [node name="Leaves2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.819152, 0.000000, 0.573576, 0.000000, 1.000000, 0.000000, -0.573576, 0.000000, 0.819152, 8.500, 0.950, 28.500)
+transform = Transform3D(0.819152, 0.000000, -0.573576, 0.000000, 1.000000, 0.000000, 0.573576, 0.000000, 0.819152, 8.500, 0.950, 28.500)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Leaves2"]
 mesh = SubResource("Mesh_670")
@@ -8079,7 +8112,7 @@ mesh = SubResource("Mesh_671")
 shape = SubResource("Shape_671")
 
 [node name="Leaves3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.819152, 0.000000, 0.573576, 0.000000, 1.000000, 0.000000, -0.573576, 0.000000, 0.819152, -8.500, 0.950, -10.000)
+transform = Transform3D(0.819152, 0.000000, -0.573576, 0.000000, 1.000000, 0.000000, 0.573576, 0.000000, 0.819152, -8.500, 0.950, -10.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Leaves3"]
 mesh = SubResource("Mesh_672")
@@ -8094,7 +8127,7 @@ mesh = SubResource("Mesh_673")
 shape = SubResource("Shape_673")
 
 [node name="Leaves4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.819152, 0.000000, 0.573576, 0.000000, 1.000000, 0.000000, -0.573576, 0.000000, 0.819152, 8.500, 0.950, -10.000)
+transform = Transform3D(0.819152, 0.000000, -0.573576, 0.000000, 1.000000, 0.000000, 0.573576, 0.000000, 0.819152, 8.500, 0.950, -10.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Leaves4"]
 mesh = SubResource("Mesh_674")
@@ -8199,7 +8232,7 @@ mesh = SubResource("Mesh_687")
 shape = SubResource("Shape_687")
 
 [node name="Desk7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.375, 20.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.375, 20.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk7"]
 mesh = SubResource("Mesh_688")
@@ -8208,13 +8241,13 @@ mesh = SubResource("Mesh_688")
 shape = SubResource("Shape_688")
 
 [node name="Monitor7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.980, 20.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.980, 20.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor7"]
 mesh = SubResource("Mesh_689")
 
 [node name="MonitorStand7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.800, 20.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.800, 20.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand7"]
 mesh = SubResource("Mesh_690")
@@ -8226,7 +8259,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_691")
 
 [node name="Partition3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.650, 20.450)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.650, 20.450)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Partition3"]
 mesh = SubResource("Mesh_692")
@@ -8235,7 +8268,7 @@ mesh = SubResource("Mesh_692")
 shape = SubResource("Shape_692")
 
 [node name="Desk8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.375, 25.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.375, 25.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk8"]
 mesh = SubResource("Mesh_693")
@@ -8244,13 +8277,13 @@ mesh = SubResource("Mesh_693")
 shape = SubResource("Shape_693")
 
 [node name="Monitor8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.980, 25.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.980, 25.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor8"]
 mesh = SubResource("Mesh_694")
 
 [node name="MonitorStand8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.800, 25.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.800, 25.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand8"]
 mesh = SubResource("Mesh_695")
@@ -8262,7 +8295,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_696")
 
 [node name="Partition4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 13.500, 0.650, 25.450)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 13.500, 0.650, 25.450)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Partition4"]
 mesh = SubResource("Mesh_697")
@@ -8343,7 +8376,7 @@ mesh = SubResource("Mesh_707")
 shape = SubResource("Shape_707")
 
 [node name="Desk11" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.375, 20.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.375, 20.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk11"]
 mesh = SubResource("Mesh_708")
@@ -8352,13 +8385,13 @@ mesh = SubResource("Mesh_708")
 shape = SubResource("Shape_708")
 
 [node name="Monitor11" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.980, 20.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.980, 20.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor11"]
 mesh = SubResource("Mesh_709")
 
 [node name="MonitorStand11" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.800, 20.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.800, 20.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand11"]
 mesh = SubResource("Mesh_710")
@@ -8370,7 +8403,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_711")
 
 [node name="Partition7" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.650, 20.450)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.650, 20.450)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Partition7"]
 mesh = SubResource("Mesh_712")
@@ -8379,7 +8412,7 @@ mesh = SubResource("Mesh_712")
 shape = SubResource("Shape_712")
 
 [node name="Desk12" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.375, 25.000)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.375, 25.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Desk12"]
 mesh = SubResource("Mesh_713")
@@ -8388,13 +8421,13 @@ mesh = SubResource("Mesh_713")
 shape = SubResource("Shape_713")
 
 [node name="Monitor12" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.980, 25.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.980, 25.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Monitor12"]
 mesh = SubResource("Mesh_714")
 
 [node name="MonitorStand12" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.800, 25.200)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.800, 25.200)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/MonitorStand12"]
 mesh = SubResource("Mesh_715")
@@ -8406,7 +8439,7 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_716")
 
 [node name="Partition8" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 17.000, 0.650, 25.450)
+transform = Transform3D(-1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, -1.000000, 17.000, 0.650, 25.450)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Partition8"]
 mesh = SubResource("Mesh_717")
@@ -8712,7 +8745,7 @@ mesh = SubResource("Mesh_754")
 shape = SubResource("Shape_754")
 
 [node name="Crate2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.956305, 0.000000, 0.292372, 0.000000, 1.000000, 0.000000, -0.292372, 0.000000, 0.956305, 14.000, 1.500, -26.000)
+transform = Transform3D(0.956305, 0.000000, -0.292372, 0.000000, 1.000000, 0.000000, 0.292372, 0.000000, 0.956305, 14.000, 1.500, -26.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Crate2"]
 mesh = SubResource("Mesh_755")
@@ -8730,7 +8763,7 @@ mesh = SubResource("Mesh_756")
 shape = SubResource("Shape_756")
 
 [node name="Crate4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.956305, 0.000000, 0.292372, 0.000000, 1.000000, 0.000000, -0.292372, 0.000000, 0.956305, 14.000, 1.500, -22.000)
+transform = Transform3D(0.956305, 0.000000, -0.292372, 0.000000, 1.000000, 0.000000, 0.292372, 0.000000, 0.956305, 14.000, 1.500, -22.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Crate4"]
 mesh = SubResource("Mesh_757")
@@ -8926,6 +8959,42 @@ mesh = SubResource("Mesh_785")
 
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Planter6"]
 shape = SubResource("Shape_785")
+
+[node name="Arrow1" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, 13.750, 3.250, 30.330)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow1"]
+mesh = SubResource("Mesh_786")
+
+[node name="Arrow2" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(0.000000, 0.650791, -0.759257, 0.000000, 0.759257, 0.650791, 1.000000, -0.000000, 0.000000, 14.075, 3.400, 30.330)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow2"]
+mesh = SubResource("Mesh_787")
+
+[node name="Arrow3" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(0.000000, -0.650791, -0.759257, 0.000000, 0.759257, -0.650791, 1.000000, 0.000000, 0.000000, 14.075, 3.100, 30.330)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow3"]
+mesh = SubResource("Mesh_788")
+
+[node name="Arrow4" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -13.750, 3.250, 30.330)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow4"]
+mesh = SubResource("Mesh_789")
+
+[node name="Arrow5" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(0.000000, -0.650791, 0.759257, 0.000000, 0.759257, 0.650791, -1.000000, -0.000000, 0.000000, -14.075, 3.400, 30.330)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow5"]
+mesh = SubResource("Mesh_790")
+
+[node name="Arrow6" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(0.000000, 0.650791, 0.759257, 0.000000, 0.759257, -0.650791, -1.000000, 0.000000, 0.000000, -14.075, 3.100, 30.330)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow6"]
+mesh = SubResource("Mesh_791")
 
 [node name="SpawnPoints" type="Node3D" parent="."]
 
@@ -9170,6 +9239,28 @@ metadata/size = Vector3(6, 6, 68)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 2, 0)
 metadata/label = "West Alley"
 metadata/size = Vector3(6, 6, 68)
+
+[node name="Signs" type="Node3D" parent="."]
+
+[node name="Sign1" type="Label3D" parent="Signs"]
+transform = Transform3D(1.000000, 0, -0.000000, 0, 1, 0, 0.000000, 0, 1.000000, 12.500, 3.300, 30.330)
+pixel_size = 0.0045
+double_sided = false
+alpha_cut = 1
+modulate = Color(0.68, 0.1, 0.07, 0.95)
+text = "A"
+font_size = 256
+outline_size = 0
+
+[node name="Sign2" type="Label3D" parent="Signs"]
+transform = Transform3D(1.000000, 0, -0.000000, 0, 1, 0, 0.000000, 0, 1.000000, -12.500, 3.300, 30.330)
+pixel_size = 0.0045
+double_sided = false
+alpha_cut = 1
+modulate = Color(0.68, 0.1, 0.07, 0.95)
+text = "B"
+font_size = 256
+outline_size = 0
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 
