@@ -1,0 +1,158 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.07, 0.08, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Main" type="VBoxContainer" parent="Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Main"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "FPS GAME"
+horizontal_alignment = 1
+
+[node name="Version" type="Label" parent="Center/Main"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+text = "v0.1.0"
+horizontal_alignment = 1
+
+[node name="PlayButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+disabled = true
+text = "Play (coming soon)"
+
+[node name="SettingsButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings"
+
+[node name="QuitButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quit"
+
+[node name="Settings" type="VBoxContainer" parent="Center"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="SettingsTitle" type="Label" parent="Center/Settings"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Settings"
+horizontal_alignment = 1
+
+[node name="Grid" type="GridContainer" parent="Center/Settings"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+columns = 2
+
+[node name="QualityLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Graphics quality"
+
+[node name="QualityOption" type="OptionButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FullscreenLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Fullscreen"
+
+[node name="FullscreenCheck" type="CheckButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="VsyncLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "V-Sync"
+
+[node name="VsyncCheck" type="CheckButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MasterLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Master volume"
+
+[node name="MasterSlider" type="HSlider" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+
+[node name="VoiceLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Voice chat volume"
+
+[node name="VoiceSlider" type="HSlider" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+
+[node name="VoiceModeLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Voice mode"
+
+[node name="VoiceModeOption" type="OptionButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="RestartNotice" type="Label" parent="Center/Settings"]
+unique_name_in_owner = true
+visible = false
+modulate = Color(1, 0.8, 0.3, 1)
+layout_mode = 2
+text = "Restart required to switch renderer."
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="Center/Settings"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+text = "Restart now"
+
+[node name="BackButton" type="Button" parent="Center/Settings"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Back"

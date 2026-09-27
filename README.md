@@ -171,6 +171,8 @@ game-develop/
 │   ├── textures/
 │   └── vfx/
 ├── resources/
+│   ├── audio/
+│   │   └── default_bus_layout.tres  # Master, Music, SFX, Voice, UI, MicCapture
 │   ├── settings/
 │   │   └── graphics_presets/   # low.tres, medium.tres, high.tres, ultra.tres
 │   └── weapons/                # weapon stats as data resources
@@ -186,13 +188,15 @@ game-develop/
 │   ├── weapons/             # shooting, recoil, ammo
 │   ├── network/             # server, client, lag compensation
 │   ├── audio/               # audio manager, occlusion
+│   ├── ui/                  # menus, HUD logic
 │   └── voice/               # voice capture, encode/decode, playback
 ├── tests/                   # automated tests (GUT)
 ├── tools/                   # build & helper scripts
 ├── docs/                    # design documents
-├── .gitattributes           # Git LFS rules
+├── .editorconfig            # tabs for GDScript, LF line endings
+├── .gitattributes           # line endings + Git LFS rules
 ├── .gitignore
-├── export_presets.cfg
+├── icon.svg
 ├── project.godot
 └── README.md
 ```
@@ -205,7 +209,7 @@ game-develop/
 
 1. **Git** — <https://git-scm.com/>
 2. **Git LFS** — <https://git-lfs.com/> (for large models, textures & audio)
-3. **Godot 4.x** (use the **.NET** build if working on C# code) — <https://godotengine.org/download>
+3. **Godot 4.4+** (use the **.NET** build if working on C# code) — <https://godotengine.org/download>
 4. *(Optional)* **.NET SDK 8+** — for C# scripts
 5. *(Optional)* **Blender 4.x** — for 3D assets
 
@@ -228,6 +232,28 @@ git lfs pull
 
 Then open **Godot → Import → select `project.godot` → Import & Edit**, and press **F5** to run the game.
 
+### What is already set up
+
+| File | Purpose |
+|------|---------|
+| `project.godot` | Project config: Forward+ renderer with automatic OpenGL fallback, Jolt physics, microphone input enabled, full input map, physics layer names |
+| `scripts/core/settings_manager.gd` | **SettingsManager** autoload: graphics presets, display, audio, voice chat & controls; saves to `user://settings.cfg`; auto-detects a preset on first launch |
+| `scripts/core/graphics_preset.gd` | `GraphicsPreset` resource type (render scale, FSR, AA, shadows, LOD, SSAO/SSR/SDFGI, fog…) |
+| `resources/settings/graphics_presets/*.tres` | The Low / Medium / High / Ultra presets (edit in the Inspector) |
+| `resources/audio/default_bus_layout.tres` | Audio buses; `MicCapture` (muted, with `AudioEffectCapture`) is where voice chat reads the microphone |
+| `scenes/main/main_menu.tscn` | Main menu + settings panel (quality, fullscreen, V-Sync, volumes, voice mode) |
+
+**Using the settings in a level:**
+
+```gdscript
+func _ready() -> void:
+	SettingsManager.apply_to_environment($WorldEnvironment.environment)
+	SettingsManager.apply_to_directional_light($Sun)
+	SettingsManager.graphics_changed.connect(func(_p): SettingsManager.apply_to_environment($WorldEnvironment.environment))
+```
+
+> **Renderer note:** the Low preset uses the *Compatibility* (OpenGL 3.3) renderer. Godot can only pick the renderer at startup, so the game restarts itself once when needed (never from the editor). To test Low in the editor, run with `--rendering-method gl_compatibility`.
+
 ### Testing multiplayer locally
 
 In the Godot editor: **Debug → Customize Run Instances…** → enable multiple instances (e.g. 1 server + 2 clients), then press **F5**.
@@ -237,7 +263,7 @@ In the Godot editor: **Debug → Customize Run Instances…** → enable multipl
 ## 📦 Building & Exporting
 
 1. In Godot: **Editor → Manage Export Templates → Download and Install**.
-2. **Project → Export…** and choose a preset:
+2. **Project → Export…**, add presets (first time only — this creates `export_presets.cfg`, commit it), then choose one:
    - `Windows Desktop` → `builds/windows/`
    - `Linux/X11` → `builds/linux/`
    - `macOS` → `builds/macos/`
@@ -279,6 +305,7 @@ Dedicated server (no graphics, low CPU usage):
 | Scoreboard | `Tab` |
 | Text chat | `T` / `Y` (team) |
 | Pause / Settings | `Esc` |
+| Performance overlay | `F3` |
 
 All keys can be remapped in **Settings → Controls**.
 
@@ -330,9 +357,9 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 
 ## 🗺 Roadmap
 
-- [ ] **Phase 0 — Setup:** repository, `.gitignore`, README, Godot project, Git LFS
+- [x] **Phase 0 — Setup:** repository, `.gitignore`, README, Godot project, Git LFS rules
 - [ ] **Phase 1 — Core gameplay:** player controller, camera, one weapon, test map
-- [ ] **Phase 2 — Settings:** graphics presets (Low/Medium/High/Ultra), audio & control settings, save/load settings
+- [ ] **Phase 2 — Settings:** ~~graphics presets, save/load settings~~ (base done) → full settings UI, key remapping, custom preset editor
 - [ ] **Phase 3 — Audio:** 3D SFX, audio buses, occlusion, music
 - [ ] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation
 - [ ] **Phase 5 — Voice chat:** mic capture, Opus encode/decode, team & proximity channels, push-to-talk

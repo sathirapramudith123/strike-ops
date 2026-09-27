@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="GraphicsPreset" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/graphics_preset.gd" id="1_preset"]
+
+[resource]
+script = ExtResource("1_preset")
+quality = 1
+display_name = "Medium"
+rendering_method = "forward_plus"
+render_scale = 0.85
+scaling_mode = 1
+fsr_sharpness = 0.2
+msaa = 0
+fxaa = true
+taa = false
+texture_mipmap_bias = 0.5
+mesh_lod_threshold = 2.0
+draw_distance_scale = 0.75
+foliage_density = 0.5
+particle_amount = 0.5
+shadows_enabled = true
+directional_shadow_size = 1024
+positional_shadow_atlas_size = 1024
+shadow_filter_quality = 2
+directional_shadow_cascades = 1
+ssao = false
+ssil = false
+ssr = false
+sdfgi = false
+glow = true
+volumetric_fog = false
+depth_of_field = false
