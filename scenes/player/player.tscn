@@ -1,0 +1,37 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/core/health.gd" id="2_health"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/assault_rifle.tscn" id="3_rifle"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+resource_local_to_scene = true
+radius = 0.35
+height = 1.8
+
+[node name="Player" type="CharacterBody3D" groups=["player"]]
+collision_layer = 2
+collision_mask = 1
+floor_snap_length = 0.3
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+regen_delay = 5.0
+regen_per_second = 15.0
+
+[node name="Head" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0)
+
+[node name="Camera3D" type="Camera3D" parent="Head"]
+current = true
+fov = 90.0
+near = 0.02
+
+[node name="WeaponHolder" type="Node3D" parent="Head/Camera3D"]
+
+[node name="AssaultRifle" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("3_rifle")]

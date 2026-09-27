@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🚧 Pre-production — project setup stage.
+> **Status:** 🚧 Phase 1 — playable single-player prototype (movement, rifle, test map).
 
 ---
 
@@ -158,6 +158,7 @@ Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so th
 game-develop/
 ├── addons/                  # Godot plugins / GDExtensions (e.g. Opus voice)
 ├── assets/
+│   ├── shaders/             # prototype grid shader, etc.
 │   ├── audio/
 │   │   ├── music/
 │   │   ├── sfx/
@@ -187,8 +188,9 @@ game-develop/
 │   ├── player/              # movement, input, health
 │   ├── weapons/             # shooting, recoil, ammo
 │   ├── network/             # server, client, lag compensation
-│   ├── audio/               # audio manager, occlusion
-│   ├── ui/                  # menus, HUD logic
+│   ├── audio/               # audio manager, occlusion, placeholder SFX
+│   ├── levels/              # level base script, target dummies
+│   ├── ui/                  # menus, HUD, crosshair
 │   └── voice/               # voice capture, encode/decode, playback
 ├── tests/                   # automated tests (GUT)
 ├── tools/                   # build & helper scripts
@@ -253,6 +255,31 @@ func _ready() -> void:
 ```
 
 > **Renderer note:** the Low preset uses the *Compatibility* (OpenGL 3.3) renderer. Godot can only pick the renderer at startup, so the game restarts itself once when needed (never from the editor). To test Low in the editor, run with `--rendering-method gl_compatibility`.
+
+### Phase 1 — what you can play now
+
+Press **Play (Test Map)** in the main menu:
+
+| Feature | Details |
+|---------|---------|
+| Movement | Walk 5 m/s, sprint 8 m/s, crouch, **slide** (crouch while sprinting), jump with coyote time + jump buffer, air control |
+| Camera | Mouse look (sensitivity/invert from settings), head bob, sprint FOV kick, recoil that recovers |
+| Weapon | **AR-7 Assault Rifle** — hitscan, 650 RPM, spread + bloom, recoil, damage falloff, headshots ×2, ADS zoom, 30/120 ammo, 2 s reload |
+| Targets | Dummies with body + head hitboxes; flash on hit, fall on death, respawn after 3 s; one strafing target |
+| Test map | Cover boxes, ramp to a platform, stairs, crouch tunnel (1.4 m), jump blocks, long-range target |
+| HUD | Dynamic crosshair (matches real spread), hit/kill markers, health, ammo, reload bar, damage flash, `F3` performance overlay |
+| Pause (`Esc`) | Sensitivity, FOV, graphics preset, main menu, quit — game keeps running (multiplayer-ready) |
+
+**Key scripts:** `scripts/player/player_controller.gd`, `scripts/weapons/weapon.gd`, `scripts/weapons/weapon_data.gd`, `scripts/core/health.gd`, `scripts/core/hitbox.gd`, `scripts/levels/level.gd`.
+New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel scene using `weapon.gd`.
+
+### Running the tests
+
+```bash
+godot --headless --path . res://tests/smoke_test.tscn
+```
+
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause) and exits with code `0` when all checks pass.
 
 ### Testing multiplayer locally
 
@@ -358,7 +385,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 ## 🗺 Roadmap
 
 - [x] **Phase 0 — Setup:** repository, `.gitignore`, README, Godot project, Git LFS rules
-- [ ] **Phase 1 — Core gameplay:** player controller, camera, one weapon, test map
+- [x] **Phase 1 — Core gameplay:** player controller, camera, one weapon, test map, HUD, pause menu
 - [ ] **Phase 2 — Settings:** ~~graphics presets, save/load settings~~ (base done) → full settings UI, key remapping, custom preset editor
 - [ ] **Phase 3 — Audio:** 3D SFX, audio buses, occlusion, music
 - [ ] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation

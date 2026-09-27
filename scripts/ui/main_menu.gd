@@ -1,6 +1,8 @@
 extends Control
 ## Main menu with a basic settings panel (graphics preset, display, audio, voice).
 
+const TEST_MAP := "res://scenes/levels/test_map.tscn"
+
 @onready var _main: VBoxContainer = %Main
 @onready var _settings: VBoxContainer = %Settings
 @onready var _quality: OptionButton = %QualityOption
@@ -24,6 +26,7 @@ func _ready() -> void:
 	%SettingsButton.pressed.connect(_show_settings.bind(true))
 	%BackButton.pressed.connect(_show_settings.bind(false))
 	%QuitButton.pressed.connect(get_tree().quit)
+	%PlayButton.pressed.connect(_on_play_pressed)
 	_restart_button.pressed.connect(SettingsManager.restart_game)
 
 	_quality.item_selected.connect(_on_quality_selected)
@@ -35,7 +38,12 @@ func _ready() -> void:
 	SettingsManager.restart_required.connect(_on_restart_required)
 
 	_refresh()
-	%SettingsButton.grab_focus()
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	%PlayButton.grab_focus()
+
+
+func _on_play_pressed() -> void:
+	get_tree().change_scene_to_file(TEST_MAP)
 
 
 func _refresh() -> void:

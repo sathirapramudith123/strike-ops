@@ -1,0 +1,200 @@
+extends Node
+## Headless smoke test for Phase 1 gameplay.
+## Run:  godot --headless --path . res://tests/smoke_test.tscn
+## Exits with code 0 when every check passes, 1 otherwise.
+
+const TEST_MAP := "res://scenes/levels/test_map.tscn"
+
+var _failures := 0
+var _level: Level
+var _player: PlayerController
+
+
+func _ready() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
+	_level = (load(TEST_MAP) as PackedScene).instantiate() as Level
+	add_child(_level)
+	await _frames(10)
+	_check(_level != null, "test map loads")
+	_player = _level.player
+	_check(_player != null, "player spawned")
+	await _frames(30)
+	_check(_player.is_on_floor(), "player lands on the floor")
+
+	await _test_walk_and_sprint()
+	await _test_jump()
+	await _test_crouch_and_slide()
+	await _test_shooting()
+	await _test_reload()
+	await _test_ramps()
+	await _test_pause_disables_input()
+
+	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
+	get_tree().quit(1 if _failures > 0 else 0)
+
+
+func _test_walk_and_sprint() -> void:
+	_reset_player(Vector3(0, 0.1, 6))
+	var start := _player.global_position
+	Input.action_press(&"move_forward")
+	await _frames(30)
+	var walk_speed := Vector2(_player.velocity.x, _player.velocity.z).length()
+	_check(_player.global_position.z < start.z - 1.0, "walking forward moves the player")
+	_check(absf(walk_speed - _player.walk_speed) < 0.3, "walk speed ≈ %.1f (got %.2f)" % [_player.walk_speed, walk_speed])
+	Input.action_press(&"sprint")
+	await _frames(30)
+	var sprint_speed := Vector2(_player.velocity.x, _player.velocity.z).length()
+	_check(_player.is_sprinting and sprint_speed > walk_speed + 2.0, "sprinting is faster (got %.2f)" % sprint_speed)
+	_release_all()
+	await _frames(30)
+	_check(Vector2(_player.velocity.x, _player.velocity.z).length() < 0.1, "player decelerates to a stop")
+
+
+func _test_jump() -> void:
+	_reset_player(Vector3(0, 0.1, 6))
+	await _frames(10)
+	var ground_y := _player.global_position.y
+	Input.action_press(&"jump")
+	await _frames(2)
+	Input.action_release(&"jump")
+	var peak := ground_y
+	for i in 40:
+		await get_tree().physics_frame
+		peak = maxf(peak, _player.global_position.y)
+	_check(peak > ground_y + 1.0, "jump reaches > 1 m (got %.2f)" % (peak - ground_y))
+	await _frames(40)
+	_check(_player.is_on_floor(), "player lands after jumping")
+
+
+func _test_crouch_and_slide() -> void:
+	_reset_player(Vector3(0, 0.1, 6))
+	Input.action_press(&"crouch")
+	await _frames(30)
+	var shape := _player.get_node("CollisionShape3D").shape as CapsuleShape3D
+	_check(_player.is_crouching and shape.height < 1.2, "crouch shrinks the capsule (%.2f)" % shape.height)
+	_release_all()
+	await _frames(30)
+	_check(not _player.is_crouching and shape.height > 1.75, "standing up restores height")
+
+	# Crouch tunnel: stay crouched under the 1.4 m ceiling.
+	_reset_player(Vector3(-2.5, 0.1, 15.5))
+	Input.action_press(&"crouch")
+	Input.action_press(&"move_forward")
+	await _frames(70)
+	Input.action_release(&"crouch")
+	await _frames(10)
+	_check(_player.is_crouching, "player stays crouched under a low ceiling")
+	_release_all()
+	await _frames(60)
+
+	_reset_player(Vector3(0, 0.1, 10))
+	Input.action_press(&"move_forward")
+	Input.action_press(&"sprint")
+	await _frames(40)
+	Input.action_press(&"crouch")
+	await _frames(3)
+	_check(_player.is_sliding, "crouch while sprinting starts a slide")
+	await _frames(100)
+	_check(not _player.is_sliding, "slide ends by itself")
+	_release_all()
+	await _frames(20)
+
+
+func _test_shooting() -> void:
+	var target := _level.get_node("Targets/Target2") as TargetDummy
+	_reset_player(Vector3(0, 0.1, -12))
+	await _frames(5)
+	_aim_at(target.global_position + Vector3(0, 0.8, 0))
+	var weapon := _player.current_weapon
+	var ammo_before := weapon.ammo_in_magazine
+	var hits := [0]
+	weapon.hit_confirmed.connect(func(_k: bool, _h: bool) -> void: hits[0] += 1)
+	Input.action_press(&"aim")
+	await _frames(20)
+	_check(weapon.ads_blend > 0.99, "aim down sights")
+	_check(_player.camera.fov < SettingsManager.field_of_view, "ADS zooms the camera")
+	Input.action_press(&"shoot")
+	await _frames(20)
+	_release_all()
+	_check(weapon.ammo_in_magazine < ammo_before, "shooting uses ammo (%d → %d)" % [ammo_before, weapon.ammo_in_magazine])
+	_check(hits[0] > 0, "shots hit the target (%d hits)" % hits[0])
+	_check(target.health.current < target.health.max_health or target.health.is_dead, "target takes damage")
+
+
+func _test_reload() -> void:
+	var weapon := _player.current_weapon
+	await _frames(40)
+	Input.action_press(&"reload")
+	await _frames(2)
+	Input.action_release(&"reload")
+	_check(weapon.is_reloading, "reload starts")
+	await _frames(int(weapon.data.reload_time * 60.0) + 10)
+	_check(not weapon.is_reloading and weapon.ammo_in_magazine == weapon.data.magazine_size, "reload refills the magazine")
+
+
+func _test_ramps() -> void:
+	# Ramp up to the platform at (18, 3, -18).
+	_reset_player(Vector3(18, 0.1, -2))
+	Input.action_press(&"move_forward")
+	await _frames(240)
+	_release_all()
+	_check(_player.global_position.y > 2.8, "walk up the ramp onto the platform (y=%.2f)" % _player.global_position.y)
+
+	# Stairs going +z from (-18, 0, -10.25) to the top at z≈-4.75.
+	_reset_player(Vector3(-18, 0.1, -13), PI)
+	Input.action_press(&"move_forward")
+	var highest := 0.0
+	for i in 110:
+		await get_tree().physics_frame
+		highest = maxf(highest, _player.global_position.y)
+	_release_all()
+	_check(highest > 1.9, "walk up the stairs (max y=%.2f)" % highest)
+
+
+func _test_pause_disables_input() -> void:
+	_reset_player(Vector3(0, 0.1, 6))
+	_level.pause_menu.open()
+	await _frames(10)
+	var start := _player.global_position
+	Input.action_press(&"move_forward")
+	await _frames(20)
+	_release_all()
+	var moved := Vector2(_player.global_position.x - start.x, _player.global_position.z - start.z).length()
+	_check(moved < 0.05, "pause menu blocks movement")
+	_level.pause_menu.close()
+
+
+# -----------------------------------------------------------------------------
+
+func _reset_player(pos: Vector3, yaw: float = 0.0) -> void:
+	_release_all()
+	_player.global_position = pos
+	_player.rotation = Vector3(0, yaw, 0)
+	_player.head.rotation = Vector3.ZERO
+	_player.velocity = Vector3.ZERO
+
+
+func _aim_at(point: Vector3) -> void:
+	var eye := _player.camera.global_position
+	var flat := Vector3(point.x - eye.x, 0, point.z - eye.z)
+	_player.rotation.y = atan2(-flat.x, -flat.z)
+	_player.head.rotation.x = atan2(point.y - eye.y, flat.length())
+
+
+func _release_all() -> void:
+	for action in InputMap.get_actions():
+		Input.action_release(action)
+
+
+func _frames(count: int) -> void:
+	for i in count:
+		await get_tree().physics_frame
+
+
+func _check(condition: bool, label: String) -> void:
+	print("%s %s" % ["  ✔" if condition else "  ✘", label])
+	if not condition:
+		_failures += 1
