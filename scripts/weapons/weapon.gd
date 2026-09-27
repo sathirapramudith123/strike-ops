@@ -150,6 +150,8 @@ func try_fire() -> bool:
 
 	_show_muzzle_flash()
 	_play_fire()
+	# Kick scaled by the weapon's recoil (sniper hard, SMG light).
+	GamepadInput.rumble(0.25, clampf(data.recoil_pitch * 0.15, 0.1, 0.8), 0.08)
 	fired.emit()
 	ammo_changed.emit(ammo_in_magazine, ammo_reserve)
 	return true

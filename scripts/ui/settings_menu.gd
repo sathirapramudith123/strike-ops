@@ -29,6 +29,9 @@ var _mic_bar: ProgressBar
 ## Action currently waiting for a key press (&"" = none).
 var _capturing: StringName = &""
 var _binding_buttons: Dictionary = {} # action -> Button
+var _pad_buttons: Dictionary = {} # action -> Button (controller column)
+var _capturing_pad: bool = false
+var _capture_started_ms: int = 0
 
 
 func _ready() -> void:
@@ -71,6 +74,13 @@ func close() -> void:
 	hide()
 	SettingsManager.save()
 	closed.emit()
+
+
+## Controller B / Esc goes back (unless a binding is being captured).
+func _unhandled_input(event: InputEvent) -> void:
+	if is_visible_in_tree() and _capturing == &"" and event.is_action_pressed(&"ui_cancel"):
+		close()
+		get_viewport().set_input_as_handled()
 
 
 func _process(_delta: float) -> void:
@@ -294,15 +304,56 @@ func _build_controls() -> void:
 		SettingsManager.crouch_toggle = i == 1
 		SettingsManager.save())
 
-	_add_section(t, "Key bindings — click, then press a key or mouse button")
+	_add_section(t, "Controller")
+	var pads := Input.get_connected_joypads().map(func(d: int) -> String: return Input.get_joy_name(d))
+	var connected := Label.new()
+	connected.text = ", ".join(pads) if not pads.is_empty() else "No controller connected (plug one in any time)"
+	_add_row(t, "Connected", connected)
+	_add_slider(t, "Look sensitivity", 60.0, 400.0, 10.0, SettingsManager.pad_sensitivity, "%d°/s", 1.0, func(v: float) -> void:
+		SettingsManager.pad_sensitivity = v
+		SettingsManager.save())
+	_add_slider(t, "Stick deadzone", 0.05, 0.4, 0.01, SettingsManager.pad_deadzone, "%d%%", 100.0, func(v: float) -> void:
+		SettingsManager.pad_deadzone = v
+		SettingsManager.save())
+	var curves: Array[String] = []
+	curves.assign(GamepadInput.RESPONSE_NAMES)
+	_add_option(t, "Response curve", curves, SettingsManager.pad_curve, func(i: int) -> void:
+		SettingsManager.pad_curve = i
+		SettingsManager.save())
+	_add_check(t, "Invert look Y (controller)", SettingsManager.pad_invert_y, func(on: bool) -> void:
+		SettingsManager.pad_invert_y = on
+		SettingsManager.save())
+	_add_check(t, "Aim assist (slows aim over enemies)", SettingsManager.aim_assist, func(on: bool) -> void:
+		SettingsManager.aim_assist = on
+		SettingsManager.save())
+	_add_check(t, "Vibration", SettingsManager.vibration, func(on: bool) -> void:
+		SettingsManager.vibration = on
+		SettingsManager.save())
+
+	_add_section(t, "Bindings — click, then press a key / mouse button, or a controller button")
+	var header := HBoxContainer.new()
+	for title in ["Keyboard / mouse", "Controller"]:
+		var h := Label.new()
+		h.text = title
+		h.custom_minimum_size = Vector2(180, 0)
+		header.add_child(h)
+	_add_row(t, "", header)
 	for action: StringName in SettingsManager.REMAPPABLE_ACTIONS:
+		var row := HBoxContainer.new()
 		var b := Button.new()
 		b.text = SettingsManager.binding_text(action)
 		b.custom_minimum_size = Vector2(180, 0)
-		b.pressed.connect(_start_capture.bind(action))
+		b.pressed.connect(_start_capture.bind(action, false))
 		_binding_buttons[action] = b
-		_add_row(t, SettingsManager.REMAPPABLE_ACTIONS[action], b)
-	_add_button(t, "", "Reset key bindings", func() -> void:
+		row.add_child(b)
+		var pb := Button.new()
+		pb.text = SettingsManager.pad_binding_text(action)
+		pb.custom_minimum_size = Vector2(180, 0)
+		pb.pressed.connect(_start_capture.bind(action, true))
+		_pad_buttons[action] = pb
+		row.add_child(pb)
+		_add_row(t, SettingsManager.REMAPPABLE_ACTIONS[action], row)
+	_add_button(t, "", "Reset all bindings", func() -> void:
 		SettingsManager.reset_bindings()
 		_status.text = "Key bindings reset to defaults."
 		_refresh_bindings())
@@ -396,30 +447,46 @@ func _graphics_edited() -> void:
 # Key capture
 # -----------------------------------------------------------------------------
 
-func _start_capture(action: StringName) -> void:
+func _start_capture(action: StringName, pad: bool = false) -> void:
 	_cancel_capture()
 	_capturing = action
-	(_binding_buttons[action] as Button).text = "Press a key…  (Esc = cancel)"
+	_capturing_pad = pad
+	_capture_started_ms = Time.get_ticks_msec()
+	if pad:
+		(_pad_buttons[action] as Button).text = "Press a button…  (Menu / Esc = cancel)"
+	else:
+		(_binding_buttons[action] as Button).text = "Press a key…  (Esc = cancel)"
 	_status.text = "Rebinding: %s" % SettingsManager.REMAPPABLE_ACTIONS[action]
 
 
 func _cancel_capture() -> void:
-	if _capturing != &"" and _binding_buttons.has(_capturing):
-		(_binding_buttons[_capturing] as Button).text = SettingsManager.binding_text(_capturing)
+	if _capturing != &"":
+		_refresh_bindings()
 	_capturing = &""
 
 
 func _input(event: InputEvent) -> void:
 	if _capturing == &"" or not is_visible_in_tree():
 		return
-	var accept: bool = (event is InputEventKey and event.pressed and not event.echo) \
-		or (event is InputEventMouseButton and event.pressed)
-	if not accept:
+	var is_esc: bool = event is InputEventKey and event.pressed and (event as InputEventKey).physical_keycode == KEY_ESCAPE
+	var is_menu: bool = event is InputEventJoypadButton and event.pressed \
+		and (event as InputEventJoypadButton).button_index == JOY_BUTTON_START
+	var accept: bool
+	if _capturing_pad:
+		accept = (event is InputEventJoypadButton and event.pressed) \
+			or (event is InputEventJoypadMotion and absf((event as InputEventJoypadMotion).axis_value) > 0.6)
+	else:
+		accept = (event is InputEventKey and event.pressed and not event.echo) \
+			or (event is InputEventMouseButton and event.pressed)
+	if not (accept or is_esc or is_menu):
 		return
 	get_viewport().set_input_as_handled()
-	if event is InputEventKey and (event as InputEventKey).physical_keycode == KEY_ESCAPE:
+	if is_esc or is_menu:
 		_cancel_capture()
 		_status.text = "Cancelled."
+		return
+	# The controller press that opened the capture must not bind itself.
+	if _capturing_pad and Time.get_ticks_msec() - _capture_started_ms < 250:
 		return
 	capture_event(event)
 
@@ -429,7 +496,8 @@ func capture_event(event: InputEvent) -> void:
 	var action := _capturing
 	_capturing = &""
 	var swapped := SettingsManager.rebind(action, event)
-	_status.text = "%s → %s" % [SettingsManager.REMAPPABLE_ACTIONS[action], SettingsManager.binding_text(action)]
+	_status.text = "%s → %s" % [SettingsManager.REMAPPABLE_ACTIONS[action],
+		SettingsManager.pad_binding_text(action) if GamepadInput.is_pad_event(event) else SettingsManager.binding_text(action)]
 	if swapped != &"":
 		_status.text += "  (swapped with %s)" % SettingsManager.REMAPPABLE_ACTIONS[swapped]
 	_refresh_bindings()
@@ -438,6 +506,8 @@ func capture_event(event: InputEvent) -> void:
 func _refresh_bindings() -> void:
 	for action: StringName in _binding_buttons:
 		(_binding_buttons[action] as Button).text = SettingsManager.binding_text(action)
+	for action: StringName in _pad_buttons:
+		(_pad_buttons[action] as Button).text = SettingsManager.pad_binding_text(action)
 
 
 # -----------------------------------------------------------------------------
@@ -467,7 +537,8 @@ func _reset_current_tab() -> void:
 				SettingsManager.set(p, defaults.get(p))
 			SettingsManager.apply_voice()
 		"Controls":
-			for p in ["mouse_sensitivity", "ads_sensitivity_scale", "invert_y", "aim_toggle", "crouch_toggle"]:
+			for p in ["mouse_sensitivity", "ads_sensitivity_scale", "invert_y", "aim_toggle", "crouch_toggle",
+					"pad_sensitivity", "pad_invert_y", "pad_deadzone", "pad_curve", "aim_assist", "vibration"]:
 				SettingsManager.set(p, defaults.get(p))
 			SettingsManager.reset_bindings()
 		"Gameplay":

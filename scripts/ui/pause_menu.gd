@@ -42,6 +42,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		else:
 			open()
 		get_viewport().set_input_as_handled()
+	elif _panel.visible and not _settings.visible and event.is_action_pressed(&"ui_cancel") \
+			and GamepadInput.is_pad_event(event):
+		close() # controller B resumes
+		get_viewport().set_input_as_handled()
 
 
 func open() -> void:

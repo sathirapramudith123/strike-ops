@@ -182,6 +182,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
+## Controller look runs every rendered frame (smooth at any FPS).
+func _process(delta: float) -> void:
+	if is_local and input_enabled and not health.is_dead:
+		_pad_look(delta)
+
+
 func _physics_process(delta: float) -> void:
 	if not is_local or health.is_dead:
 		return
@@ -476,9 +482,53 @@ func _advance_footsteps(moved: float, grounded: bool) -> void:
 	_movement_sound(StringName("step%d" % randi_range(1, 4)), loudness[0], loudness[1])
 
 
+# --- Controller ----------------------------------------------------------------
+
+## Right-stick look: deadzone + response curve, degrees per second at full
+## tilt, ADS slows it like the mouse, aim assist slows it over enemies.
+func _pad_look(delta: float) -> void:
+	var look := GamepadInput.look_vector(SettingsManager.pad_deadzone,
+		GamepadInput.RESPONSE_CURVES[SettingsManager.pad_curve])
+	if look == Vector2.ZERO:
+		return
+	var speed := deg_to_rad(SettingsManager.pad_sensitivity) * delta
+	if current_weapon:
+		speed *= lerpf(1.0, current_weapon.data.ads_sensitivity_multiplier * SettingsManager.ads_sensitivity_scale,
+			current_weapon.ads_blend)
+	speed *= aim_assist_factor()
+	var invert := -1.0 if SettingsManager.pad_invert_y else 1.0
+	rotate_y(-look.x * speed)
+	# Vertical a bit slower than horizontal, like most console shooters.
+	head.rotation.x = clampf(head.rotation.x - look.y * speed * 0.75 * invert,
+		-deg_to_rad(max_pitch_degrees), deg_to_rad(max_pitch_degrees))
+
+
+## < 1 while a controller player's crosshair is on an enemy (or a target dummy):
+## makes tracking easier without moving the aim for them.
+func aim_assist_factor() -> float:
+	if not SettingsManager.aim_assist or not GamepadInput.using_pad:
+		return 1.0
+	var from := camera.global_position
+	var exclude: Array[RID] = [get_rid()]
+	for hb: Hitbox in hitboxes:
+		exclude.append(hb.get_rid())
+	var query := PhysicsRayQueryParameters3D.create(from, from - camera.global_basis.z * GamepadInput.AIM_ASSIST_RANGE,
+		Weapon.HIT_MASK, exclude)
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	var hb := hit.get("collider") as Hitbox
+	if hb == null or hb.health == null or hb.health.is_dead:
+		return 1.0
+	var target := hb.health.get_parent() as PlayerController
+	if target and Match.is_friendly(peer_id, target.peer_id):
+		return 1.0
+	return GamepadInput.AIM_ASSIST_SLOWDOWN
+
+
 func _landed(fall_speed: float) -> void:
 	_step_distance = STRIDE_WALK * 0.5 # first step comes soon after landing
 	_movement_sound(&"land", remap(clampf(fall_speed, 3.0, 12.0), 3.0, 12.0, -10.0, 0.0), 30.0)
+	if is_local and fall_speed > 6.0:
+		GamepadInput.rumble(0.3, 0.2, 0.12)
 
 
 ## Remote players: steps, jumps and landings guessed from their movement.

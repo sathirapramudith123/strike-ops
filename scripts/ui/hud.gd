@@ -65,6 +65,7 @@ func bind_player(player: PlayerController) -> void:
 	player.health.health_changed.connect(_on_health_changed)
 	player.health.damaged.connect(func(_a: float, _s: Node, _h: bool) -> void:
 		_damage_flash.color.a = 0.35
+		GamepadInput.rumble(0.6, 0.4, 0.2)
 		Audio.play_local(&"hurt", -4.0, randf_range(0.9, 1.1)))
 	_on_health_changed(player.health.current, player.health.max_health)
 	_bind_weapon(player.current_weapon)
@@ -94,6 +95,12 @@ func _unhandled_input(event: InputEvent) -> void:
 				_refresh_vote()
 				get_viewport().set_input_as_handled()
 				return
+		# Controller: next weapon (Y) cycles through the candidates.
+		if event.is_action_pressed(&"weapon_next") and not Match.vote_maps.is_empty():
+			Match.request_vote((Match.my_vote + 1) % Match.vote_maps.size())
+			_refresh_vote()
+			get_viewport().set_input_as_handled()
+			return
 	if event.is_action_pressed(&"toggle_perf_overlay"):
 		SettingsManager.show_perf_overlay = not SettingsManager.show_perf_overlay
 		SettingsManager.save()
@@ -331,17 +338,18 @@ func _update_bomb_hud() -> void:
 	if _player and not _player.health.is_dead:
 		if b.bomb_state == BombRules.BombState.CARRIED and b.bomb_carrier == me:
 			var site := b.site_at(_player.global_position)
-			hint = "At site %s — hold E to plant (stand still)" % site if site != "" \
+			hint = "At site %s — hold %s to plant (stand still)" % [site, SettingsManager.prompt_text(&"interact")] if site != "" \
 				else "You have the bomb — take it to site A or B"
 		elif b.bomb_state == BombRules.BombState.PLANTED and not b.is_attacker(me) \
 				and _player.global_position.distance_to(b.bomb_position) <= BombRules.DEFUSE_RANGE:
-			hint = "Hold E to defuse (stand still)"
+			hint = "Hold %s to defuse (stand still)" % SettingsManager.prompt_text(&"interact")
 		elif b.bomb_state == BombRules.BombState.DROPPED and b.is_attacker(me):
 			hint = "The bomb was dropped — pick it up"
 	elif _player and _player.health.is_dead:
 		var level := get_parent() as Level
 		var watched := level.spectating() if level else null
-		hint = ("Spectating %s — Shoot for next" % watched.player_name) if watched else "Dead — wait for the next round"
+		hint = ("Spectating %s — %s for next" % [watched.player_name, SettingsManager.prompt_text(&"shoot")]) \
+			if watched else "Dead — wait for the next round"
 	_bomb_hint.text = hint
 
 
@@ -365,7 +373,9 @@ func _refresh_vote() -> void:
 		var votes: int = Match.vote_counts[i] if i < Match.vote_counts.size() else 0
 		parts.append("%s[%d] %s — %d vote%s" % ["» " if i == Match.my_vote else "", i + 1,
 			GameConfig.map_name(Match.vote_maps[i]), votes, "" if votes == 1 else "s"])
-	_next_map_label.text = "Vote for the next map (keys 1–%d):\n%s" % [Match.vote_maps.size(), "\n".join(parts)]
+	var how := "%s to change your vote" % SettingsManager.prompt_text(&"weapon_next") if GamepadInput.using_pad \
+		else "keys 1–%d" % Match.vote_maps.size()
+	_next_map_label.text = "Vote for the next map (%s):\n%s" % [how, "\n".join(parts)]
 
 
 func player_name_or_empty() -> String:

@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
 	await _test_audio()
+	await _test_controller()
 	_test_friendly_fire_and_match_end()
 	await _test_bomb_defusal()
 	await _test_settings_menu()
@@ -987,6 +988,110 @@ func _test_audio() -> void:
 	button.pressed.emit()
 	_check(_stat_delta(before, "ui:ui_click") == 1, "buttons click")
 	button.queue_free()
+
+
+## v0.9: controller — layout, stick look, movement, triggers, aim assist, remapping.
+func _test_controller() -> void:
+	var jump_pad := SettingsManager.get_pad_binding(&"jump") as InputEventJoypadButton
+	_check(jump_pad and jump_pad.button_index == JOY_BUTTON_A and SettingsManager.get_binding(&"jump") is InputEventKey
+		and SettingsManager.pad_binding_text(&"shoot") == "RT"
+		and SettingsManager.pad_binding_text(&"push_to_talk_team") == "D-pad ↑",
+		"default controller layout next to the keyboard one")
+	_check(absf(GamepadInput.shape_stick(Vector2(0.5, 0), 0.15, 2.0).x - pow(0.35 / 0.85, 2.0)) < 0.001
+		and GamepadInput.shape_stick(Vector2(0.1, 0.05), 0.15, 2.0) == Vector2.ZERO, "stick deadzone + response curve")
+
+	# Right stick turns the camera; a tiny push inside the deadzone doesn't.
+	_reset_player(Vector3(0, 0.1, 10))
+	await _frames(3)
+	var yaw := _player.rotation.y
+	_pad_axis(JOY_AXIS_RIGHT_X, 0.1)
+	await _frames(20)
+	_check(absf(_player.rotation.y - yaw) < 0.001, "stick drift inside the deadzone is ignored")
+	_pad_axis(JOY_AXIS_RIGHT_X, 1.0)
+	var t0 := Time.get_ticks_msec()
+	await _frames(30)
+	_pad_axis(JOY_AXIS_RIGHT_X, 0.0)
+	var turned := rad_to_deg(yaw - _player.rotation.y)
+	var expected := SettingsManager.pad_sensitivity * (Time.get_ticks_msec() - t0) / 1000.0
+	_check(turned > expected * 0.6 and turned < expected * 1.4, "right stick turns %.0f° (≈%.0f° expected)" % [turned, expected])
+	_pad_axis(JOY_AXIS_RIGHT_Y, -1.0)
+	await _frames(10)
+	_pad_axis(JOY_AXIS_RIGHT_Y, 0.0)
+	_check(_player.head.rotation.x > 0.05, "stick up looks up")
+
+	# Left stick walks, right trigger fires.
+	_reset_player(Vector3(0, 0.1, 10))
+	await _frames(3)
+	var start := _player.global_position
+	_pad_axis(JOY_AXIS_LEFT_Y, -1.0)
+	await _frames(40)
+	_pad_axis(JOY_AXIS_LEFT_Y, 0.0)
+	_check(start.z - _player.global_position.z > 1.0, "left stick moves forward (%.1f m)" % (start.z - _player.global_position.z))
+	_player.select_slot(0)
+	var w := _player.current_weapon
+	w.refill_ammo()
+	var before := w.ammo_in_magazine
+	_pad_axis(JOY_AXIS_TRIGGER_RIGHT, 1.0)
+	await _frames(20)
+	_pad_axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
+	await _frames(2)
+	_check(w.ammo_in_magazine < before, "right trigger shoots (%d → %d)" % [before, w.ammo_in_magazine])
+
+	# Aim assist: slower over an enemy, only for controller players.
+	_reset_player(Vector3(0, 0.1, 10))
+	var enemy := _level.spawn_player(406, "Target", Transform3D(Basis.IDENTITY, Vector3(0, 0, 4)))
+	await _frames(3)
+	GamepadInput.using_pad = true
+	var on_target := _player.aim_assist_factor()
+	_player.rotation.y = PI * 0.5
+	var off_target := _player.aim_assist_factor()
+	GamepadInput.using_pad = false
+	_player.rotation.y = 0.0
+	var mouse := _player.aim_assist_factor()
+	_check(on_target < 1.0 and off_target == 1.0 and mouse == 1.0,
+		"aim assist slows aim over an enemy (%.2f), not elsewhere or with a mouse" % on_target)
+	_level.despawn_player(406)
+
+	# Prompts follow the device in use.
+	GamepadInput.using_pad = true
+	var pad_prompt := SettingsManager.prompt_text(&"interact")
+	GamepadInput.using_pad = false
+	_check(pad_prompt == "LB" and SettingsManager.prompt_text(&"interact") == "E", "button prompts follow the device (LB / E)")
+
+	# Remap a controller button (swaps, keeps the keyboard binding, survives a reload).
+	var key_jump := SettingsManager.binding_text(&"jump")
+	var swapped := SettingsManager.rebind(&"jump", GamepadInput.button(JOY_BUTTON_X))
+	_check(SettingsManager.pad_binding_text(&"jump") == "X" and SettingsManager.pad_binding_text(&"reload") == "A"
+		and swapped == &"reload" and SettingsManager.binding_text(&"jump") == key_jump,
+		"controller remap swaps with Reload and leaves the keyboard alone")
+	SettingsManager._set_binding(&"jump", true, null)
+	SettingsManager.apply_bindings()
+	_check(SettingsManager.pad_binding_text(&"jump") == "X", "controller bindings are saved and loaded")
+	var menu := (load("res://scenes/ui/settings_menu.tscn") as PackedScene).instantiate() as SettingsMenu
+	add_child(menu)
+	menu.open()
+	await _frames(2)
+	menu._start_capture(&"reload", true)
+	menu.capture_event(GamepadInput.axis(JOY_AXIS_TRIGGER_LEFT, 1.0))
+	_check(SettingsManager.pad_binding_text(&"reload") == "LT" and SettingsManager.pad_binding_text(&"aim") == "A",
+		"Settings captures a controller trigger")
+	var cancel := InputEventAction.new()
+	cancel.action = &"ui_cancel"
+	cancel.pressed = true
+	menu._unhandled_input(cancel)
+	_check(not menu.visible, "B / Esc closes Settings")
+	menu.queue_free()
+	SettingsManager.reset_bindings()
+	_check(SettingsManager.pad_binding_text(&"jump") == "A" and SettingsManager.pad_binding_text(&"reload") == "X",
+		"reset restores the controller layout")
+
+
+func _pad_axis(axis: JoyAxis, value: float) -> void:
+	var e := InputEventJoypadMotion.new()
+	e.device = 0
+	e.axis = axis
+	e.axis_value = value
+	Input.parse_input_event(e)
 
 
 func _stat_delta(before: Dictionary, key: String) -> int:

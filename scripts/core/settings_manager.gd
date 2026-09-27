@@ -103,6 +103,17 @@ var ads_sensitivity_scale: float = 1.0
 var aim_toggle: bool = false
 var crouch_toggle: bool = false
 
+# Controller (see GamepadInput)
+## Look speed at full stick tilt, degrees per second.
+var pad_sensitivity: float = 180.0
+var pad_invert_y: bool = false
+var pad_deadzone: float = 0.15
+## GamepadInput.RESPONSE_CURVES index (0 Linear, 1 Default, 2 Precise).
+var pad_curve: int = 1
+## Look slows down while the crosshair is on an enemy (controller only).
+var aim_assist: bool = true
+var vibration: bool = true
+
 # Gameplay / HUD
 var crosshair_color_name: String = "White"
 var crosshair_size: float = 1.0
@@ -129,6 +140,7 @@ func _ready() -> void:
 		if arg.begins_with("res://tests/"):
 			settings_path = TEST_SETTINGS_PATH
 			DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SETTINGS_PATH))
+	GamepadInput.install_defaults()
 	for action: StringName in REMAPPABLE_ACTIONS:
 		_default_bindings[action] = InputMap.action_get_events(action).map(func(e: InputEvent) -> InputEvent: return e.duplicate())
 	var first_launch := _config.load(settings_path) != OK
@@ -396,6 +408,8 @@ func save() -> void:
 	_config.set_value("controls", "ads_sensitivity_scale", ads_sensitivity_scale)
 	_config.set_value("controls", "aim_toggle", aim_toggle)
 	_config.set_value("controls", "crouch_toggle", crouch_toggle)
+	for p in ["pad_sensitivity", "pad_invert_y", "pad_deadzone", "pad_curve", "aim_assist", "vibration"]:
+		_config.set_value("controller", p, get(p))
 	_config.set_value("gameplay", "crosshair_color", crosshair_color_name)
 	_config.set_value("gameplay", "crosshair_size", crosshair_size)
 	_config.set_value("gameplay", "crosshair_dot", crosshair_dot)
@@ -458,6 +472,9 @@ func _load_all(first_launch: bool) -> void:
 	ads_sensitivity_scale = _config.get_value("controls", "ads_sensitivity_scale", ads_sensitivity_scale)
 	aim_toggle = _config.get_value("controls", "aim_toggle", aim_toggle)
 	crouch_toggle = _config.get_value("controls", "crouch_toggle", crouch_toggle)
+	for p in ["pad_sensitivity", "pad_invert_y", "pad_deadzone", "pad_curve", "aim_assist", "vibration"]:
+		set(p, _config.get_value("controller", p, get(p)))
+	pad_curve = clampi(pad_curve, 0, GamepadInput.RESPONSE_CURVES.size() - 1)
 	crosshair_color_name = _config.get_value("gameplay", "crosshair_color", crosshair_color_name)
 	crosshair_size = _config.get_value("gameplay", "crosshair_size", crosshair_size)
 	crosshair_dot = _config.get_value("gameplay", "crosshair_dot", crosshair_dot)
@@ -531,9 +548,43 @@ func crosshair_color() -> Color:
 
 
 ## The (first) event bound to `action`, or null.
+## The keyboard / mouse binding of `action` (null = none).
 func get_binding(action: StringName) -> InputEvent:
-	var events := InputMap.action_get_events(action)
-	return events[0] if not events.is_empty() else null
+	return _binding_of_kind(action, false)
+
+
+## The controller binding of `action` (null = none).
+func get_pad_binding(action: StringName) -> InputEvent:
+	return _binding_of_kind(action, true)
+
+
+func pad_binding_text(action: StringName) -> String:
+	return GamepadInput.event_text(get_pad_binding(action))
+
+
+## Keyboard or controller name, whichever the player is using right now.
+func prompt_text(action: StringName) -> String:
+	if GamepadInput.using_pad and get_pad_binding(action):
+		return pad_binding_text(action)
+	return binding_text(action)
+
+
+func _binding_of_kind(action: StringName, pad: bool) -> InputEvent:
+	if not InputMap.has_action(action):
+		return null
+	for e in InputMap.action_get_events(action):
+		if GamepadInput.is_pad_event(e) == pad:
+			return e
+	return null
+
+
+## Replaces the binding of one kind (keyboard/mouse or controller) only.
+func _set_binding(action: StringName, pad: bool, event: InputEvent) -> void:
+	for e in InputMap.action_get_events(action):
+		if GamepadInput.is_pad_event(e) == pad:
+			InputMap.action_erase_event(action, e)
+	if event:
+		InputMap.action_add_event(action, event)
 
 
 ## Human-readable name of the key / button bound to `action`.
@@ -544,6 +595,8 @@ func binding_text(action: StringName) -> String:
 static func event_text(e: InputEvent) -> String:
 	if e == null:
 		return "—"
+	if GamepadInput.is_pad_event(e):
+		return GamepadInput.event_text(e)
 	if e is InputEventKey:
 		var k := e as InputEventKey
 		if k.physical_keycode == KEY_NONE:
@@ -569,19 +622,18 @@ static func event_text(e: InputEvent) -> String:
 ## Binds `event` to `action`. If another remappable action already uses the
 ## same key, the two actions swap keys. Returns that other action (or &"").
 func rebind(action: StringName, event: InputEvent) -> StringName:
-	var clean := _clean_event(event)
+	var pad := GamepadInput.is_pad_event(event)
+	var clean := GamepadInput.clean(event) if pad else _clean_event(event)
 	if clean == null or not REMAPPABLE_ACTIONS.has(action):
 		return &""
-	var previous := get_binding(action)
+	# Only bindings of the same kind are touched (keyboard vs controller).
+	var previous := _binding_of_kind(action, pad)
 	var swapped: StringName = &""
 	for other: StringName in REMAPPABLE_ACTIONS:
-		if other != action and _same_input(get_binding(other), clean):
+		if other != action and _same_input(_binding_of_kind(other, pad), clean):
 			swapped = other
-			InputMap.action_erase_events(other)
-			if previous:
-				InputMap.action_add_event(other, previous)
-	InputMap.action_erase_events(action)
-	InputMap.action_add_event(action, clean)
+			_set_binding(other, pad, previous)
+	_set_binding(action, pad, clean)
 	save()
 	controls_changed.emit()
 	return swapped
@@ -598,14 +650,14 @@ func reset_bindings() -> void:
 
 ## Re-applies the saved bindings to the InputMap (startup).
 func apply_bindings() -> void:
-	if not _config.has_section("bindings"):
-		return
 	for action: StringName in REMAPPABLE_ACTIONS:
-		var data: Variant = _config.get_value("bindings", String(action), null)
-		var e := _deserialize_event(data)
+		var e := _deserialize_event(_config.get_value("bindings", String(action), null))
 		if e:
-			InputMap.action_erase_events(action)
-			InputMap.action_add_event(action, e)
+			_set_binding(action, false, e)
+		var data: Variant = _config.get_value("pad_bindings", String(action), null)
+		if data is Dictionary:
+			# {} = deliberately unbound on the controller.
+			_set_binding(action, true, GamepadInput.deserialize(data))
 
 
 func _save_bindings() -> void:
@@ -613,9 +665,13 @@ func _save_bindings() -> void:
 		var e := get_binding(action)
 		if e:
 			_config.set_value("bindings", String(action), _serialize_event(e))
+		var p := get_pad_binding(action)
+		_config.set_value("pad_bindings", String(action), GamepadInput.serialize(p) if p else {})
 
 
 static func _serialize_event(e: InputEvent) -> Dictionary:
+	if GamepadInput.is_pad_event(e):
+		return GamepadInput.serialize(e)
 	if e is InputEventKey:
 		var k := e as InputEventKey
 		return { "type": "key", "code": k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode,
@@ -662,3 +718,13 @@ static func _same_input(a: InputEvent, b: InputEvent) -> bool:
 	if a == null or b == null:
 		return false
 	return _serialize_event(a) == _serialize_event(b)
+
+
+## Remembers whether the player is on a controller or keyboard/mouse
+## (rumble, button prompts).
+func _input(event: InputEvent) -> void:
+	if event is InputEventJoypadButton or (event is InputEventJoypadMotion and absf(event.axis_value) > 0.4):
+		GamepadInput.using_pad = true
+	elif event is InputEventKey or event is InputEventMouseButton \
+			or (event is InputEventMouseMotion and (event as InputEventMouseMotion).relative.length() > 3.0):
+		GamepadInput.using_pad = false
