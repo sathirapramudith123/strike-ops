@@ -30,3 +30,4 @@ sdfgi = true
 glow = true
 volumetric_fog = true
 depth_of_field = true
+dynamic_lights = true

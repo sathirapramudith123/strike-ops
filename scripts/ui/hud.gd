@@ -40,6 +40,26 @@ var _player: PlayerController
 var _weapon: Weapon
 
 
+## Performance advisor: shown when dynamic resolution can't keep up.
+func show_performance_hint() -> void:
+	if SettingsManager.graphics.quality == GraphicsPreset.Quality.LOW:
+		_show_toast("Low FPS: try lowering Render scale or the Target FPS in Settings → Graphics")
+	else:
+		_show_toast("Low FPS: a lower graphics preset is recommended (Settings → Graphics)")
+
+
+func _show_toast(text: String) -> void:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_color_override(&"font_color", Color(1, 0.8, 0.4))
+	l.add_theme_color_override(&"font_outline_color", Color.BLACK)
+	l.add_theme_constant_override(&"outline_size", 6)
+	l.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	l.position = Vector2(-l.get_minimum_size().x * 0.5, 120)
+	add_child(l)
+	get_tree().create_timer(8.0).timeout.connect(l.queue_free)
+
+
 func bind_player(player: PlayerController) -> void:
 	_player = player
 	player.health.health_changed.connect(_on_health_changed)
@@ -72,6 +92,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	_damage_flash.color.a = move_toward(_damage_flash.color.a, 0.0, delta * 0.8)
+	# A full-screen quad costs fill rate even when transparent — hide it.
+	_damage_flash.visible = _damage_flash.color.a > 0.001
 	var show_scores := Input.is_action_pressed(&"scoreboard")
 	if show_scores and not _scoreboard.visible:
 		_refresh_scoreboard()
@@ -134,6 +156,9 @@ func _update_perf() -> void:
 	_perf_label.text = "FPS %d  (%.1f ms)\nDraw calls %d  |  Tris %dk\nVRAM %.0f MB\nPreset %s  |  %s" % [
 		fps, frame_ms, draw_calls, prims / 1000, vram,
 		SettingsManager.graphics.display_name, RenderingServer.get_current_rendering_method()]
+	var level := get_parent() as Level
+	if level and level.dynamic_resolution and SettingsManager.dynamic_resolution:
+		_perf_label.text += "\nDynamic res %d%%" % roundi(level.dynamic_resolution.scale * 100.0)
 	if NetworkManager.mode == NetworkManager.Mode.CLIENT:
 		_perf_label.text += "\nPing %d ms" % NetworkManager.ping_ms
 

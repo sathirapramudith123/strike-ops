@@ -21,6 +21,10 @@ const DEFAULT_PLAYER_SCENE := "res://scenes/player/player.tscn"
 ## In Bomb Defusal the red spawns are the attackers' side and the blue spawns
 ## the defenders', whichever team is attacking.
 @export var bomb_sites: Array[Marker3D] = []
+## Merge the static meshes under "Geometry" at load time (see StaticBatcher).
+@export var static_batching: bool = true
+## Benchmark A/B switch (`--no-batching`).
+static var batching_disabled: bool = false
 
 ## The local player (null on a dedicated server or before spawning).
 var player: PlayerController
@@ -29,6 +33,10 @@ var players_root: Node3D
 var _spawn_index: int = 0
 var _spectate_index: int = 0
 var _spectating: PlayerController
+var _detail_batches: Array[MeshInstance3D] = []
+var dynamic_resolution: DynamicResolution
+## What StaticBatcher did (shown by the benchmark / tests).
+var batch_stats: Dictionary = {}
 
 @onready var hud: Hud = $HUD
 @onready var pause_menu: PauseMenu = $PauseMenu
@@ -38,6 +46,16 @@ func _ready() -> void:
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
+	add_child(ImpactDecals.new())
+	if not NetworkManager.is_dedicated():
+		dynamic_resolution = DynamicResolution.new()
+		add_child(dynamic_resolution)
+		dynamic_resolution.struggling.connect(hud.show_performance_hint)
+	var geometry := get_node_or_null("Geometry") as Node3D
+	# (A dedicated server draws nothing — no need to batch there.)
+	if static_batching and not batching_disabled and geometry and not NetworkManager.is_dedicated():
+		batch_stats = StaticBatcher.batch(geometry, SettingsManager.graphics.draw_distance_scale)
+		_detail_batches = batch_stats.details
 	if player_scene == null:
 		player_scene = load(DEFAULT_PLAYER_SCENE)
 	_apply_graphics(SettingsManager.graphics)
@@ -49,6 +67,8 @@ func _ready() -> void:
 		visual.name = "BombVisual"
 		add_child(visual)
 	NetworkManager.on_level_loaded(self)
+	if not NetworkManager.is_dedicated() and DisplayServer.get_name() != "headless":
+		add_child.call_deferred(ShaderWarmup.new())
 
 
 func _process(_delta: float) -> void:
@@ -169,6 +189,10 @@ func spectating() -> PlayerController:
 
 
 func _apply_graphics(_preset: GraphicsPreset) -> void:
+	StaticBatcher.set_detail_distance(_detail_batches, SettingsManager.graphics.draw_distance_scale)
+	var lights := get_node_or_null("Lights")
+	if lights:
+		lights.visible = SettingsManager.graphics.dynamic_lights
 	if world_environment:
 		SettingsManager.apply_to_environment(world_environment.environment)
 	if sun:

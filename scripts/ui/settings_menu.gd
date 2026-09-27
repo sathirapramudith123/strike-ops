@@ -119,6 +119,11 @@ func _build_graphics() -> void:
 			SettingsManager.set_graphics_quality(i as GraphicsPreset.Quality)
 			_status.text = "%s preset applied." % names[i]
 			_build_all())
+	_add_button(t, "", "Run benchmark (≈30 s, uses the current settings)", func() -> void:
+		close()
+		var bench := BenchmarkRunner.new()
+		bench.duration = 8.0
+		get_tree().root.add_child(bench))
 	_add_button(t, "", "Auto-detect for this PC", func() -> void:
 		var best := SettingsManager.detect_recommended_quality()
 		SettingsManager.set_graphics_quality(best)
@@ -129,6 +134,15 @@ func _build_graphics() -> void:
 	_gfx_option(t, "Renderer", "rendering_method", ["Compatibility (OpenGL — fastest)", "Forward+ (Vulkan)"],
 		["gl_compatibility", "forward_plus"], true)
 	_gfx_slider(t, "Render scale", "render_scale", 0.5, 1.0, 0.05, "%d%%", 100.0)
+	_add_check(t, "Dynamic resolution (holds target FPS)", SettingsManager.dynamic_resolution, func(on: bool) -> void:
+		SettingsManager.dynamic_resolution = on
+		SettingsManager.graphics_changed.emit(SettingsManager.graphics)
+		SettingsManager.save())
+	var targets: Array[int] = [30, 60, 90, 120, 144]
+	_add_option(t, "Target FPS", targets.map(func(v: int) -> String: return str(v)),
+		maxi(targets.find(SettingsManager.dynamic_resolution_target_fps), 1), func(i: int) -> void:
+			SettingsManager.dynamic_resolution_target_fps = targets[i]
+			SettingsManager.save())
 	_gfx_option(t, "Upscaler", "scaling_mode", ["Bilinear", "AMD FSR 1.0", "AMD FSR 2.2 (Forward+)"], [0, 1, 2])
 	_gfx_option(t, "MSAA", "msaa", ["Off", "2×", "4×", "8×"], [0, 1, 2, 3])
 	_gfx_check(t, "FXAA", "fxaa")
@@ -146,6 +160,9 @@ func _build_graphics() -> void:
 	_gfx_option(t, "Shadow resolution", "directional_shadow_size", ["512", "1024", "2048", "4096"], [512, 1024, 2048, 4096])
 	_gfx_option(t, "Shadow filtering", "shadow_filter_quality", ["Hard", "Very low", "Low", "Medium", "High", "Ultra"], [0, 1, 2, 3, 4, 5])
 	_gfx_option(t, "Shadow cascades", "directional_shadow_cascades", ["1", "2", "4"], [1, 2, 4])
+
+	_add_section(t, "Lights")
+	_gfx_check(t, "Dynamic lights (lamps, muzzle flash)", "dynamic_lights")
 
 	_add_section(t, "Effects (Forward+)")
 	_gfx_check(t, "Ambient occlusion (SSAO)", "ssao")

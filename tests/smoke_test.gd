@@ -41,6 +41,7 @@ func _run() -> void:
 	_test_friendly_fire_and_match_end()
 	await _test_bomb_defusal()
 	await _test_settings_menu()
+	await _test_performance()
 	await _test_maps()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -603,10 +604,76 @@ func _tap_hold(action: StringName) -> void:
 	Input.action_release(action)
 
 
+## Phase 7 budgets — these fail if an optimisation regresses.
+func _test_performance() -> void:
+	# One shared decal node per level (was 32 nodes per weapon).
+	var decals := get_tree().get_nodes_in_group(ImpactDecals.GROUP)
+	_check(decals.size() == 1, "one ImpactDecals node per level (%d)" % decals.size())
+	var before: int = (decals[0] as ImpactDecals).multimesh.visible_instance_count
+	var rifle: Weapon = _player.weapons["rifle"]
+	rifle._spawn_impact(Vector3(0, 1, -5), Vector3.BACK)
+	_check((decals[0] as ImpactDecals).multimesh.visible_instance_count == before + 1 or before == ImpactDecals.MAX_DECALS,
+		"impacts go into the shared MultiMesh")
+
+	# Node budget per (remote) player.
+	var bot := _level.spawn_player(777, "Budget", Transform3D(Basis.IDENTITY, Vector3(20, 0, 20)))
+	var nodes := bot.find_children("*", "", true, false).size() + 1
+	_check(nodes <= 90, "player node budget: %d ≤ 90" % nodes)
+	_level.despawn_player(777)
+
+	# Static batching on the test range.
+	var st: Dictionary = _level.batch_stats
+	_check(st.get("source_meshes", 0) > 20 and st.batches <= st.source_meshes / 2,
+		"static batching: %d meshes → %d batches" % [st.get("source_meshes", 0), st.get("batches", 0)])
+	_check(st.get("occluders", 0) > 0, "occluders created for large boxes (%d)" % st.get("occluders", 0))
+	var details: Array = st.details
+	var old_scale := SettingsManager.graphics.draw_distance_scale
+	SettingsManager.graphics.draw_distance_scale = 0.5
+	SettingsManager.apply_graphics()
+	_check(details.is_empty() or is_equal_approx((details[0] as MeshInstance3D).visibility_range_end, StaticBatcher.DETAIL_DISTANCE * 0.5),
+		"detail props follow the Draw distance setting")
+	SettingsManager.graphics.draw_distance_scale = old_scale
+	SettingsManager.apply_graphics()
+
+	# Dynamic resolution controller.
+	var dr := DynamicResolution.new()
+	add_child(dr)
+	SettingsManager.dynamic_resolution_target_fps = 60
+	var fired := [false]
+	dr.struggling.connect(func() -> void: fired[0] = true)
+	var start_scale := dr.scale
+	for i in 60:
+		dr.update(40.0, DynamicResolution.INTERVAL) # 25 FPS: too slow
+	_check(is_equal_approx(dr.scale, DynamicResolution.MIN_SCALE), "dynamic resolution drops to %.2f when slow" % dr.scale)
+	_check(fired[0], "performance advisor fires when even minimum resolution is too slow")
+	for i in 60:
+		dr.update(5.0, DynamicResolution.INTERVAL) # 200 FPS: headroom
+	_check(is_equal_approx(dr.scale, SettingsManager.graphics.render_scale), "…and recovers to the preset scale (%.2f)" % dr.scale)
+	_check(start_scale <= SettingsManager.graphics.render_scale + 0.001, "never above the preset render scale")
+	dr.queue_free()
+	get_viewport().scaling_3d_scale = SettingsManager.graphics.render_scale
+
+	# Benchmark statistics.
+	var bench := BenchmarkRunner.new()
+	for i in 99:
+		bench._frame_ms.append(10.0)
+	bench._frame_ms.append(100.0) # one hitch
+	bench._samples = 100
+	var stats := bench._stats("unit")
+	_check(is_equal_approx(stats.one_percent_low_fps, 10.0) and stats.spikes_over_50ms == 1,
+		"benchmark 1%% low = %.1f FPS, spikes = %d" % [stats.one_percent_low_fps, stats.spikes_over_50ms])
+	bench.free()
+	_check(not SettingsManager.vulkan_fallback_happened(), "no Vulkan-fallback false positive in headless")
+
+
 func _test_maps() -> void:
 	# Warehouse: ramp from the ground up to the catwalk (3 m).
 	await _load_map("res://scenes/levels/warehouse.tscn")
 	_check(_level.blue_spawn_points.size() >= 3 and _level.red_spawn_points.size() >= 3, "warehouse has team spawns")
+	SettingsManager.set_graphics_quality(GraphicsPreset.Quality.LOW)
+	_check(not (_level.get_node("Lights") as Node3D).visible, "Low preset turns decorative lights off")
+	SettingsManager.set_graphics_quality(GraphicsPreset.Quality.MEDIUM)
+	_check((_level.get_node("Lights") as Node3D).visible, "Medium preset turns them back on")
 	await _frames(40)
 	_check(_player.is_on_floor(), "warehouse: player lands on the floor")
 	_reset_player(Vector3(15, 0.1, -2.0))

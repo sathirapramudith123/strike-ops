@@ -44,6 +44,11 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA, CUSTOM }
 @export var shadow_filter_quality: RenderingServer.ShadowQuality = RenderingServer.SHADOW_QUALITY_SOFT_LOW
 @export_range(1, 4) var directional_shadow_cascades: int = 2
 
+@export_group("Lights")
+## Decorative point/spot lights in levels (lamps, muzzle flashes). In the
+## Compatibility renderer every light costs an extra pass per lit object.
+@export var dynamic_lights: bool = true
+
 @export_group("Effects (Environment)")
 @export var ssao: bool = false
 @export var ssil: bool = false

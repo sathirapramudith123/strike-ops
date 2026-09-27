@@ -64,6 +64,9 @@ var show_perf_overlay: bool = false
 var window_size: Vector2i = Vector2i(1280, 720)
 ## 0.5..1.5, applied through the level's Environment.
 var brightness: float = 1.0
+## Lower the 3D resolution automatically to hold the target FPS (in matches).
+var dynamic_resolution: bool = true
+var dynamic_resolution_target_fps: int = 60
 
 # Audio (linear 0..1 per bus)
 var bus_volumes: Dictionary = {
@@ -123,6 +126,10 @@ func _ready() -> void:
 		save()
 	apply_all()
 	_ensure_renderer_matches()
+	# `-- --benchmark` runs the built-in benchmark (see BenchmarkRunner).
+	var bench := BenchmarkRunner.from_args(OS.get_cmdline_user_args())
+	if bench:
+		get_tree().root.add_child.call_deferred(bench)
 
 
 # -----------------------------------------------------------------------------
@@ -161,6 +168,16 @@ static func load_preset(quality: GraphicsPreset.Quality) -> GraphicsPreset:
 	return preset.duplicate() as GraphicsPreset
 
 
+## True when the project asked for Forward+ (Vulkan) but the driver couldn't
+## provide it and Godot fell back to the Compatibility renderer.
+static func vulkan_fallback_happened() -> bool:
+	var wanted: String = ProjectSettings.get_setting("rendering/renderer/rendering_method", "forward_plus")
+	var forced := RENDERER_ARG in OS.get_cmdline_args()
+	return wanted == "forward_plus" and not forced \
+		and RenderingServer.get_current_rendering_method() == "gl_compatibility" \
+		and DisplayServer.get_name() != "headless"
+
+
 ## Picks a sensible starting preset from the hardware (used on first launch).
 static func detect_recommended_quality() -> GraphicsPreset.Quality:
 	var adapter_type := RenderingServer.get_video_adapter_type()
@@ -168,6 +185,15 @@ static func detect_recommended_quality() -> GraphicsPreset.Quality:
 	var cores := OS.get_processor_count()
 
 	if adapter_type in [RenderingDevice.DEVICE_TYPE_CPU, RenderingDevice.DEVICE_TYPE_VIRTUAL_GPU]:
+		return GraphicsPreset.Quality.LOW
+	# Software rendering (no real GPU driver).
+	var adapter := RenderingServer.get_video_adapter_name().to_lower()
+	for soft in ["llvmpipe", "softpipe", "swiftshader", "software", "microsoft basic render"]:
+		if soft in adapter:
+			return GraphicsPreset.Quality.LOW
+	# Vulkan unavailable: Godot fell back to OpenGL, so only Low is a good fit
+	# (the other presets are tuned for Forward+).
+	if vulkan_fallback_happened():
 		return GraphicsPreset.Quality.LOW
 	if adapter_type == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU:
 		return GraphicsPreset.Quality.LOW if ram_gb < 7.5 else GraphicsPreset.Quality.MEDIUM
@@ -296,6 +322,8 @@ func save() -> void:
 	_config.set_value("display", "show_perf_overlay", show_perf_overlay)
 	_config.set_value("display", "window_size", window_size)
 	_config.set_value("display", "brightness", brightness)
+	_config.set_value("display", "dynamic_resolution", dynamic_resolution)
+	_config.set_value("display", "dynamic_resolution_target_fps", dynamic_resolution_target_fps)
 
 	for bus: StringName in AUDIO_BUSES:
 		_config.set_value("audio", String(bus).to_lower(), bus_volumes[bus])
@@ -374,6 +402,8 @@ func _load_all(first_launch: bool) -> void:
 	crosshair_dot = _config.get_value("gameplay", "crosshair_dot", crosshair_dot)
 	window_size = _config.get_value("display", "window_size", window_size)
 	brightness = _config.get_value("display", "brightness", brightness)
+	dynamic_resolution = _config.get_value("display", "dynamic_resolution", dynamic_resolution)
+	dynamic_resolution_target_fps = _config.get_value("display", "dynamic_resolution_target_fps", dynamic_resolution_target_fps)
 
 	player_name = _config.get_value("network", "player_name", player_name)
 	last_join_address = _config.get_value("network", "last_join_address", last_join_address)

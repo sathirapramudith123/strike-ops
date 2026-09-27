@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🚧 Phase 6b — playable multiplayer shooter: Free-for-All, Team Deathmatch & Bomb Defusal, 5 weapons, 3 greybox maps, voice chat, host / join / dedicated server.
+> **Status:** 🚧 Phase 7 — playable multiplayer shooter (FFA, TDM, Bomb Defusal; 5 weapons; 3 greybox maps; voice chat) with a full settings screen, built-in benchmark and low-end optimisations.
 
 ---
 
@@ -199,7 +199,7 @@ game-develop/
 │   ├── ui/                  # menus, HUD, crosshair
 │   └── voice/               # voice capture, encode/decode, playback
 ├── tests/                   # smoke test + two-process multiplayer test
-├── tools/                   # run_net_test.sh, greybox.py (map generator)
+├── tools/                   # run_net_test.sh, run_benchmark.sh, greybox.py (map generator)
 ├── docs/                    # design documents
 ├── .editorconfig            # tabs for GDScript, LF line endings
 ├── .gitattributes           # line endings + Git LFS rules
@@ -323,6 +323,39 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 **Key scripts:** `scripts/network/network_manager.gd` (autoload), `scripts/network/player_net_sync.gd`, `scripts/network/lag_compensation.gd`, `scripts/weapons/weapon.gd` (`_server_fire`), `scripts/levels/level.gd`.
 
 **Known limitations (next steps):** players pass through each other; ammo is not validated server-side yet (fire rate is); no NAT punch-through or encryption.
+
+### Phase 7 — performance
+
+**Built-in benchmark** — flies the camera through every map with 12 moving, shooting bots and reports average FPS, **1% low**, frame-time spikes, draw calls, triangles and node count (saved as JSON in `user://benchmarks/`).
+
+```bash
+tools/run_benchmark.sh /path/to/godot                           # current settings, all maps
+tools/run_benchmark.sh godot --preset low --bots 16 --duration 15
+tools/run_benchmark.sh godot --preset low --set dynamic_lights=true   # A/B any graphics option
+tools/run_benchmark.sh godot --no-batching                       # A/B static batching
+```
+
+Or in game: **Settings → Graphics → Run benchmark** (the result and advice appear on the main menu).
+
+**What was optimised** (measured with the benchmark; numbers below are from a *software* renderer — Mesa llvmpipe, no GPU — so absolute FPS is far lower than any real PC, but the before/after differences are real):
+
+| Change | Why | Measured effect |
+|--------|-----|-----------------|
+| Hide the full-screen damage-flash when transparent | A transparent full-screen quad still costs fill rate every frame | Warehouse (Low) **30.8 → 36.9 FPS (+20%)** |
+| Shared `ImpactDecals` MultiMesh per level | Every weapon had 32 decal nodes (~160 per player) | **3,743 → 1,611 nodes** with 13 players (−57%); decals are 1 draw call |
+| Lazy weapon audio players | Most weapons of most players never fire | fewer nodes per player (now **74**, budget 90) |
+| `dynamic_lights` preset option (off on Low) | In the OpenGL renderer every lamp adds a pass per lit object | Warehouse **27.9 → 31.0 FPS (+11%)** |
+| **Dynamic resolution** (on by default, target 60 FPS) | Lowers the 3D resolution only while frames are slow; HUD stays sharp | reached 0.5 scale automatically: **30.8 → 37.4 FPS** in the stress test |
+| Shader warm-up on level load | OpenGL compiles shaders on first use → hitch on the first shot / first enemy | worst 1% low **9.3 → 24 FPS**, no frames over 50 ms after warm-up |
+| Static batching + occluders + detail draw distance | Merges greybox boxes per material and 16 m cell; big boxes occlude; small props fade out per *Draw distance* | draw calls **36–40 → 31–32** (small here — greybox maps are simple; matters with real art) |
+| Auto-detect | Software renderers and PCs without Vulkan (OpenGL fallback) now get **Low** | Medium on OpenGL measured 16 FPS vs Low 37 FPS |
+| Performance advisor | If even 50 % resolution can't hold the target for 20 s, the HUD suggests a lower preset | — |
+
+Overall Low preset, 3 maps, 12 bots (llvmpipe): **avg 30.2 → 37.2 FPS**, worst 1% low **9.3 → 24.1 FPS**, nodes **~3,750 → ~1,600** — before dynamic resolution, which lifts it further.
+
+*Checked and left alone:* the grid shader and the procedural sky cost < 2 % each; players' CPU cost is small (32 players ≈ 7 ms frames headless, ~7 ms one-off per player spawn).
+
+**Budgets enforced by the smoke test:** ≤ 90 nodes per player, one decal node per level, static batching at least halves mesh count, occluders present, dynamic resolution drops/recovers, Low turns lights off.
 
 ### Phase 2 — settings
 
@@ -461,7 +494,9 @@ Rules every contributor follows so the game stays playable on low-end PCs:
 - **Occlusion culling:** enable `OccluderInstance3D` in all maps.
 - **Scripts:** avoid heavy work in `_process()`; use object pooling for bullets, decals and particles.
 - **Network:** 30 Hz player state, target < 64 kbps per client excluding voice; voice adds ~64 kbps per active speaker (ADPCM) until Opus lands.
-- **Test every feature on the Low preset** before merging.
+- **Test every feature on the Low preset** before merging, and run `tools/run_benchmark.sh --preset low` before/after anything that could affect performance.
+- **Never leave invisible full-screen UI visible** (alpha 0 still costs fill rate) — hide it.
+- **No per-object node pools** — share one per level (see `ImpactDecals`).
 
 ---
 
@@ -504,7 +539,8 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)
 - [x] **Phase 6 — Content:** 5 weapons + loadouts, 3 maps, FFA & TDM with teams, match flow & map rotation, HUD & menus
 - [x] **Phase 6b — Bomb Defusal:** rounds, freeze time, bomb carry/drop/plant/defuse/explode, no respawns + spectating, halftime side swap
-- [ ] **Phase 7 — Optimization:** profiling on minimum-spec hardware, LODs, occlusion, auto-detect preset
+- [x] **Phase 7 — Optimization:** built-in benchmark, dynamic resolution, performance advisor, static batching + occluders + detail distance, shared decals, shader warm-up, Low-preset light cuts, better auto-detect
+- [ ] **Phase 7b — Real-hardware pass:** run the benchmark on the minimum-spec PC (Intel UHD 620 / Vega 8) and tune presets from the results
 - [ ] **Phase 8 — Release:** installers, anti-cheat basics, beta testing, v1.0
 
 ---

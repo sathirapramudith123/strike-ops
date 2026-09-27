@@ -15,7 +15,6 @@ signal reload_started(duration: float)
 signal reload_finished
 signal hit_confirmed(is_kill: bool, is_headshot: bool)
 
-const IMPACT_POOL_SIZE := 32
 ## World (1) + hitbox (3) layers.
 const HIT_MASK := (1 << 0) | (1 << 2)
 
@@ -45,8 +44,6 @@ var _bloom: float = 0.0
 var _hip_position: Vector3
 var _kick: float = 0.0
 var _flash_timer: float = 0.0
-var _impacts: Array[MeshInstance3D] = []
-var _impact_index: int = 0
 var _audio: AudioStreamPlayer3D
 var _rng := RandomNumberGenerator.new()
 var _viewmodel_meshes: Array[Node] = []
@@ -66,13 +63,8 @@ func _ready() -> void:
 		dry_fire_sound = ProceduralSfx.click(1400.0)
 	if reload_sound == null:
 		reload_sound = ProceduralSfx.click(600.0, 0.08)
-	_audio = AudioStreamPlayer3D.new()
-	_audio.bus = &"SFX"
-	_audio.max_polyphony = 4
-	add_child(_audio)
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
-	_build_impact_pool()
 
 
 func equip(player: PlayerController, camera: Camera3D) -> void:
@@ -344,6 +336,10 @@ func _play_remote_fx(hit_positions: PackedVector3Array, hit_normals: PackedVecto
 func _show_muzzle_flash() -> void:
 	if muzzle_flash:
 		muzzle_flash.visible = true
+		# The flash light is optional on low-end presets (the flash quad stays).
+		var light := muzzle_flash.get_node_or_null("FlashLight") as Light3D
+		if light:
+			light.visible = SettingsManager.graphics.dynamic_lights
 		muzzle_flash.rotation.z = _rng.randf() * TAU
 		_flash_timer = 0.04
 
@@ -377,31 +373,16 @@ func _update_flash(delta: float) -> void:
 func _play(stream: AudioStream, pitch: float = 1.0) -> void:
 	if stream == null:
 		return
+	if _audio == null:
+		# Created on first use: most weapons of most players never fire.
+		_audio = AudioStreamPlayer3D.new()
+		_audio.bus = &"SFX"
+		_audio.max_polyphony = 4
+		add_child(_audio)
 	_audio.stream = stream
 	_audio.pitch_scale = pitch
 	_audio.play()
 
 
-func _build_impact_pool() -> void:
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(0.08, 0.08)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.05, 0.05, 0.05)
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mesh.material = mat
-	for i in IMPACT_POOL_SIZE:
-		var impact := MeshInstance3D.new()
-		impact.mesh = mesh
-		impact.top_level = true
-		impact.visible = false
-		impact.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(impact)
-		_impacts.append(impact)
-
-
 func _spawn_impact(pos: Vector3, normal: Vector3) -> void:
-	var impact := _impacts[_impact_index]
-	_impact_index = (_impact_index + 1) % _impacts.size()
-	impact.visible = true
-	var up := Vector3.UP if absf(normal.dot(Vector3.UP)) < 0.99 else Vector3.FORWARD
-	impact.global_transform = Transform3D(Basis.looking_at(-normal, up), pos + normal * 0.005)
+	ImpactDecals.get_for(self).add(pos, normal)

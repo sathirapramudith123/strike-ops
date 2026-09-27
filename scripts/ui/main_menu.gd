@@ -25,6 +25,9 @@ func _ready() -> void:
 	%ModeOption.select(maxi(%ModeOption.get_item_index(SettingsManager.host_mode), 0))
 	%StatusLabel.text = NetworkManager.last_error
 	NetworkManager.last_error = ""
+	if not BenchmarkRunner.last_results.is_empty():
+		%StatusLabel.text = BenchmarkRunner.summary_text(BenchmarkRunner.last_results)
+		BenchmarkRunner.last_results = {}
 	NetworkManager.connection_failed.connect(_on_connection_failed)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	%PlayButton.grab_focus()
