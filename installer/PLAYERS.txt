@@ -1,0 +1,35 @@
+FPS Game — quick start
+======================
+
+Play
+  Windows : run FPSGame.exe          Linux : ./FPSGame.x86_64
+  First launch picks graphics settings for your PC automatically.
+  Settings → Graphics → "Run benchmark" checks how well it runs.
+  Help us tune the game for PCs like yours: Settings → Graphics →
+  "Full hardware test" (≈5 min, restarts once) → "Send to the developers".
+
+Multiplayer
+  Host Game  : starts a game on your PC (UDP port 7777).
+  Join       : type the host's IP (e.g. 192.168.1.20 or 1.2.3.4:7777).
+  LAN        : use the host's local IP.
+  Internet   : the host forwards UDP 7777 on the router, or everyone uses
+               a VPN such as Tailscale / ZeroTier / Radmin VPN.
+  Shortcut   : FPSGame.exe -- --connect 1.2.3.4:7777 --name YourName
+
+Controller: plug in any Xbox / PlayStation / generic gamepad — sticks to
+  move and look, RT shoot, LT aim, A jump, B crouch, X reload, Y next weapon,
+  LB plant/defuse, Menu = pause. Settings → Controls → Controller.
+
+Controls (change them in Settings → Controls)
+  WASD move · Space jump · Ctrl crouch · C slide · Shift sprint
+  Left mouse shoot · Right mouse aim · R reload · 1/2 weapons
+  E plant/defuse (hold) · V team voice · B proximity voice
+  Tab scoreboard · F3 performance · Esc menu
+
+Low FPS?
+  Settings → Graphics: pick "Low", keep "Dynamic resolution" on,
+  lower "Render scale". Close other programs. Update GPU drivers.
+
+Problems?
+  Esc → "Report a bug" opens a pre-filled bug report.
+  Logs:  Windows %APPDATA%\FPSGame\logs    Linux ~/.local/share/FPSGame/logs

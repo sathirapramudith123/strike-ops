@@ -1,0 +1,97 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pause_menu.gd" id="1_pause"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_menu.tscn" id="2_settings"]
+
+[node name="PauseMenu" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_pause")
+
+[node name="Panel" type="ColorRect" parent="."]
+unique_name_in_owner = true
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Box" type="VBoxContainer" parent="Panel/Center"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Panel/Center/Box"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "Paused"
+horizontal_alignment = 1
+
+[node name="LoadoutRow" type="HBoxContainer" parent="Panel/Center/Box"]
+layout_mode = 2
+
+[node name="LoadoutLabel" type="Label" parent="Panel/Center/Box/LoadoutRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Primary weapon (next spawn)"
+
+[node name="LoadoutOption" type="OptionButton" parent="Panel/Center/Box/LoadoutRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TeamButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Switch team"
+
+[node name="VoiceTitle" type="Label" parent="Panel/Center/Box"]
+modulate = Color(1, 1, 1, 0.7)
+layout_mode = 2
+text = "Voice chat"
+
+[node name="MuteAllCheck" type="CheckBox" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Mute everyone"
+
+[node name="MuteList" type="VBoxContainer" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SettingsButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings…"
+
+[node name="ResumeButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Resume"
+
+[node name="BugButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Report a bug"
+
+[node name="MainMenuButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Main menu"
+
+[node name="QuitButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quit game"
+
+[node name="SettingsMenu" parent="Panel" instance=ExtResource("2_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1

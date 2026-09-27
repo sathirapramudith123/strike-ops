@@ -1,0 +1,37 @@
+[gd_scene load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon.gd" id="1_weapon"]
+[ext_resource type="Resource" path="res://resources/weapons/sniper.tres" id="2_data"]
+
+[sub_resource type="StandardMaterial3D" id="Mat_flash"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(1, 0.55, 0.15, 0.85)
+
+[sub_resource type="QuadMesh" id="Mesh_flash"]
+material = SubResource("Mat_flash")
+size = Vector2(0.06, 0.06)
+
+[node name="Sniper" type="Node3D" node_paths=PackedStringArray("muzzle", "muzzle_flash")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.21, -0.45)
+script = ExtResource("1_weapon")
+data = ExtResource("2_data")
+fire_sound_distance = 300.0
+muzzle = NodePath("Muzzle")
+muzzle_flash = NodePath("Muzzle/Flash")
+ads_position = Vector3(0, -0.085, -0.25)
+
+[node name="Muzzle" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.015, -0.75)
+
+[node name="Flash" type="Node3D" parent="Muzzle"]
+
+[node name="FlashMesh" type="MeshInstance3D" parent="Muzzle/Flash"]
+cast_shadow = 0
+mesh = SubResource("Mesh_flash")
+
+[node name="FlashLight" type="OmniLight3D" parent="Muzzle/Flash"]
+light_color = Color(1, 0.78, 0.45, 1)
+light_energy = 2.0
+omni_range = 4.0

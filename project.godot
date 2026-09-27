@@ -1,0 +1,180 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="FPS Game"
+config/description="Low-spec friendly multiplayer first-person shooter with scalable graphics and voice chat."
+config/version="0.9.0"
+config/release_channel="beta"
+run/main_scene="res://scenes/main/main_menu.tscn"
+config/use_custom_user_dir=true
+config/custom_user_dir_name="FPSGame"
+config/features=PackedStringArray("4.4", "Forward Plus")
+boot_splash/bg_color=Color(0.07, 0.07, 0.08, 1)
+config/icon="res://icon.svg"
+run/flush_stdout_on_print=true
+
+[audio]
+
+driver/enable_input=true
+buses/default_bus_layout="res://resources/audio/default_bus_layout.tres"
+
+[autoload]
+
+SettingsManager="*res://scripts/core/settings_manager.gd"
+Match="*res://scripts/core/match_manager.gd"
+NetworkManager="*res://scripts/network/network_manager.gd"
+VoiceChat="*res://scripts/voice/voice_chat.gd"
+Audio="*res://scripts/audio/audio_manager.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[input]
+
+move_forward={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":87)]
+}
+move_back={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":83)]
+}
+move_left={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":65)]
+}
+move_right={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":68)]
+}
+jump={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":32)]
+}
+crouch={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194326)]
+}
+slide={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":67)]
+}
+sprint={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194325)]
+}
+shoot={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"button_index":1)]
+}
+aim={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"button_index":2)]
+}
+reload={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":82)]
+}
+weapon_1={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":49)]
+}
+weapon_2={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":50)]
+}
+weapon_3={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":51)]
+}
+weapon_4={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":52)]
+}
+weapon_next={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"button_index":4)]
+}
+weapon_prev={
+"deadzone": 0.2,
+"events": [Object(InputEventMouseButton,"button_index":5)]
+}
+interact={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":69)]
+}
+throw_grenade={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":71)]
+}
+push_to_talk_team={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":86)]
+}
+push_to_talk_proximity={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":66)]
+}
+scoreboard={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194306)]
+}
+chat_all={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":84)]
+}
+chat_team={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":89)]
+}
+pause={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194305)]
+}
+toggle_perf_overlay={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194334)]
+}
+
+[layer_names]
+
+3d_physics/layer_1="world"
+3d_physics/layer_2="player"
+3d_physics/layer_3="hitbox"
+3d_physics/layer_4="projectile"
+3d_physics/layer_5="pickup"
+3d_physics/layer_6="trigger"
+3d_physics/layer_7="audio_zone"
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+common/physics_ticks_per_second=60
+
+[shader_globals]
+
+surface_detail={
+"type": "float",
+"value": 1.0
+}
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+rendering_device/fallback_to_opengl3=true
+textures/vram_compression/import_etc2_astc=true
+occlusion_culling/use_occlusion_culling=true
+anti_aliasing/quality/use_debanding=false

@@ -1,0 +1,35 @@
+name: Bug report
+description: Something doesn't work (in game "Report a bug" fills most of this in)
+labels: ["bug"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Host a Bomb Defusal game on Warehouse\n2. …"
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      placeholder: v0.9.0 beta
+    validations:
+      required: true
+  - type: textarea
+    id: system
+    attributes:
+      label: System details
+      description: Filled in by the game (also copied to your clipboard).
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log file
+      description: Attach or paste the newest file from the logs folder shown above.
+      render: text

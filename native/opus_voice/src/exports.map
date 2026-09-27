@@ -1,0 +1,4 @@
+{
+	global: opus_voice_library_init;
+	local: *;
+};

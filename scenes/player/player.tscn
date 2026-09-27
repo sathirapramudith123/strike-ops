@@ -1,0 +1,96 @@
+[gd_scene load_steps=20 format=3]
+
+[ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
+[ext_resource type="Script" path="res://scripts/core/health.gd" id="2_health"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/assault_rifle.tscn" id="3_rifle"]
+[ext_resource type="Script" path="res://scripts/network/player_net_sync.gd" id="4_net"]
+[ext_resource type="Script" path="res://scripts/core/hitbox.gd" id="5_hitbox"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/smg.tscn" id="6_smg"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/shotgun.tscn" id="7_shotgun"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/sniper.tscn" id="8_sniper"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/pistol.tscn" id="9_pistol"]
+[ext_resource type="Script" path="res://scripts/player/player_model.gd" id="10_model"]
+
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
+resource_local_to_scene = true
+radius = 0.35
+height = 1.8
+
+[sub_resource type="CapsuleShape3D" id="Shape_body_hitbox"]
+resource_local_to_scene = true
+radius = 0.35
+height = 1.4
+
+[sub_resource type="SphereShape3D" id="Shape_head_hitbox"]
+radius = 0.2
+
+[node name="Player" type="CharacterBody3D" groups=["player"]]
+collision_layer = 2
+collision_mask = 1
+floor_snap_length = 0.3
+script = ExtResource("1_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("CapsuleShape3D_body")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("2_health")
+regen_delay = 5.0
+regen_per_second = 15.0
+
+[node name="NetSync" type="Node" parent="."]
+script = ExtResource("4_net")
+
+[node name="BodyHitbox" type="StaticBody3D" parent="." node_paths=PackedStringArray("health")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
+script = ExtResource("5_hitbox")
+health = NodePath("../Health")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BodyHitbox"]
+shape = SubResource("Shape_body_hitbox")
+
+[node name="ThirdPerson" type="Node3D" parent="."]
+
+[node name="Model" type="Node3D" parent="ThirdPerson"]
+script = ExtResource("10_model")
+
+[node name="NameTag" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.1, 0)
+billboard = 1
+no_depth_test = true
+fixed_size = true
+pixel_size = 0.0016
+modulate = Color(1, 1, 1, 0.9)
+outline_modulate = Color(0, 0, 0, 0.8)
+text = "Player"
+font_size = 32
+outline_size = 8
+
+[node name="Head" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.65, 0)
+
+[node name="HeadHitbox" type="StaticBody3D" parent="Head" node_paths=PackedStringArray("health")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
+script = ExtResource("5_hitbox")
+health = NodePath("../../Health")
+is_head = true
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Head/HeadHitbox"]
+shape = SubResource("Shape_head_hitbox")
+
+[node name="Camera3D" type="Camera3D" parent="Head"]
+fov = 90.0
+near = 0.02
+
+[node name="WeaponHolder" type="Node3D" parent="Head/Camera3D"]
+
+[node name="AssaultRifle" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("3_rifle")]
+
+[node name="Smg" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("6_smg")]
+
+[node name="Shotgun" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("7_shotgun")]
+
+[node name="Sniper" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("8_sniper")]
+
+[node name="Pistol" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("9_pistol")]

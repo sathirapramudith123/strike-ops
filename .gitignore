@@ -1,0 +1,222 @@
+# =============================================================================
+#  .gitignore — FPS Desktop Game (Godot 4 + C#/GDScript)
+# =============================================================================
+#  Rule of thumb: commit SOURCE (scenes, scripts, raw assets, project settings),
+#  never commit GENERATED files (caches, imports, builds, logs, local configs).
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Godot 4 engine — generated / cache data
+# -----------------------------------------------------------------------------
+.godot/
+.import/
+*.import.bak
+export.cfg
+export_credentials.cfg
+# Keep export_presets.cfg committed, but NEVER commit keystores/credentials
+*.keystore
+*.jks
+*.p12
+*.pfx
+
+# Godot mono / C# build output
+.mono/
+data_*/
+mono_crash.*.json
+*.translation
+
+# -----------------------------------------------------------------------------
+# .NET / C# (if C# scripting is used)
+# -----------------------------------------------------------------------------
+[Bb]in/
+# …except prebuilt GDExtension libraries (e.g. addons/opus_voice/bin/)
+!addons/**/bin/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.pdb
+*.mdb
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage/
+
+# -----------------------------------------------------------------------------
+# Game builds / exports / packaging
+# -----------------------------------------------------------------------------
+build/
+builds/
+export/
+exports/
+dist/
+release/
+*.exe
+*.pck
+*.zip
+*.7z
+*.rar
+*.tar.gz
+*.dmg
+*.app
+*.x86_64
+*.x86_32
+*.arm64
+*.AppImage
+*.msi
+*.deb
+*.rpm
+
+# Native libraries built locally (GDExtension / voice codec builds)
+# Remove these lines if you intentionally vendor prebuilt binaries.
+*.dll
+*.so
+*.dylib
+*.lib
+*.a
+*.o
+*.obj
+!addons/**/bin/**
+
+# SCons / CMake (GDExtension, Opus / voice native modules)
+.sconsign*.dblite
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+compile_commands.json
+
+# -----------------------------------------------------------------------------
+# Server / networking / voice chat — secrets & runtime data
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+config/local*.cfg
+server/logs/
+server/data/
+voice_recordings/
+*.opus.tmp
+*.pcap
+
+# Node / Python tooling (dedicated server, matchmaking, build scripts)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# -----------------------------------------------------------------------------
+# Player-generated / runtime data (saves, settings, screenshots, crash dumps)
+# -----------------------------------------------------------------------------
+saves/
+*.save
+user_settings.cfg
+screenshots/
+*.dmp
+crash_reports/
+logs/
+*.log
+
+# Profiling & benchmark captures (graphics preset testing)
+*.nvtx
+*.qdrep
+*.rdc
+*.trace
+profiling/
+benchmarks/results/
+
+# -----------------------------------------------------------------------------
+# Art / audio source working files (keep large originals out of git;
+# use Git LFS for final assets — see README)
+# -----------------------------------------------------------------------------
+*.blend1
+*.blend2
+*.psd.bak
+*.kra~
+*.spp.bak
+*.aup3-shm
+*.aup3-wal
+*.reapeaks
+*.pkf
+*.asd
+*.tmp
+*.temp
+*~
+
+# -----------------------------------------------------------------------------
+# IDEs & editors
+# -----------------------------------------------------------------------------
+# VS Code (keep shared settings, ignore personal ones)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+.history/
+
+# JetBrains Rider / IntelliJ
+.idea/
+*.iml
+*.sln.iml
+.idea_modules/
+
+# Visual Studio
+.vs/
+*.VC.db
+*.VC.opendb
+ipch/
+
+# Vim / Emacs / Sublime
+*.swp
+*.swo
+*.un~
+Session.vim
+\#*\#
+.\#*
+*.sublime-workspace
+
+# -----------------------------------------------------------------------------
+# Operating systems
+# -----------------------------------------------------------------------------
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+.directory
+.Trash-*
+.fuse_hidden*
+.nfs*

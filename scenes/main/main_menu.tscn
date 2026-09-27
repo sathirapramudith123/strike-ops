@@ -1,0 +1,140 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
+[ext_resource type="PackedScene" path="res://scenes/ui/settings_menu.tscn" id="2_settings"]
+[ext_resource type="PackedScene" path="res://scenes/ui/map_select.tscn" id="3_maps"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_menu")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.07, 0.07, 0.08, 1)
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Main" type="VBoxContainer" parent="Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Center/Main"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = "FPS GAME"
+horizontal_alignment = 1
+
+[node name="Version" type="Label" parent="Center/Main"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0.5)
+layout_mode = 2
+text = "v0.1.0"
+horizontal_alignment = 1
+
+[node name="NameEdit" type="LineEdit" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Player name"
+max_length = 16
+
+[node name="GameRow" type="HBoxContainer" parent="Center/Main"]
+layout_mode = 2
+
+[node name="MapButton" type="Button" parent="Center/Main/GameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Choose the map"
+text = "Map: Test Range ▸"
+
+[node name="ModeOption" type="OptionButton" parent="Center/Main/GameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Game mode (host)"
+
+[node name="PlayButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Play Offline (Practice)"
+
+[node name="HostRow" type="HBoxContainer" parent="Center/Main"]
+layout_mode = 2
+
+[node name="HostButton" type="Button" parent="Center/Main/HostRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Host Game"
+
+[node name="PortSpin" type="SpinBox" parent="Center/Main/HostRow"]
+unique_name_in_owner = true
+layout_mode = 2
+tooltip_text = "Port"
+min_value = 1024.0
+max_value = 65535.0
+value = 7777.0
+
+[node name="JoinRow" type="HBoxContainer" parent="Center/Main"]
+layout_mode = 2
+
+[node name="AddressEdit" type="LineEdit" parent="Center/Main/JoinRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "IP address[:port]"
+
+[node name="JoinButton" type="Button" parent="Center/Main/JoinRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Join"
+
+[node name="StatusLabel" type="Label" parent="Center/Main"]
+unique_name_in_owner = true
+modulate = Color(1, 0.8, 0.4, 1)
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="SettingsButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings"
+
+[node name="BugButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Report a bug"
+
+[node name="QuitButton" type="Button" parent="Center/Main"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quit"
+
+[node name="SettingsMenu" parent="." instance=ExtResource("2_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="MapSelect" parent="." instance=ExtResource("3_maps")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1

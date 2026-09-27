@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+display_name = "V-10 SMG"
+weapon_id = "smg"
+automatic = true
+fire_rate = 900.0
+damage = 17.0
+headshot_multiplier = 1.6
+max_range = 80.0
+falloff_start = 15.0
+min_damage_multiplier = 0.5
+magazine_size = 32
+starting_reserve = 160
+reload_time = 1.8
+hip_spread = 3.0
+ads_spread = 0.9
+spread_per_shot = 0.25
+max_bloom = 2.5
+bloom_recovery = 8.0
+moving_spread = 0.8
+air_spread = 3.0
+recoil_pitch = 0.6
+recoil_yaw = 0.45
+ads_recoil_multiplier = 0.7
+ads_time = 0.14
+ads_fov_multiplier = 0.85
+ads_sensitivity_multiplier = 0.8
+ads_move_speed_multiplier = 0.8

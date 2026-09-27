@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main, devlop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.4.1"
+
+jobs:
+  test:
+    name: Smoke + multiplayer tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot && rm godot.zip
+
+      - name: Import project
+        run: ~/godot/godot --headless --path . --editor --quit || true
+
+      - name: Smoke test
+        run: |
+          set -o pipefail
+          ~/godot/godot --headless --path . res://tests/smoke_test.tscn 2>&1 | tee /tmp/smoke.log
+          # A script error aborts a test function without counting as a failure.
+          if grep -q "SCRIPT ERROR" /tmp/smoke.log; then echo "::error::script error in the smoke test"; exit 1; fi
+
+      - name: Multiplayer tests (TDM, Bomb Defusal, anti-cheat, mixed voice codecs)
+        run: tools/run_net_test.sh ~/godot/godot
+
+      - name: Hardware test flow + preset tuning script
+        run: |
+          python3 tools/tune_presets.py --self-test
+          ~/godot/godot --headless --path . -- --hardware-test --quick --quit
+          python3 tools/tune_presets.py ~/.local/share/FPSGame/benchmarks/hardware_report_*.json --include-quick
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: net-test-logs
+          path: /tmp/net_test_*.log
+
+  opus-platforms:
+    name: Opus codec on ${{ matrix.name }}
+    # The committed Opus libraries must load on every desktop platform
+    # (the full tests above run on Linux).
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: macOS (Apple Silicon)
+            os: macos-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Godot (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/godotengine/godot/releases/download/$env:GODOT_VERSION-stable/Godot_v$env:GODOT_VERSION-stable_win64.exe.zip" -OutFile godot.zip
+          Expand-Archive godot.zip -DestinationPath "$env:RUNNER_TEMP\godot"
+          "GODOT=$env:RUNNER_TEMP\godot\Godot_v$env:GODOT_VERSION-stable_win64_console.exe" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Install Godot (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip"
+          unzip -q godot.zip -d "$RUNNER_TEMP/godot"
+          echo "GODOT=$RUNNER_TEMP/godot/Godot.app/Contents/MacOS/Godot" >> "$GITHUB_ENV"
+
+      - name: Import project
+        shell: bash
+        run: '"$GODOT" --headless --path . --import || true'
+
+      - name: Opus round trip
+        shell: bash
+        run: '"$GODOT" --headless --path . -s res://tests/opus_check.gd'

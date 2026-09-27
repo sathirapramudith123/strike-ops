@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+display_name = "AR-7 Assault Rifle"
+weapon_id = "rifle"
+automatic = true
+fire_rate = 650.0
+damage = 24.0
+headshot_multiplier = 2.0
+max_range = 150.0
+falloff_start = 30.0
+min_damage_multiplier = 0.6
+magazine_size = 30
+starting_reserve = 120
+reload_time = 2.0
+hip_spread = 2.5
+ads_spread = 0.3
+spread_per_shot = 0.35
+max_bloom = 3.0
+bloom_recovery = 6.0
+moving_spread = 1.5
+air_spread = 4.0
+recoil_pitch = 1.1
+recoil_yaw = 0.35
+ads_recoil_multiplier = 0.65
+ads_time = 0.18
+ads_fov_multiplier = 0.8
+ads_sensitivity_multiplier = 0.7
+ads_move_speed_multiplier = 0.6

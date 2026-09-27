@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="GraphicsPreset" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/core/graphics_preset.gd" id="1_preset"]
+
+[resource]
+script = ExtResource("1_preset")
+quality = 3
+display_name = "Ultra"
+rendering_method = "forward_plus"
+render_scale = 1.0
+scaling_mode = 0
+fsr_sharpness = 0.2
+msaa = 2
+fxaa = false
+taa = true
+texture_mipmap_bias = 0.0
+mesh_lod_threshold = 0.5
+draw_distance_scale = 1.25
+foliage_density = 1.0
+particle_amount = 1.0
+shadows_enabled = true
+directional_shadow_size = 4096
+positional_shadow_atlas_size = 4096
+shadow_filter_quality = 5
+directional_shadow_cascades = 4
+ssao = true
+ssil = true
+ssr = true
+sdfgi = true
+glow = true
+volumetric_fog = true
+depth_of_field = true
+dynamic_lights = true

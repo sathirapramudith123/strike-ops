@@ -1,0 +1,288 @@
+name: Release
+
+# Push a tag like v0.9.0-beta (or run manually) to build every package and
+# publish a GitHub Release. Tags with a "-" (beta, rc…) become pre-releases.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.4.1"
+
+jobs:
+  build:
+    name: Export builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot + export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-export-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot + export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot && rm godot.zip
+          T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$T"
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -o -j -q templates.tpz templates/linux_release.x86_64 templates/linux_debug.x86_64 \
+            templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe templates/macos.zip \
+            templates/version.txt -d "$T"
+          rm templates.tpz
+
+      - name: Tests
+        run: |
+          ~/godot/godot --headless --path . --editor --quit || true
+          ~/godot/godot --headless --path . res://tests/smoke_test.tscn
+          tools/run_net_test.sh ~/godot/godot
+
+      - name: Build + verify packages
+        run: tools/build_release.sh ~/godot/godot --verify
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: builds/windows/
+
+  installer:
+    name: Windows installer (+ signing)
+    needs: build
+    runs-on: windows-latest
+    # Code signing is optional and switches on when its secrets exist (see
+    # docs/SIGNING.md). Option A — Azure Trusted Signing: AZURE_TENANT_ID,
+    # AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, TRUSTED_SIGNING_ENDPOINT,
+    # TRUSTED_SIGNING_ACCOUNT, TRUSTED_SIGNING_PROFILE. Option B — an
+    # exportable .pfx certificate: WINDOWS_CERT_PFX_BASE64, WINDOWS_CERT_PASSWORD.
+    env:
+      HAS_AZURE_SIGNING: ${{ secrets.AZURE_TENANT_ID != '' }}
+      HAS_PFX: ${{ secrets.WINDOWS_CERT_PFX_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: builds/windows
+      - name: Version
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path project.godot -Pattern '^config/version="(.*)"').Matches[0].Groups[1].Value
+          $c = (Select-String -Path project.godot -Pattern '^config/release_channel="(.*)"').Matches[0].Groups[1].Value
+          if ($c) { $v = "$v-$c" }
+          "APP_VERSION=$v" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      # --- Sign the game (exe + Opus DLL) --------------------------------------
+      - name: Sign game (Azure Trusted Signing)
+        if: env.HAS_AZURE_SIGNING == 'true'
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\builds\windows
+          files-folder-filter: exe,dll
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Sign game (PFX certificate)
+        if: env.HAS_AZURE_SIGNING != 'true' && env.HAS_PFX == 'true'
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          & $signtool sign /f $pfx /p $env:PFX_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "FPS Game" `
+            builds\windows\FPSGame.exe builds\windows\libopus_voice.windows.x86_64.dll
+          $code = $LASTEXITCODE
+          Remove-Item $pfx
+          if ($code -ne 0) { exit $code }
+
+      - name: Build installer (Inno Setup 6)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" "/DAppVersion=$env:APP_VERSION" "/DSourceDir=..\..\builds\windows" installer\windows\FPSGame.iss
+
+      # --- Sign the installer ----------------------------------------------------
+      - name: Sign installer (Azure Trusted Signing)
+        if: env.HAS_AZURE_SIGNING == 'true'
+        uses: azure/trusted-signing-action@v0.5.1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.TRUSTED_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.TRUSTED_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.TRUSTED_SIGNING_PROFILE }}
+          files-folder: ${{ github.workspace }}\dist
+          files-folder-filter: exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+      - name: Sign installer (PFX certificate)
+        if: env.HAS_AZURE_SIGNING != 'true' && env.HAS_PFX == 'true'
+        shell: pwsh
+        env:
+          PFX_BASE64: ${{ secrets.WINDOWS_CERT_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+        run: |
+          $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
+          [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:PFX_BASE64))
+          $signtool = (Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1).FullName
+          & $signtool sign /f $pfx /p $env:PFX_PASSWORD /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /d "FPS Game Setup" (Get-ChildItem dist\*.exe).FullName
+          $code = $LASTEXITCODE
+          Remove-Item $pfx
+          if ($code -ne 0) { exit $code }
+
+      - name: Re-pack the signed Windows zip
+        if: env.HAS_AZURE_SIGNING == 'true' || env.HAS_PFX == 'true'
+        shell: pwsh
+        run: Compress-Archive -Path builds\windows\* -DestinationPath "dist\FPSGame-$env:APP_VERSION-windows-x86_64.zip" -Force
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+      - uses: actions/upload-artifact@v4
+        if: env.HAS_AZURE_SIGNING == 'true' || env.HAS_PFX == 'true'
+        with:
+          name: windows-signed-zip
+          path: dist/*.zip
+
+  macos-sign:
+    name: macOS signing + notarization
+    needs: build
+    # Switch on with the repository variable MACOS_SIGNING = true once these
+    # secrets exist: MACOS_CERT_P12_BASE64, MACOS_CERT_PASSWORD,
+    # MACOS_SIGN_IDENTITY ("Developer ID Application: Name (TEAMID)"),
+    # APPLE_ID, APPLE_TEAM_ID, APPLE_APP_PASSWORD (app-specific password).
+    if: vars.MACOS_SIGNING == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Import the Developer ID certificate
+        env:
+          CERT_P12: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KC_PASS=$(uuidgen)
+          security create-keychain -p "$KC_PASS" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KC_PASS" "$KEYCHAIN"
+          echo "$CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -P "$CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          rm "$RUNNER_TEMP/cert.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KC_PASS" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+      - name: Sign (hardened runtime)
+        env:
+          IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+        run: |
+          ZIP=$(ls dist/*-macos-universal.zip)
+          echo "MAC_ZIP=$ZIP" >> "$GITHUB_ENV"
+          mkdir mac && ditto -x -k "$ZIP" mac
+          APP="mac/FPS Game.app"
+          # Nested code first (the Opus libraries), then the app itself.
+          find "$APP/Contents/Frameworks" -name "*.dylib" -print0 | xargs -0 -I{} \
+            codesign --force --timestamp --options runtime --sign "$IDENTITY" "{}"
+          codesign --force --timestamp --options runtime \
+            --entitlements installer/macos/entitlements.plist --sign "$IDENTITY" "$APP"
+          codesign --verify --deep --strict --verbose=2 "$APP"
+      - name: Notarize + staple
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          ditto -c -k --keepParent "mac/FPS Game.app" notarize.zip
+          xcrun notarytool submit notarize.zip --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" \
+            --password "$APPLE_APP_PASSWORD" --wait
+          xcrun stapler staple "mac/FPS Game.app"
+          spctl --assess --type execute --verbose "mac/FPS Game.app"
+          rm "$MAC_ZIP"
+          (cd mac && zip -qry "../$MAC_ZIP" "FPS Game.app" THIRD_PARTY_LICENSES.txt)
+      - name: Remove the keychain
+        if: always()
+        run: security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-signed-zip
+          path: dist/*-macos-universal.zip
+
+  publish:
+    name: GitHub Release
+    needs: [build, installer, macos-sign]
+    # macos-sign is skipped when macOS signing is off; a failed signing job
+    # blocks the release instead of shipping unsigned builds by surprise.
+    if: >-
+      always() && startsWith(github.ref, 'refs/tags/v')
+      && needs.build.result == 'success' && needs.installer.result == 'success'
+      && (needs.macos-sign.result == 'success' || needs.macos-sign.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      HAS_GPG: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Signed Windows zip (if signing is on)
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: windows-signed-zip
+          path: dist
+      - name: Signed macOS zip (if signing is on)
+        if: needs.macos-sign.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-signed-zip
+          path: dist
+      - name: Checksums (incl. installer)
+        run: cd dist && sha256sum ./*.zip ./*.tar.gz ./*.exe > SHA256SUMS
+      - name: Sign the checksums (GPG, optional)
+        if: env.HAS_GPG == 'true'
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          gpg --batch --yes --pinentry-mode loopback --passphrase "$GPG_PASSPHRASE" \
+            --armor --detach-sign --output dist/SHA256SUMS.asc dist/SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body_path: CHANGELOG.md
