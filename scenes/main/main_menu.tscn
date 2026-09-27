@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/main_menu.gd" id="1_menu"]
 [ext_resource type="PackedScene" path="res://scenes/ui/settings_menu.tscn" id="2_settings"]
+[ext_resource type="PackedScene" path="res://scenes/ui/map_select.tscn" id="3_maps"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -57,11 +58,12 @@ max_length = 16
 [node name="GameRow" type="HBoxContainer" parent="Center/Main"]
 layout_mode = 2
 
-[node name="MapOption" type="OptionButton" parent="Center/Main/GameRow"]
+[node name="MapButton" type="Button" parent="Center/Main/GameRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-tooltip_text = "Map"
+tooltip_text = "Choose the map"
+text = "Map: Test Range ▸"
 
 [node name="ModeOption" type="OptionButton" parent="Center/Main/GameRow"]
 unique_name_in_owner = true
@@ -128,6 +130,11 @@ layout_mode = 2
 text = "Quit"
 
 [node name="SettingsMenu" parent="." instance=ExtResource("2_settings")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="MapSelect" parent="." instance=ExtResource("3_maps")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

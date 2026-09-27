@@ -27,10 +27,16 @@ var time_limit: float = 0.0
 var time_left: float = 0.0
 var team_scores: PackedInt32Array = [0, 0]
 var winner_text: String = ""
+## Map vote on the results screen: candidate map paths and their vote counts.
+var vote_maps: PackedStringArray = []
+var vote_counts: PackedInt32Array = []
+## What the local player voted for (-1 = nothing yet).
+var my_vote: int = -1
 ## Seconds the results screen stays up before the next map (server).
 var results_time: float = RESULTS_TIME
 
 var _results_timer: float = -1.0
+var _votes: Dictionary = {} # server: peer_id -> candidate index
 var _sync_timer: float = 0.0
 
 ## Round logic for Bomb Defusal.
@@ -172,6 +178,11 @@ func _end_match(text: String) -> void:
 	state = State.ENDED
 	winner_text = text
 	_results_timer = results_time
+	vote_maps = vote_candidates(NetworkManager.current_map, mode)
+	vote_counts = PackedInt32Array()
+	vote_counts.resize(vote_maps.size())
+	_votes.clear()
+	my_vote = -1
 	print("[match] Match over: %s" % text)
 	_broadcast()
 	state_changed.emit()
@@ -204,9 +215,63 @@ func _leader_text(time_up: bool) -> String:
 func _next_map() -> void:
 	_results_timer = -1.0
 	if NetworkManager.is_online():
-		NetworkManager.change_map(GameConfig.next_map(NetworkManager.current_map, mode))
+		NetworkManager.change_map(voted_map())
 	else:
 		get_tree().reload_current_scene()
+
+
+## Up to 3 maps for the vote: the next map in the rotation first, then
+## random others that support the mode (never the map just played).
+static func vote_candidates(current: String, game_mode: int) -> PackedStringArray:
+	var result := PackedStringArray([GameConfig.next_map(current, game_mode)])
+	var others: Array = GameConfig.MAPS.filter(func(m: Dictionary) -> bool:
+		return m.path != current and not m.path in result \
+			and (game_mode != GameConfig.Mode.BOMB or m.get("bomb", false)))
+	others.shuffle()
+	for m: Dictionary in others.slice(0, 2):
+		result.append(m.path)
+	return result
+
+
+## The winning map: most votes; ties (and no votes) go to the earliest
+## candidate, i.e. the normal rotation.
+func voted_map() -> String:
+	if vote_maps.is_empty():
+		return GameConfig.next_map(NetworkManager.current_map, mode)
+	var best := 0
+	for i in vote_counts.size():
+		if vote_counts[i] > vote_counts[best]:
+			best = i
+	return vote_maps[best]
+
+
+## Local player votes for candidate `index` (keys 1–3 on the results screen).
+func request_vote(index: int) -> void:
+	if not is_ended() or index < 0 or index >= vote_maps.size():
+		return
+	my_vote = index
+	if multiplayer.is_server():
+		_set_vote(multiplayer.get_unique_id(), index)
+	else:
+		_request_vote.rpc_id(1, index)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_vote(index: int) -> void:
+	if multiplayer.is_server():
+		_set_vote(multiplayer.get_remote_sender_id(), index)
+
+
+func _set_vote(peer_id: int, index: int) -> void:
+	if not is_ended() or index < 0 or index >= vote_maps.size() or not NetworkManager.roster.has(peer_id):
+		return
+	_votes[peer_id] = index
+	vote_counts = PackedInt32Array()
+	vote_counts.resize(vote_maps.size())
+	for id: int in _votes:
+		vote_counts[_votes[id]] += 1
+	_broadcast()
+	state_changed.emit()
 
 
 # -----------------------------------------------------------------------------
@@ -286,18 +351,25 @@ func _set_loadout(peer_id: int, primary: String) -> void:
 # -----------------------------------------------------------------------------
 
 func send_state_to(peer_id: int) -> void:
-	_sync_state.rpc_id(peer_id, mode, state, score_limit, time_limit, time_left, team_scores, winner_text)
+	_sync_state.rpc_id(peer_id, mode, state, score_limit, time_limit, time_left, team_scores, winner_text,
+		vote_maps, vote_counts)
 
 
 func _broadcast() -> void:
 	if NetworkManager.is_online() and multiplayer.is_server():
-		_sync_state.rpc(mode, state, score_limit, time_limit, time_left, team_scores, winner_text)
+		_sync_state.rpc(mode, state, score_limit, time_limit, time_left, team_scores, winner_text,
+			vote_maps, vote_counts)
 
 
 @rpc("authority", "call_remote", "reliable")
 func _sync_state(new_mode: int, new_state: int, new_score_limit: int, new_time_limit: float,
-		new_time_left: float, scores: PackedInt32Array, winner: String) -> void:
+		new_time_left: float, scores: PackedInt32Array, winner: String,
+		maps: PackedStringArray, counts: PackedInt32Array) -> void:
 	var was_ended := state == State.ENDED
+	if not was_ended and new_state == State.ENDED:
+		my_vote = -1
+	vote_maps = maps
+	vote_counts = counts
 	mode = new_mode as GameConfig.Mode
 	state = new_state as State
 	score_limit = new_score_limit

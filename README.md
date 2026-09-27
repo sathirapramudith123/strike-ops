@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🧪 **v0.8.0 beta** — release-ready builds for Windows, Linux, macOS and a Linux dedicated server (FFA, TDM, Bomb Defusal; 5 weapons; 3 greybox maps; voice chat; anti-cheat).
+> **Status:** 🧪 **v0.8.0 beta** — release-ready builds for Windows, Linux, macOS and a Linux dedicated server (FFA, TDM, Bomb Defusal; 5 weapons; 6 greybox maps with a map picker + end-of-match vote; voice chat; anti-cheat).
 
 ---
 
@@ -290,7 +290,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and walking the ramps of Warehouse and Courtyard) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps/bridges/gangways of every map, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -309,7 +309,7 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
   ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16 --mode tdm --map warehouse
   # from source:
   godot --headless --path . -- --server --port 7777 --mode ffa --map courtyard
-  # --mode: ffa | tdm | bomb      --map: test_map | warehouse | courtyard
+  # --mode: ffa | tdm | bomb      --map: test_map | warehouse | courtyard | rooftops | docks | bunker
   ```
 
 **How it works**
@@ -381,7 +381,7 @@ Overall Low preset, 3 maps, 12 bots (llvmpipe): **avg 30.2 → 37.2 FPS**, worst
 
 ### Phase 6 — modes, weapons & maps
 
-**Game modes** (chosen by the host; the main menu also picks the map)
+**Game modes** (chosen by the host; the map is picked on the **map selection screen** — see *Maps* below)
 
 | Mode | Rules |
 |------|-------|
@@ -390,7 +390,7 @@ Overall Low preset, 3 maps, 12 bots (llvmpipe): **avg 30.2 → 37.2 FPS**, worst
 | **Team Deathmatch** | Blue vs Red, auto-balanced on join, **friendly fire off** (bullets pass through teammates), first team to **50** kills or most after **10 min** |
 | **Bomb Defusal** | Rounds, first team to **5 round wins**; sides swap after round 4. See below |
 
-Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **next map in the rotation** (Test Range → Warehouse → Courtyard → …), everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
+Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **map vote**: the results screen offers 3 maps (the next one in the rotation + 2 random maps that support the mode); press **`1` / `2` / `3`** to vote (you can change your vote). The map with the most votes wins; ties and no votes keep the normal rotation (Test Range → Warehouse → Courtyard → Rooftops → Docks → Bunker → …). Everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
 
 **Bomb Defusal**
 
@@ -426,8 +426,15 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Test Range | Shooting range | Targets, ramp, stairs, crouch tunnel |
 | Warehouse | Close quarters | Shelf aisles, crate stacks, raised catwalk with ramps, two offices |
 | Courtyard | Outdoor, mid-range | Fountain plaza, pillars, low walls, two 2-storey buildings with roof access |
+| Rooftops | Vertical, long range | Four flat roofs linked by two bridges, ramps up from the street, parked cars as cover, sites A/B in the street |
+| Docks | Outdoor, lanes | Container stacks on a quay, a moored ship (Red spawns on its deck) with two gangways, a crane |
+| Bunker | Indoor, small (2–8 players) | Central atrium with four doors, four corner rooms, tight corridors — fast rounds |
 
-Warehouse and Courtyard are generated by **`tools/greybox.py`** (boxes, ramps, doors, spawns, lights). Edit the layout in Python and run `python3 tools/greybox.py` to rebuild the `.tscn` files; replace the greybox with real art later.
+**Map selection screen** — main menu → **Map: … ▸** opens a grid of map cards with a live top-down **preview** (rendered once from the real map and cached), players, style, supported modes and a description. Maps without bomb sites are greyed out in Bomb Defusal. The choice is saved in your settings. Map metadata lives in `GameConfig.MAPS` (`scripts/core/game_config.gd`); the screen is `scenes/ui/map_select.tscn` + `scripts/ui/map_select.gd`, previews come from `scripts/ui/map_preview.gd`.
+
+**Add a map:** build it in `tools/greybox.py` (or by hand in the editor with `scripts/levels/level.gd` on the root, Blue/Red/FFA spawn markers and `A`/`B` bomb site markers), then add one entry to `GameConfig.MAPS` — it then appears in the picker, the rotation, the vote, `--map <id>` and the benchmark automatically.
+
+All maps except the Test Range are generated by **`tools/greybox.py`** (boxes, ramps, doors, spawns, lights). Edit the layout in Python and run `python3 tools/greybox.py` to rebuild the `.tscn` files; replace the greybox with real art later.
 
 **Key scripts:** `scripts/core/match_manager.gd` (autoload `Match`), `scripts/core/bomb_rules.gd` (`Match.bomb`), `scripts/core/game_config.gd`, `scripts/levels/level.gd` (team + safe spawns, spectator), `scripts/levels/bomb_visual.gd`, `scripts/ui/hud.gd`, `scripts/ui/scope_overlay.gd`.
 
@@ -557,7 +564,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
 - [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute
 - [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)
-- [x] **Phase 6 — Content:** 5 weapons + loadouts, 3 maps, FFA & TDM with teams, match flow & map rotation, HUD & menus
+- [x] **Phase 6 — Content:** 5 weapons + loadouts, 6 maps + map selection screen + map vote, FFA & TDM with teams, match flow & map rotation, HUD & menus
 - [x] **Phase 6b — Bomb Defusal:** rounds, freeze time, bomb carry/drop/plant/defuse/explode, no respawns + spectating, halftime side swap
 - [x] **Phase 7 — Optimization:** built-in benchmark, dynamic resolution, performance advisor, static batching + occluders + detail distance, shared decals, shader warm-up, Low-preset light cuts, better auto-detect
 - [ ] **Phase 7b — Real-hardware pass:** run the benchmark on the minimum-spec PC (Intel UHD 620 / Vega 8) and tune presets from the results

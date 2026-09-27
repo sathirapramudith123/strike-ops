@@ -25,6 +25,9 @@ const DEFAULT_PLAYER_SCENE := "res://scenes/player/player.tscn"
 @export var static_batching: bool = true
 ## Benchmark A/B switch (`--no-batching`).
 static var batching_disabled: bool = false
+## Set before adding to the tree to load the map for a menu preview only:
+## no players, network, HUD or menus (see MapPreview).
+var preview_only: bool = false
 
 ## The local player (null on a dedicated server or before spawning).
 var player: PlayerController
@@ -43,6 +46,12 @@ var batch_stats: Dictionary = {}
 
 
 func _ready() -> void:
+	if preview_only:
+		hud.queue_free()
+		pause_menu.queue_free()
+		if world_environment:
+			SettingsManager.apply_to_environment(world_environment.environment)
+		return
 	players_root = Node3D.new()
 	players_root.name = "Players"
 	add_child(players_root)
@@ -72,7 +81,8 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	_update_spectator()
+	if not preview_only:
+		_update_spectator()
 
 
 func spawn_player(peer_id: int, player_name: String, xform: Transform3D,
@@ -181,6 +191,20 @@ func _update_spectator() -> void:
 	if target != _spectating:
 		_spectating = target
 		target.camera.current = true
+
+
+## Bounding box of the map geometry (used to frame previews).
+func world_bounds() -> AABB:
+	var box := AABB()
+	var first := true
+	for node in find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.mesh == null:
+			continue
+		var b := mi.global_transform * mi.mesh.get_aabb()
+		box = b if first else box.merge(b)
+		first = false
+	return box
 
 
 ## Who the local player is watching (null when not spectating).

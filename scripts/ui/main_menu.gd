@@ -20,9 +20,21 @@ func _ready() -> void:
 	%NameEdit.text = SettingsManager.player_name
 	%AddressEdit.text = SettingsManager.last_join_address
 	%PortSpin.value = SettingsManager.host_port
-	for m: Dictionary in GameConfig.MAPS:
-		%MapOption.add_item(m.name)
-	%MapOption.select(maxi(GameConfig.map_index(SettingsManager.selected_map), 0))
+	if GameConfig.map_index(SettingsManager.selected_map) < 0:
+		SettingsManager.selected_map = GameConfig.MAPS[0].path
+	_update_map_button()
+	%MapButton.pressed.connect(func() -> void:
+		_main.visible = false
+		%MapSelect.open(SettingsManager.selected_map, %ModeOption.get_selected_id()))
+	%MapSelect.chosen.connect(func(path: String) -> void:
+		SettingsManager.selected_map = path
+		SettingsManager.save()
+		_update_map_button()
+		_main.visible = true
+		%MapButton.grab_focus())
+	%MapSelect.closed.connect(func() -> void:
+		_main.visible = true
+		%MapButton.grab_focus())
 	for mode_id: int in [GameConfig.Mode.FFA, GameConfig.Mode.TDM, GameConfig.Mode.BOMB]:
 		%ModeOption.add_item(GameConfig.MODE_NAMES[mode_id], mode_id)
 	%ModeOption.select(maxi(%ModeOption.get_item_index(SettingsManager.host_mode), 0))
@@ -93,10 +105,11 @@ func _set_buttons_disabled(disabled: bool) -> void:
 
 
 func _selected_map() -> String:
-	var path: String = GameConfig.MAPS[maxi(%MapOption.selected, 0)].path
-	SettingsManager.selected_map = path
-	SettingsManager.save()
-	return path
+	return SettingsManager.selected_map
+
+
+func _update_map_button() -> void:
+	%MapButton.text = "Map: %s ▸" % GameConfig.map_name(SettingsManager.selected_map)
 
 
 func _store_name() -> void:

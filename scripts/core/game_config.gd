@@ -21,11 +21,27 @@ const MODE_LIMITS := {
 	Mode.BOMB: { "score_limit": 5, "time_limit": 0.0 },
 }
 
+## Every playable map. "bomb": has bomb sites A and B. "players": suggested
+## player count. The map selection screen shows name, style and description.
 const MAPS: Array[Dictionary] = [
-	# "bomb": the map has bomb sites A and B (playable in Bomb Defusal).
-	{ "id": "test_map", "name": "Test Range", "path": "res://scenes/levels/test_map.tscn", "bomb": true },
-	{ "id": "warehouse", "name": "Warehouse", "path": "res://scenes/levels/warehouse.tscn", "bomb": true },
-	{ "id": "courtyard", "name": "Courtyard", "path": "res://scenes/levels/courtyard.tscn", "bomb": true },
+	{ "id": "test_map", "name": "Test Range", "path": "res://scenes/levels/test_map.tscn", "bomb": true,
+		"style": "Training", "players": "1–8",
+		"description": "Shooting range with targets, a ramp, stairs and a crouch tunnel. Good for practice." },
+	{ "id": "warehouse", "name": "Warehouse", "path": "res://scenes/levels/warehouse.tscn", "bomb": true,
+		"style": "Indoor · close quarters", "players": "4–12",
+		"description": "Shelf aisles and crate stacks under a raised catwalk, with two small offices." },
+	{ "id": "courtyard", "name": "Courtyard", "path": "res://scenes/levels/courtyard.tscn", "bomb": true,
+		"style": "Outdoor · mid range", "players": "6–16",
+		"description": "Fountain plaza ringed by pillars, with two 2-storey buildings and their rooftops." },
+	{ "id": "rooftops", "name": "Rooftops", "path": "res://scenes/levels/rooftops.tscn", "bomb": true,
+		"style": "Vertical · long range", "players": "6–16",
+		"description": "Four rooftops joined by bridges above a crossroads. Snipers up high, cars for cover below." },
+	{ "id": "docks", "name": "Docks", "path": "res://scenes/levels/docks.tscn", "bomb": true,
+		"style": "Outdoor · lanes", "players": "6–16",
+		"description": "Container lanes on the quay and a ship deck reached by two gangways." },
+	{ "id": "bunker", "name": "Bunker", "path": "res://scenes/levels/bunker.tscn", "bomb": true,
+		"style": "Indoor · small", "players": "2–8",
+		"description": "Symmetric rooms around a pillared atrium. Fast rounds, great for 2v2." },
 ]
 
 const TEAM_NONE := -1
@@ -61,6 +77,11 @@ static func map_index(path: String) -> int:
 static func map_path(id_or_path: String) -> String:
 	var i := map_index(id_or_path)
 	return MAPS[i].path if i >= 0 else id_or_path
+
+
+static func map_info(id_or_path: String) -> Dictionary:
+	var i := map_index(id_or_path)
+	return MAPS[i] if i >= 0 else {}
 
 
 static func map_name(path: String) -> String:

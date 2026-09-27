@@ -361,6 +361,137 @@ def courtyard():
     m.write("scenes/levels/courtyard.tscn", sun_rot=(-45.0, -35.0), sky=(0.35, 0.55, 0.85))
 
 
+def rooftops():
+    """Four flat-roofed buildings around a crossroads. Bridges link the
+    roofs, ramps climb from the street; falling off just drops you back to
+    the street — vertical fights with long sight lines."""
+    m = Map("Rooftops")
+    S, H = 54.0, 4.0
+    m.box((0, -0.5, 0), (S + 2, 1, S + 2), "grid", "Street")
+    for (pos, size) in (((0, 3, -S / 2 - 0.5), (S + 2, 6, 1)), ((0, 3, S / 2 + 0.5), (S + 2, 6, 1)),
+                        ((S / 2 + 0.5, 3, 0), (1, 6, S)), ((-S / 2 - 0.5, 3, 0), (1, 6, S))):
+        m.box(pos, size, "wall", "Boundary")
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            cx, cz = sx * 14.0, sz * 14.0
+            m.box((cx, H / 2, cz), (14, H, 14), "wall" if sz < 0 else "stone", "Building")
+            # Parapets on the outer edges only (inner edges hold bridges/ramps).
+            m.box((sx * 20.85, H + 0.4, cz), (0.3, 0.8, 14), "wall", "Parapet")
+            m.box((cx, H + 0.4, sz * 20.85), (14, 0.8, 0.3), "wall", "Parapet")
+            # Rooftop cover: AC units and a water tank.
+            m.box((cx - sx * 3, H + 0.6, cz + sz * 2), (1.6, 1.2, 1.6), "metal", "ACUnit")
+            m.box((cx + sx * 2, H + 0.6, cz - sz * 3), (1.6, 1.2, 1.6), "metal", "ACUnit")
+            m.box((cx + sx * 4, H + 1.25, cz + sz * 4), (2, 2.5, 2), "accent", "WaterTank")
+    # Bridges between the roofs (top surface at roof height).
+    m.box((0, H - 0.15, -14), (14, 0.3, 2.5), "wood", "Bridge")
+    m.box((0, H - 0.15, 14), (14, 0.3, 2.5), "wood", "Bridge")
+    # Ramps from the crossroads up to each roof edge.
+    m.ramp((-16, 0.0, 1.0), (-16.001, H, -7.0), 2.4, "accent")
+    m.ramp((-12, 0.0, -1.0), (-12.001, H, 7.0), 2.4, "accent")
+    m.ramp((16, 0.0, 1.0), (16.001, H, -7.0), 2.4, "accent")
+    m.ramp((12, 0.0, -1.0), (12.001, H, 7.0), 2.4, "accent")
+    # Parked cars as street cover.
+    for (x, z, yaw) in ((-3, -3, 90), (4, 3, 90), (0, -18, 0), (2, 20, 0), (-24, -12, 0), (24, 12, 0)):
+        m.box((x, 0.7, z), (2.0, 1.4, 4.2), "red" if x < 0 else "blue", "Car", yaw=yaw)
+    for (x, z) in ((0, 0), (-14, 0), (14, 0), (0, -14), (0, 14)):
+        m.omni((x, 6.0, z), 1.2, 14.0)
+
+    m.site("A", (-24.0, 0.0, 6.0))
+    m.site("B", (24.0, 0.0, -6.0))
+    for (x, z) in ((-14, 17), (-10, 14), (14, 17), (10, 14)):
+        m.spawn("blue", (x, H + 0.1, z), 0)
+    for (x, z) in ((-14, -17), (-10, -14), (14, -17), (10, -14)):
+        m.spawn("red", (x, H + 0.1, z), 180)
+    m.spawn("ffa", (-24, 0.1, 0), 90)
+    m.spawn("ffa", (24, 0.1, 0), -90)
+    m.write("scenes/levels/rooftops.tscn", sun_rot=(-40.0, 60.0), sky=(0.45, 0.55, 0.8))
+
+
+def docks():
+    """Container yard next to a moored ship: lanes between (stacked)
+    containers, and a raised ship deck reached by two gangways."""
+    m = Map("Docks")
+    SX, SZ, DECK = 64.0, 48.0, 3.0
+    m.box((0, -0.5, 0), (SX + 2, 1, SZ + 2), "stone", "Quay")
+    for (pos, size) in (((0, 3, -SZ / 2 - 0.5), (SX + 2, 6, 1)), ((0, 3, SZ / 2 + 0.5), (SX + 2, 6, 1)),
+                        ((SX / 2 + 0.5, 3, 0), (1, 6, SZ)), ((-SX / 2 - 0.5, 3, 0), (1, 6, SZ))):
+        m.box(pos, size, "wall", "Boundary")
+    # Ship: solid hull with a walkable deck, rail on the sea side.
+    m.box((0, DECK / 2, -19), (44, DECK, 8), "metal", "Hull")
+    m.box((0, DECK + 0.5, -22.85), (44, 1.0, 0.3), "metal", "Rail")
+    m.ramp((-18, 0.0, -5.0), (-18.001, DECK, -15.0), 2.5, "wood")
+    m.ramp((18, 0.0, -5.0), (18.001, DECK, -15.0), 2.5, "wood")
+    for x in (-15, 15):
+        m.box((x, DECK + 1.3, -19), (6, 2.6, 2.4), "red" if x < 0 else "blue", "DeckContainer")
+    m.box((0, DECK + 0.6, -18), (1.2, 1.2, 1.2), "wood", "DeckCrate")
+    # Containers: (x, z, yaw, stack level, material).
+    for (x, z, yaw, lvl, mat) in (
+            (-26, -8, 0, 0, "blue"), (-26, -8, 0, 1, "red"), (-10, -7, 0, 0, "red"), (-3, -7, 0, 0, "wood"),
+            (8, -8, 90, 0, "blue"), (24, -8, 0, 0, "metal"), (24, -8, 0, 1, "blue"),
+            (-20, 4, 90, 0, "wood"), (-12, 6, 0, 0, "blue"), (-12, 6, 0, 1, "metal"), (0, 3, 0, 0, "red"),
+            (12, 6, 0, 0, "metal"), (20, 4, 90, 0, "red"), (-6, 14, 0, 0, "metal"), (6, 14, 0, 0, "wood"),
+            (-24, 16, 0, 0, "red"), (24, 16, 0, 0, "blue")):
+        m.box((x, 1.3 + lvl * 2.6, z), (6, 2.6, 2.4), mat, "Container", yaw=yaw)
+    # Gantry crane (legs collide, beam is visual).
+    for z in (-10, 10):
+        m.box((-30, 6, z), (1, 12, 1), "accent", "CraneLeg")
+    m.box((-30, 12.5, 0), (1.2, 1, 21), "accent", "CraneBeam", collide=False)
+    for (x, z) in ((-16, 0), (0, 10), (16, 0), (0, -12)):
+        m.omni((x, 6.0, z), 1.3, 15.0)
+
+    m.site("A", (-18.0, 0.0, 10.0))
+    m.site("B", (16.0, 0.0, 10.0))
+    for (x, z) in ((-10, 21), (0, 21), (10, 21), (-20, 20)):
+        m.spawn("blue", (x, 0.1, z), 0)
+    for x in (-8, -3, 3, 8):
+        m.spawn("red", (x, DECK + 0.1, -19), 180)
+    m.spawn("ffa", (-30, 0.1, 0), 90)
+    m.spawn("ffa", (30, 0.1, 0), -90)
+    m.write("scenes/levels/docks.tscn", sun_rot=(-55.0, 20.0), sky=(0.4, 0.55, 0.75))
+
+
+def bunker():
+    """Small symmetric close-quarters map: a pillared atrium in the middle,
+    four corner rooms, and the corridors between them. Good for 2v2."""
+    m = Map("Bunker")
+    S, H = 40.0, 3.5
+    m.box((0, -0.5, 0), (S + 2, 1, S + 2), "metal", "Floor")
+    for (pos, size) in (((0, 2, -S / 2 - 0.5), (S + 2, 4, 1)), ((0, 2, S / 2 + 0.5), (S + 2, 4, 1)),
+                        ((S / 2 + 0.5, 2, 0), (1, 4, S)), ((-S / 2 - 0.5, 2, 0), (1, 4, S))):
+        m.box(pos, size, "wall", "Boundary")
+    # Atrium (12 × 12) with a door in the middle of each wall.
+    for (a, b) in (((-6, -6), (6, -6)), ((-6, 6), (6, 6)), ((-6, -6), (-6, 6)), ((6, -6), (6, 6))):
+        m.wall_with_gaps(a, b, H, 0.4, [(4.5, 3.0, 99.0)], "wall", name="AtriumWall")
+    for (x, z) in ((-2.5, -2.5), (2.5, 2.5), (-2.5, 2.5), (2.5, -2.5)):
+        m.box((x, H / 2, z), (0.8, H, 0.8), "stone", "Pillar")
+    # Corner rooms (10 × 10), doors facing the corridors.
+    for sx in (-1, 1):
+        for sz in (-1, 1):
+            m.wall_with_gaps((sx * 10, sz * 20), (sx * 10, sz * 10), H, 0.4, [(3.5, 3.0, 99.0)], "wall", name="RoomWall")
+            m.wall_with_gaps((sx * 20, sz * 10), (sx * 10, sz * 10), H, 0.4, [(3.5, 3.0, 99.0)], "wall", name="RoomWall")
+            m.box((sx * 16, 0.6, sz * 16), (1.2, 1.2, 2.4), "wood", "RoomCrate")
+            m.omni((sx * 15, H - 0.4, sz * 15), 1.0, 9.0)
+    # Corridor cover and overhead beams.
+    for (x, z) in ((-14, -3), (14, 3), (-3, 14), (3, -14)):
+        m.box((x, 0.6, z), (1.2, 1.2, 1.2), "wood", "Crate")
+    for z in (-15, -5, 5, 15):
+        m.box((0, H + 0.2, z), (S, 0.4, 0.4), "metal", "Beam", collide=False)
+    m.omni((0, H - 0.4, 0), 1.2, 10.0)
+
+    m.site("A", (-15.0, 0.0, 0.0))
+    m.site("B", (15.0, 0.0, 0.0))
+    for (x, z) in ((-16, 13), (-13, 16), (16, 13), (13, 16)):
+        m.spawn("blue", (x, 0.1, z), 0)
+    for (x, z) in ((-16, -13), (-13, -16), (16, -13), (13, -16)):
+        m.spawn("red", (x, 0.1, z), 180)
+    m.spawn("ffa", (0, 0.1, 8), 0)
+    m.spawn("ffa", (0, 0.1, -8), 180)
+    m.write("scenes/levels/bunker.tscn", sun_rot=(-70.0, 10.0), sky=(0.35, 0.4, 0.5))
+
+
 if __name__ == "__main__":
     warehouse()
     courtyard()
+    rooftops()
+    docks()
+    bunker()

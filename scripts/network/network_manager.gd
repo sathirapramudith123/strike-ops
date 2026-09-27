@@ -24,7 +24,7 @@ signal kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: 
 
 enum Mode { OFFLINE, HOST, DEDICATED, CLIENT }
 
-const PROTOCOL_VERSION := 2
+const PROTOCOL_VERSION := 3
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"

@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **3 new maps:** Rooftops (vertical, bridges between roofs), Docks
+  (containers + a ship with gangways) and Bunker (small indoor, 2–8 players).
+  All support FFA, TDM and Bomb Defusal.
+- **Map selection screen** in the main menu with live previews, player
+  counts, style and supported modes.
+- **End-of-match map vote:** 3 candidates on the results screen, vote with
+  1 / 2 / 3; ties keep the normal rotation.
+- Network protocol version 3 (older clients get a version-mismatch message).
+
 ## v0.8.0 beta — first public beta
 
 **Play:** Free-for-All, Team Deathmatch and Bomb Defusal on three maps

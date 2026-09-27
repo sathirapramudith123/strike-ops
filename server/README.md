@@ -18,12 +18,12 @@ Options work with or without the `--` separator
 | `--port` | UDP port | 7777 |
 | `--max-players` | 2–32 | 16 |
 | `--mode` | `ffa`, `tdm`, `bomb` | `ffa` |
-| `--map` | `test_map`, `warehouse`, `courtyard` | `test_map` |
+| `--map` | `test_map`, `warehouse`, `courtyard`, `rooftops`, `docks`, `bunker` | `test_map` |
 
 Open **UDP 7777** in the firewall / cloud security group. Players join with
 the server's IP (`Join` in the main menu, or `FPSGame -- --connect IP:7777`).
 
-The map rotates after every match. The server log prints joins, leaves,
+After every match players vote for the next map (keys 1–3 on the results screen); with no votes the map rotates. The server log prints joins, leaves,
 kills of the match result and `[anticheat]` lines; players who send
 impossible actions (shooting without ammo, speed/fly hacks) are kicked.
 

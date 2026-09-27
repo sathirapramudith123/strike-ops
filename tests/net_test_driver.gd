@@ -72,11 +72,17 @@ func _run_host() -> void:
 	_check(Match.team_scores[1] == 1, "red team scores")
 	_check(Match.is_ended() and Match.winner_text == "Red team wins!", "score limit ends the match (%s)" % Match.winner_text)
 
-	# Map rotation: after the results screen everyone moves to the next map.
+	# Map vote: the client votes for the 2nd candidate during the results
+	# screen; its vote (1 vs 0) decides where everyone goes next.
+	_check(Match.vote_maps.size() == 3, "map vote offers 3 maps (%s)" % ", ".join(Match.vote_maps))
+	var voted: Variant = await _wait_for(func() -> Variant:
+		return true if Match.vote_counts.size() > 1 and Match.vote_counts[1] == 1 else null)
+	_check(voted == true, "server counts the client's vote")
+	var expected := Match.vote_maps[1] if Match.vote_maps.size() > 1 else ""
 	var rotated: Variant = await _wait_for(func() -> Variant:
 		var l := _level()
-		return l if l and l.name == "Warehouse" and l.get_player(1) and l.get_player(client_id) else null)
-	_check(rotated != null, "map rotates to Warehouse with both players respawned")
+		return l if l and l.scene_file_path == expected and l.get_player(1) and l.get_player(client_id) else null)
+	_check(rotated != null, "map changes to the voted map (%s) with both players respawned" % GameConfig.map_name(expected))
 	_check(not Match.is_ended() and Match.team_scores[0] == 0 and Match.team_scores[1] == 0, "new match starts with a fresh score")
 	level = rotated if rotated else level
 
@@ -131,10 +137,19 @@ func _run_client() -> void:
 	_check(ended == true and Match.winner_text == "Red team wins!", "match end replicated (%s)" % Match.winner_text)
 	_check(NetworkManager.ping_ms >= 0 and NetworkManager.ping_ms < 200, "ping measured (%d ms)" % NetworkManager.ping_ms)
 
+	# Vote for the 2nd map with key 2 on the results screen.
+	_check(Match.vote_maps.size() == 3, "client sees the map vote")
+	_press(&"weapon_2", true)
+	await _frames(2)
+	_press(&"weapon_2", false)
+	var counted: Variant = await _wait_for(func() -> Variant:
+		return true if Match.vote_counts.size() > 1 and Match.vote_counts[1] == 1 else null)
+	_check(Match.my_vote == 1 and counted == true, "client vote replicated back")
+	var expected := Match.vote_maps[1] if Match.vote_maps.size() > 1 else ""
 	var rotated: Variant = await _wait_for(func() -> Variant:
 		var l := _level()
-		return l if l and l.name == "Warehouse" and l.player and l.get_player(1) else null)
-	_check(rotated != null, "client follows the map rotation and respawns")
+		return l if l and l.scene_file_path == expected and l.player and l.get_player(1) else null)
+	_check(rotated != null, "client follows the vote to %s and respawns" % GameConfig.map_name(expected))
 	_check(not Match.is_ended(), "client sees the new match running")
 
 	NetworkManager.leave()

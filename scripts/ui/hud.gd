@@ -84,6 +84,14 @@ func _ready() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if Match.is_ended():
+		# Map vote on the results screen: keys 1–3.
+		for i in 3:
+			if event.is_action_pressed(StringName("weapon_%d" % (i + 1))):
+				Match.request_vote(i)
+				_refresh_vote()
+				get_viewport().set_input_as_handled()
+				return
 	if event.is_action_pressed(&"toggle_perf_overlay"):
 		SettingsManager.show_perf_overlay = not SettingsManager.show_perf_overlay
 		SettingsManager.save()
@@ -333,9 +341,23 @@ func _on_match_state_changed() -> void:
 	var ended := Match.is_ended()
 	if ended and not _end_screen.visible:
 		_winner_label.text = Match.winner_text
-		_next_map_label.text = "Next: %s" % GameConfig.map_name(GameConfig.next_map(NetworkManager.current_map, Match.mode))
 		_fill_score_grid(_end_grid)
 	_end_screen.visible = ended
+	if ended:
+		_refresh_vote()
+
+
+## "Vote for the next map: [1] Rooftops (2) …" on the results screen.
+func _refresh_vote() -> void:
+	if Match.vote_maps.is_empty():
+		_next_map_label.text = "Next: %s" % GameConfig.map_name(GameConfig.next_map(NetworkManager.current_map, Match.mode))
+		return
+	var parts := PackedStringArray()
+	for i in Match.vote_maps.size():
+		var votes: int = Match.vote_counts[i] if i < Match.vote_counts.size() else 0
+		parts.append("%s[%d] %s — %d vote%s" % ["» " if i == Match.my_vote else "", i + 1,
+			GameConfig.map_name(Match.vote_maps[i]), votes, "" if votes == 1 else "s"])
+	_next_map_label.text = "Vote for the next map (keys 1–%d):\n%s" % [Match.vote_maps.size(), "\n".join(parts)]
 
 
 func player_name_or_empty() -> String:

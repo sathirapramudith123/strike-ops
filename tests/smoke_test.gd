@@ -367,6 +367,27 @@ func _test_friendly_fire_and_match_end() -> void:
 	_check(Match.team_scores[0] == 1, "team score counts the kill")
 	_check(Match.is_ended() and Match.winner_text == "Blue team wins!", "score limit ends the match (%s)" % Match.winner_text)
 	_check(_level.hud.get_node("%EndScreen").visible, "results screen shown")
+
+	# Map vote: rotation-next first, no duplicates, never the current map.
+	var candidates := Match.vote_maps
+	_check(candidates.size() == 3 and candidates[0] == GameConfig.next_map(NetworkManager.current_map, Match.mode),
+		"map vote offers 3 maps, rotation first (%s)" % ", ".join(candidates))
+	var unique := {}
+	for p in candidates:
+		unique[p] = true
+	_check(unique.size() == candidates.size() and not NetworkManager.current_map in candidates,
+		"map vote candidates are unique and exclude the current map")
+	_check(Match.voted_map() == candidates[0], "no votes → rotation map wins")
+	Match.request_vote(2)
+	_check(Match.my_vote == 2 and Match.vote_counts[2] == 1 and Match.voted_map() == candidates[2],
+		"vote is counted and decides the next map")
+	Match.request_vote(1)
+	_check(Match.vote_counts[2] == 0 and Match.vote_counts[1] == 1, "changing the vote moves it")
+	var vote_text: String = _level.hud.get_node("%NextMapLabel").text if _level.hud.has_node("%NextMapLabel") else ""
+	_check(vote_text.contains(GameConfig.map_name(candidates[1])) and vote_text.contains("1 vote"),
+		"results screen shows the vote (%s)" % vote_text.replace("\n", " | "))
+	var bomb_candidates := Match.vote_candidates(NetworkManager.current_map, GameConfig.Mode.BOMB)
+	_check(bomb_candidates.size() == 3, "Bomb Defusal vote only needs bomb maps (%d)" % bomb_candidates.size())
 	await_safe_cleanup(mate, enemy)
 
 
@@ -697,6 +718,53 @@ func _test_maps() -> void:
 		top = maxf(top, _player.global_position.y)
 	_release_all()
 	_check(top > 3.4, "courtyard: ramp reaches the upper floor (max y=%.2f)" % top)
+
+	# Rooftops: street ramp up to the north-west roof (4 m).
+	await _load_map("res://scenes/levels/rooftops.tscn")
+	await _frames(40)
+	_check(_player.is_on_floor(), "rooftops: player lands")
+	_reset_player(Vector3(-16, 0.1, 2.5))
+	top = await _walk_forward_max_y(150)
+	_check(top > 3.8, "rooftops: ramp reaches the roof (max y=%.2f)" % top)
+	_reset_player(Vector3(-10, 4.1, -14), -PI * 0.5) # face +x, across the bridge
+	await _frames(5)
+	var across := await _walk_forward_max_y(220)
+	_check(_player.global_position.x > 8.0 and _player.global_position.y > 3.8,
+		"rooftops: bridge crosses to the other roof (x=%.1f, y=%.2f)" % [_player.global_position.x, _player.global_position.y])
+
+	# Docks: gangway up to the ship deck (3 m).
+	await _load_map("res://scenes/levels/docks.tscn")
+	await _frames(40)
+	_check(_player.is_on_floor(), "docks: player lands")
+	_reset_player(Vector3(-18, 0.1, -3))
+	await _walk_forward_max_y(200)
+	_check(_player.global_position.y > 2.95 and _player.global_position.z < -16.0,
+		"docks: gangway leads onto the deck (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
+
+	# Bunker: walk from a south room door through the atrium to the north side.
+	await _load_map("res://scenes/levels/bunker.tscn")
+	await _frames(40)
+	_check(_player.is_on_floor(), "bunker: player lands")
+	_reset_player(Vector3(0, 0.1, 9))
+	await _walk_forward_max_y(200)
+	_check(_player.global_position.z < -7.0, "bunker: atrium doors are passable (z=%.1f)" % _player.global_position.z)
+
+	# Every map has team spawns and bomb sites A + B.
+	for m: Dictionary in GameConfig.MAPS:
+		var lvl := (load(m.path) as PackedScene).instantiate() as Level
+		var ok := lvl.blue_spawn_points.size() >= 3 and lvl.red_spawn_points.size() >= 3 and lvl.bomb_sites.size() == 2
+		lvl.free()
+		_check(ok, "%s: team spawns + bomb sites A/B" % m.name)
+
+
+func _walk_forward_max_y(frames: int) -> float:
+	Input.action_press(&"move_forward")
+	var top := 0.0
+	for i in frames:
+		await get_tree().physics_frame
+		top = maxf(top, _player.global_position.y)
+	_release_all()
+	return top
 
 
 func _load_map(path: String) -> void:
