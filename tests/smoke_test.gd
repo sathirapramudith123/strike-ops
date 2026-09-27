@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
 	_test_friendly_fire_and_match_end()
+	await _test_bomb_defusal()
 	await _test_maps()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -370,6 +371,108 @@ func await_safe_cleanup(mate: PlayerController, enemy: PlayerController) -> void
 	Match.results_time = Match.RESULTS_TIME
 	Match.configure(GameConfig.Mode.PRACTICE)
 	Match.start_match()
+
+
+## Full Bomb Defusal match offline: us (attacker, red) vs a scripted defender.
+func _test_bomb_defusal() -> void:
+	var b := Match.bomb
+	Match.configure(GameConfig.Mode.BOMB, 2)
+	b.freeze_time = 0.5
+	b.round_time = 30.0
+	b.bomb_time = 2.0
+	b.round_end_time = 0.5
+	b.halftime_after = 0
+	Match.results_time = 999.0
+	NetworkManager.roster[1].team = 1
+	NetworkManager.roster[402] = NetworkManager._new_entry("Defender")
+	NetworkManager.roster[402].team = 0
+	var defender := _level.spawn_player(402, "Defender", Transform3D(Basis.IDENTITY, Vector3(0, 0, 14)))
+	Match.start_match()
+	await _frames(2)
+	_check(b.round_number == 1 and b.phase == BombRules.Phase.FREEZE, "round 1 starts in freeze time")
+	_check(b.is_attacker(1) and not b.is_attacker(402), "red attacks, blue defends")
+	var start := _player.global_position
+	Input.action_press(&"move_forward")
+	await _frames(15)
+	Input.action_release(&"move_forward")
+	_check(Vector2(_player.global_position.x - start.x, _player.global_position.z - start.z).length() < 0.05,
+		"movement frozen during freeze time")
+	await _frames(30)
+	_check(b.phase == BombRules.Phase.LIVE, "round goes live after freeze")
+	_check(b.bomb_carrier == 1 and b.bomb_state == BombRules.BombState.CARRIED, "the attacker gets the bomb when the round goes live")
+
+	# Drop + pick up.
+	b.on_player_down(1, _player.global_position + Vector3(0.5, 0, 0))
+	_check(b.bomb_state == BombRules.BombState.DROPPED, "bomb drops when the carrier goes down")
+	await _frames(3)
+	_check(b.bomb_state == BombRules.BombState.CARRIED and b.bomb_carrier == 1, "attacker picks the dropped bomb up")
+
+	# Round 1: plant at B, the defender defuses.
+	_reset_player(Vector3(9, 0.1, 0))
+	await _frames(5)
+	_check(b.site_at(_player.global_position) == "B", "standing inside site B")
+	b.request_interact(true)
+	await _frames(int(BombRules.PLANT_TIME * 60.0) + 10)
+	b.request_interact(false)
+	_check(b.bomb_state == BombRules.BombState.PLANTED and b.bomb_site == "B" and b.phase == BombRules.Phase.PLANTED,
+		"bomb planted at B after holding interact")
+	b.bomb_time = 30.0 # give the defender time in this round
+	b.phase_time_left = 30.0
+	defender.global_position = b.bomb_position + Vector3(1.0, 0, 0)
+	b.server_set_interact(402, true)
+	await _frames(int(BombRules.DEFUSE_TIME * 60.0) + 10)
+	b.server_set_interact(402, false)
+	_check(b.bomb_state == BombRules.BombState.DEFUSED and b.round_winner == 0 and b.round_reason == "Bomb defused",
+		"defender defuses → Blue wins the round")
+	_check(Match.team_scores[0] == 1 and Match.team_scores[1] == 0, "round score 1–0")
+
+	# Round 2: plant at A and let it explode (we stay next to it).
+	b.bomb_time = 2.0
+	await _frames(45)
+	_check(b.round_number == 2 and not _player.health.is_dead and not defender.health.is_dead, "round 2: everyone revived")
+	await _frames(35)
+	_reset_player(Vector3(-16, 0.1, -4))
+	await _frames(3)
+	b.request_interact(true)
+	await _frames(int(BombRules.PLANT_TIME * 60.0) + 10)
+	b.request_interact(false)
+	_check(b.bomb_site == "A", "bomb planted at A")
+	await _frames(int(2.0 * 60.0) + 15)
+	_check(b.bomb_state == BombRules.BombState.EXPLODED and b.round_winner == 1 and b.round_reason == "Bomb exploded",
+		"bomb explodes → Red wins the round")
+	_check(_player.health.is_dead, "the explosion kills players next to it")
+	_check(Match.team_scores[0] == 1 and Match.team_scores[1] == 1, "round score 1–1")
+
+	# Round 3: eliminate the defender → Red reaches 2 round wins.
+	await _frames(45)
+	await _frames(35)
+	_check(b.phase == BombRules.Phase.LIVE and b.round_number == 3, "round 3 live")
+	defender.health.take_damage(500.0, _player)
+	await _frames(2)
+	_check(b.round_reason == "Defenders eliminated", "eliminating the defenders wins the round")
+	_check(Match.is_ended() and Match.winner_text == "Red team wins!", "match ends at the round limit (%s)" % Match.winner_text)
+
+	# Halftime: sides swap after the configured number of rounds.
+	Match.state = Match.State.PLAYING
+	b.halftime_after = 1
+	Match.start_match()
+	var first := b.attacking_team
+	b._end_round(0, "test")
+	b._start_round()
+	_check(b.attacking_team != first and b.sides_swapped, "sides swap at halftime")
+
+	_level.despawn_player(402)
+	NetworkManager.roster.erase(402)
+	NetworkManager.roster[1].team = GameConfig.TEAM_NONE
+	b.freeze_time = 5.0
+	b.round_time = 105.0
+	b.bomb_time = 40.0
+	b.round_end_time = 5.0
+	b.halftime_after = -1
+	Match.results_time = Match.RESULTS_TIME
+	Match.configure(GameConfig.Mode.PRACTICE)
+	Match.start_match()
+	await _frames(int(_player.respawn_delay * 60.0) + 10)
 
 
 func _test_maps() -> void:

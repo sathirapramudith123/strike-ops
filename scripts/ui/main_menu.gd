@@ -34,7 +34,7 @@ func _ready() -> void:
 	for m: Dictionary in GameConfig.MAPS:
 		%MapOption.add_item(m.name)
 	%MapOption.select(maxi(GameConfig.map_index(SettingsManager.selected_map), 0))
-	for mode_id: int in [GameConfig.Mode.FFA, GameConfig.Mode.TDM]:
+	for mode_id: int in [GameConfig.Mode.FFA, GameConfig.Mode.TDM, GameConfig.Mode.BOMB]:
 		%ModeOption.add_item(GameConfig.MODE_NAMES[mode_id], mode_id)
 	%ModeOption.select(maxi(%ModeOption.get_item_index(SettingsManager.host_mode), 0))
 	%StatusLabel.text = NetworkManager.last_error

@@ -96,6 +96,7 @@ var _bob_time: float = 0.0
 var _recoil := Vector2.ZERO # (pitch, yaw) in radians, applied to the camera
 var _fell_reported: bool = false
 var _torso_material: StandardMaterial3D
+var _default_regen: float = 0.0
 
 
 func _enter_tree() -> void:
@@ -109,6 +110,7 @@ func _ready() -> void:
 	_height = stand_height
 	_apply_height()
 	health.died.connect(_on_died)
+	_default_regen = health.regen_per_second
 	_name_tag.text = player_name
 	_torso_material = ($ThirdPerson/Torso as MeshInstance3D).mesh.surface_get_material(0).duplicate()
 	($ThirdPerson/Torso as MeshInstance3D).material_override = _torso_material
@@ -149,6 +151,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-motion.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * invert,
 			-deg_to_rad(max_pitch_degrees), deg_to_rad(max_pitch_degrees))
+	elif event.is_action(&"interact") and not event.is_echo():
+		# Plant / defuse in Bomb Defusal (the server checks everything).
+		if Match.mode == GameConfig.Mode.BOMB:
+			Match.bomb.request_interact(event.is_pressed())
 	elif event.is_action_pressed(&"weapon_1"):
 		select_slot(0)
 	elif event.is_action_pressed(&"weapon_2"):
@@ -165,7 +171,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var input_dir := Vector2.ZERO
-	if input_enabled and not Match.is_ended():
+	if input_enabled and Match.can_move():
 		input_dir = Input.get_vector(&"move_left", &"move_right", &"move_forward", &"move_back")
 	var wish_dir := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
@@ -174,7 +180,7 @@ func _physics_process(delta: float) -> void:
 	_coyote_timer = coyote_time if on_floor else _coyote_timer - delta
 	_jump_buffer_timer -= delta
 	_slide_cooldown_timer -= delta
-	if input_enabled and Input.is_action_just_pressed(&"jump"):
+	if input_enabled and Match.can_move() and Input.is_action_just_pressed(&"jump"):
 		_jump_buffer_timer = jump_buffer_time
 
 	# --- Gravity ------------------------------------------------------------
@@ -249,6 +255,8 @@ func loadout_weapons() -> Array[Weapon]:
 ## Sets the primary weapon, refills ammo and equips `slot` (spawn / respawn).
 func apply_loadout(primary: String, slot: int = 0) -> void:
 	primary_id = primary if weapons.has(primary) else GameConfig.DEFAULT_PRIMARY
+	# No health regeneration in Bomb Defusal (damage carries through a round).
+	health.regen_per_second = 0.0 if Match.mode == GameConfig.Mode.BOMB else _default_regen
 	for w: Weapon in weapons.values():
 		w.refill_ammo()
 	current_slot = -1
@@ -413,6 +421,8 @@ func _update_camera(delta: float, on_floor: bool) -> void:
 
 
 func _on_died(_source: Node) -> void:
+	if is_local and Match.mode == GameConfig.Mode.BOMB:
+		Match.bomb.request_interact(false)
 	velocity = Vector3.ZERO
 	is_sliding = false
 	_set_hitboxes_enabled(false)

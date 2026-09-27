@@ -166,6 +166,11 @@ func get_player_name(peer_id: int) -> String:
 	return roster.get(peer_id, {}).get("name", "Player %d" % peer_id)
 
 
+## The level currently loaded on this peer (null in menus).
+func current_level() -> Level:
+	return _level if is_instance_valid(_level) else null
+
+
 ## Server: push the roster to everyone now (and to local listeners).
 func broadcast_roster() -> void:
 	if is_online() and multiplayer.is_server():
@@ -247,10 +252,13 @@ func _on_peer_disconnected(id: int) -> void:
 	if not multiplayer.is_server():
 		return
 	print("[net] %s (%d) left" % [get_player_name(id), id])
+	var leaving := _level.get_player(id) if _level else null
+	var leaving_pos := leaving.global_position if leaving else Vector3.ZERO
 	roster.erase(id)
 	_ready_peers.erase(id)
 	if _level:
 		_level.despawn_player(id)
+	Match.on_player_left(id, leaving_pos)
 	send_to_ready(self, &"_despawn_player", [id])
 	broadcast_roster()
 
@@ -306,6 +314,7 @@ func _level_ready() -> void:
 	# 1) Match state, 2) existing players, 3) current health of everything,
 	# 4) the new player.
 	Match.send_state_to(id)
+	Match.bomb.send_state_to(id)
 	for p: PlayerController in _level.get_players():
 		_spawn_player.rpc_id(id, p.peer_id, p.player_name, p.global_transform, p.primary_id, p.current_slot)
 	for h: Health in get_tree().get_nodes_in_group(Health.NET_GROUP):
@@ -383,8 +392,12 @@ func _server_spawn(peer_id: int) -> void:
 	var xform := _level.next_spawn_transform(peer_id)
 	var player_name := get_player_name(peer_id)
 	var primary: String = roster.get(peer_id, {}).get("primary", GameConfig.DEFAULT_PRIMARY)
-	_level.spawn_player(peer_id, player_name, xform, primary, 0)
+	var p := _level.spawn_player(peer_id, player_name, xform, primary, 0)
 	send_to_ready(self, &"_spawn_player", [peer_id, player_name, xform, primary, 0])
+	# Bomb Defusal: joining mid-round means waiting (spectating) for the next round.
+	if Match.mode == GameConfig.Mode.BOMB and Match.bomb.round_number > 0 \
+			and Match.bomb.phase != BombRules.Phase.FREEZE:
+		p.health.set_dead_silently()
 
 
 func _add_local_entry() -> void:

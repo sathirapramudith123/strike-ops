@@ -102,7 +102,7 @@ func _physics_process(delta: float) -> void:
 	if not _player.is_local:
 		return
 
-	var can_act := _player.input_enabled and not _player.health.is_dead and not Match.is_ended()
+	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot()
 	is_aiming = can_act and Input.is_action_pressed("aim") and not is_reloading and not _player.is_sprinting
 	ads_blend = move_toward(ads_blend, 1.0 if is_aiming else 0.0, delta / maxf(data.ads_time, 0.01))
 
@@ -290,7 +290,7 @@ func _server_process_shot(origin: Vector3, dirs: PackedVector3Array, render_time
 		if _player.is_local:
 			_spawn_impact(hit.position, hit.normal)
 		var hitbox: Hitbox = hit.get("hitbox")
-		if hitbox == null or Match.is_ended():
+		if hitbox == null or not Match.can_shoot():
 			continue
 		var falloff := remap(hit.distance, data.falloff_start, data.max_range, 1.0, data.min_damage_multiplier)
 		var damage := data.damage * clampf(falloff, data.min_damage_multiplier, 1.0)

@@ -30,6 +30,11 @@ const KILL_FEED_MAX := 5
 @onready var _winner_label: Label = %WinnerLabel
 @onready var _next_map_label: Label = %NextMapLabel
 @onready var _end_grid: GridContainer = %EndGrid
+@onready var _center_message: Label = %CenterMessage
+@onready var _action_box: Control = %ActionBox
+@onready var _action_label: Label = %ActionLabel
+@onready var _action_bar: ProgressBar = %ActionBar
+@onready var _bomb_hint: Label = %BombHint
 
 var _player: PlayerController
 var _weapon: Weapon
@@ -72,7 +77,7 @@ func _process(delta: float) -> void:
 		_refresh_scoreboard()
 	_scoreboard.visible = show_scores
 	if _player:
-		_dead_label.visible = _player.health.is_dead
+		_dead_label.visible = _player.health.is_dead and Match.mode != GameConfig.Mode.BOMB
 		if _player.current_weapon != _weapon:
 			_bind_weapon(_player.current_weapon)
 	if _weapon:
@@ -81,6 +86,7 @@ func _process(delta: float) -> void:
 		_reload_bar.value = _weapon.get_reload_progress()
 		_scope.amount = clampf((_weapon.ads_blend - 0.85) / 0.15, 0.0, 1.0) if _weapon.data.scoped else 0.0
 	_update_match_bar()
+	_update_bomb_hud()
 	if _perf_label.visible:
 		_update_perf()
 
@@ -218,6 +224,22 @@ func _update_match_bar() -> void:
 	match Match.mode:
 		GameConfig.Mode.PRACTICE:
 			_match_bar.text = "Practice — %s" % GameConfig.map_name(NetworkManager.current_map)
+		GameConfig.Mode.BOMB:
+			var b := Match.bomb
+			var secs := ceili(b.phase_time_left)
+			var clock := "%d:%02d" % [secs / 60, secs % 60]
+			if b.phase == BombRules.Phase.PLANTED:
+				clock = "BOMB %s" % clock
+			var my_team := Match.get_team(multiplayer.get_unique_id())
+			var role := ""
+			if my_team >= 0:
+				var attacker := b.is_attacker(multiplayer.get_unique_id())
+				if b.bomb_state == BombRules.BombState.PLANTED:
+					role = "Protect the bomb at %s" % b.bomb_site if attacker else "Defuse the bomb at %s!" % b.bomb_site
+				else:
+					role = "Attack — plant the bomb at A or B" if attacker else "Defend — stop the plant or defuse"
+			_match_bar.text = "Round %d · BLUE %d   %s   %d RED\n%s" % [b.round_number, Match.team_scores[0], clock,
+				Match.team_scores[1], role]
 		GameConfig.Mode.TDM:
 			var my_team := Match.get_team(multiplayer.get_unique_id())
 			_match_bar.text = "BLUE %d   %s   %d RED\n%s" % [Match.team_scores[0], t, Match.team_scores[1],
@@ -230,11 +252,63 @@ func _update_match_bar() -> void:
 			_match_bar.text = "%s\nYou %d · Leader %d · First to %d" % [t, mine, best, Match.score_limit]
 
 
+## Bomb Defusal: centre messages, plant/defuse progress, carrier hint, spectating.
+func _update_bomb_hud() -> void:
+	if Match.mode != GameConfig.Mode.BOMB or Match.bomb.round_number == 0:
+		_center_message.text = ""
+		_action_box.visible = false
+		_bomb_hint.text = ""
+		return
+	var b := Match.bomb
+	var me := multiplayer.get_unique_id()
+	var msg := ""
+	match b.phase:
+		BombRules.Phase.FREEZE:
+			if b.waiting_for_players:
+				msg = "Waiting for players on both teams…"
+			else:
+				msg = ("Switching sides!\n" if b.sides_swapped else "") + "Round %d starts in %d" % [b.round_number, ceili(b.phase_time_left)]
+		BombRules.Phase.PLANTED:
+			msg = "BOMB PLANTED at %s" % b.bomb_site if b.phase_time_left > b.bomb_time - 3.0 else ""
+		BombRules.Phase.ROUND_END:
+			if b.round_winner >= 0:
+				msg = "%s wins the round\n%s" % [GameConfig.TEAM_NAMES[b.round_winner], b.round_reason]
+	if Match.is_ended():
+		msg = ""
+	_center_message.text = msg
+	_center_message.modulate = GameConfig.team_color(b.round_winner).lightened(0.3) \
+		if b.phase == BombRules.Phase.ROUND_END and b.round_winner >= 0 else Color.WHITE
+
+	var acting := b.action != BombRules.Action.NONE and (b.action_player == me or b.bomb_state == BombRules.BombState.PLANTED)
+	_action_box.visible = acting
+	if acting:
+		var who := "You are" if b.action_player == me else "%s is" % NetworkManager.get_player_name(b.action_player)
+		_action_label.text = "%s %s…" % [who, "planting" if b.action == BombRules.Action.PLANT else "defusing"]
+		_action_bar.value = b.action_progress
+
+	var hint := ""
+	if _player and not _player.health.is_dead:
+		if b.bomb_state == BombRules.BombState.CARRIED and b.bomb_carrier == me:
+			var site := b.site_at(_player.global_position)
+			hint = "At site %s — hold E to plant (stand still)" % site if site != "" \
+				else "You have the bomb — take it to site A or B"
+		elif b.bomb_state == BombRules.BombState.PLANTED and not b.is_attacker(me) \
+				and _player.global_position.distance_to(b.bomb_position) <= BombRules.DEFUSE_RANGE:
+			hint = "Hold E to defuse (stand still)"
+		elif b.bomb_state == BombRules.BombState.DROPPED and b.is_attacker(me):
+			hint = "The bomb was dropped — pick it up"
+	elif _player and _player.health.is_dead:
+		var level := get_parent() as Level
+		var watched := level.spectating() if level else null
+		hint = ("Spectating %s — Shoot for next" % watched.player_name) if watched else "Dead — wait for the next round"
+	_bomb_hint.text = hint
+
+
 func _on_match_state_changed() -> void:
 	var ended := Match.is_ended()
 	if ended and not _end_screen.visible:
 		_winner_label.text = Match.winner_text
-		_next_map_label.text = "Next: %s" % GameConfig.map_name(GameConfig.next_map(NetworkManager.current_map))
+		_next_map_label.text = "Next: %s" % GameConfig.map_name(GameConfig.next_map(NetworkManager.current_map, Match.mode))
 		_fill_score_grid(_end_grid)
 	_end_screen.visible = ended
 

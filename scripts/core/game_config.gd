@@ -2,26 +2,30 @@ class_name GameConfig
 extends RefCounted
 ## Static catalogue of maps, game modes and weapons. Add new content here.
 
-enum Mode { PRACTICE, FFA, TDM }
+enum Mode { PRACTICE, FFA, TDM, BOMB }
 
 const MODE_NAMES := {
 	Mode.PRACTICE: "Practice",
 	Mode.FFA: "Free-for-All",
 	Mode.TDM: "Team Deathmatch",
+	Mode.BOMB: "Bomb Defusal",
 }
-const MODE_IDS := { "practice": Mode.PRACTICE, "ffa": Mode.FFA, "tdm": Mode.TDM }
+const MODE_IDS := { "practice": Mode.PRACTICE, "ffa": Mode.FFA, "tdm": Mode.TDM, "bomb": Mode.BOMB }
 
-## Defaults per mode: score limit (kills), time limit (seconds, 0 = none).
+## Defaults per mode: score limit (kills — or round wins for BOMB),
+## time limit (seconds, 0 = none; BOMB uses per-round timers instead).
 const MODE_LIMITS := {
 	Mode.PRACTICE: { "score_limit": 0, "time_limit": 0.0 },
 	Mode.FFA: { "score_limit": 20, "time_limit": 600.0 },
 	Mode.TDM: { "score_limit": 50, "time_limit": 600.0 },
+	Mode.BOMB: { "score_limit": 5, "time_limit": 0.0 },
 }
 
 const MAPS: Array[Dictionary] = [
-	{ "id": "test_map", "name": "Test Range", "path": "res://scenes/levels/test_map.tscn" },
-	{ "id": "warehouse", "name": "Warehouse", "path": "res://scenes/levels/warehouse.tscn" },
-	{ "id": "courtyard", "name": "Courtyard", "path": "res://scenes/levels/courtyard.tscn" },
+	# "bomb": the map has bomb sites A and B (playable in Bomb Defusal).
+	{ "id": "test_map", "name": "Test Range", "path": "res://scenes/levels/test_map.tscn", "bomb": true },
+	{ "id": "warehouse", "name": "Warehouse", "path": "res://scenes/levels/warehouse.tscn", "bomb": true },
+	{ "id": "courtyard", "name": "Courtyard", "path": "res://scenes/levels/courtyard.tscn", "bomb": true },
 ]
 
 const TEAM_NONE := -1
@@ -64,13 +68,18 @@ static func map_name(path: String) -> String:
 	return MAPS[i].name if i >= 0 else path.get_file().get_basename()
 
 
-static func next_map(path: String) -> String:
+## Next map in the rotation that supports `mode`.
+static func next_map(path: String, mode: Mode = Mode.FFA) -> String:
 	var i := map_index(path)
-	return MAPS[(i + 1) % MAPS.size()].path
+	for step in range(1, MAPS.size() + 1):
+		var m: Dictionary = MAPS[(i + step) % MAPS.size()]
+		if mode != Mode.BOMB or m.get("bomb", false):
+			return m.path
+	return path
 
 
 static func is_team_mode(mode: Mode) -> bool:
-	return mode == Mode.TDM
+	return mode == Mode.TDM or mode == Mode.BOMB
 
 
 static func team_color(team: int) -> Color:

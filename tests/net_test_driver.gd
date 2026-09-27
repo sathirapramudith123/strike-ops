@@ -27,6 +27,8 @@ func _ready() -> void:
 	match _role:
 		"host": _run_host()
 		"observer": _run_observer()
+		"bomb_host": _run_bomb_host()
+		"bomb_client": _run_bomb_client()
 		_: _run_client()
 
 
@@ -136,6 +138,158 @@ func _run_client() -> void:
 	NetworkManager.leave()
 	await _frames(30)
 	_finish()
+
+
+# -----------------------------------------------------------------------------
+# Bomb Defusal: 3 rounds, first to 2.
+#   R1: client (red, attacker) plants at B → host (blue) walks over and defuses.
+#   R2: client eliminates the host.
+#   R3: client plants again and the bomb explodes → Red wins the match.
+# -----------------------------------------------------------------------------
+
+func _configure_bomb() -> void:
+	var b := Match.bomb
+	b.freeze_time = 1.5
+	b.round_time = 60.0
+	b.bomb_time = 3.0
+	b.round_end_time = 1.5
+	b.halftime_after = 0
+	Match.results_time = 30.0
+
+
+func _run_bomb_host() -> void:
+	var b := Match.bomb
+	NetworkManager.local_name = "Host"
+	Match.configure(GameConfig.Mode.BOMB, 2)
+	_configure_bomb()
+	_check(NetworkManager.host(_port, 4, false, GameConfig.map_path("test_map"), -1) == OK, "bomb host starts")
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	var me: PlayerController = await _wait_for(func() -> Variant: return level.get_player(1))
+	var waiting: Variant = await _wait_for(func() -> Variant: return true if b.waiting_for_players else null)
+	_check(waiting == true and b.phase == BombRules.Phase.FREEZE, "freeze waits while only one team has players")
+	var client: PlayerController = await _wait_for(func() -> Variant:
+		var ps := level.get_players().filter(func(p: PlayerController) -> bool: return p.peer_id != 1)
+		return ps[0] if not ps.is_empty() else null)
+	if client == null:
+		return _finish()
+	var client_id := client.peer_id
+	_check(not b.is_attacker(1) and b.is_attacker(client_id), "host defends, client attacks")
+	var live: Variant = await _wait_for(func() -> Variant: return true if b.phase == BombRules.Phase.LIVE else null)
+	_check(live == true and b.bomb_carrier == client_id, "round 1 live, client carries the bomb")
+
+	# R1: wait for the plant, walk to the bomb and defuse with the real Interact key.
+	var planted: Variant = await _wait_for(func() -> Variant: return true if b.bomb_state == BombRules.BombState.PLANTED else null)
+	_check(planted == true and b.bomb_site == "B", "host sees the bomb planted at B")
+	b.bomb_time = 30.0 # the host needs time to walk over (server-side timer)
+	b.phase_time_left = 30.0
+	await _walk_to(me, b.bomb_position, 1.2)
+	await _frames(20)
+	_press(&"interact", true)
+	var defused: Variant = await _wait_for(func() -> Variant: return true if b.bomb_state == BombRules.BombState.DEFUSED else null)
+	_press(&"interact", false)
+	_check(defused == true and b.round_winner == 0, "host defuses → Blue wins round 1")
+	b.bomb_time = 3.0
+
+	# R2: stand still at spawn and get eliminated.
+	var r2: Variant = await _wait_for(func() -> Variant: return true if b.round_number == 2 else null)
+	_check(r2 == true and not me.health.is_dead, "round 2: host revived")
+	var r2_end: Variant = await _wait_for(func() -> Variant: return true if b.phase == BombRules.Phase.ROUND_END else null)
+	_check(r2_end == true and b.round_reason == "Defenders eliminated" and b.round_winner == 1, "client eliminates the host → Red wins round 2")
+
+	# R3: the bomb explodes.
+	var over: Variant = await _wait_for(func() -> Variant: return true if Match.is_ended() else null)
+	_check(over == true and b.round_reason == "Bomb exploded", "round 3: bomb explodes (%s)" % b.round_reason)
+	_check(Match.winner_text == "Red team wins!" and Match.team_scores[1] == 2 and Match.team_scores[0] == 1,
+		"Red wins the match 2–1")
+	var left: Variant = await _wait_for(func() -> Variant:
+		return true if level.get_player(client_id) == null else null)
+	_check(left == true, "client leaves")
+	_finish()
+
+
+func _run_bomb_client() -> void:
+	var b := Match.bomb
+	await get_tree().create_timer(1.0).timeout
+	NetworkManager.local_name = "Client"
+	_check(NetworkManager.join("127.0.0.1", _port) == OK, "bomb client connects")
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	var me: PlayerController = await _wait_for(func() -> Variant: return level.player if level else null)
+	var host: PlayerController = await _wait_for(func() -> Variant: return level.get_player(1))
+	if me == null or host == null:
+		return _finish()
+	_check(Match.mode == GameConfig.Mode.BOMB, "client knows it's Bomb Defusal")
+	var live: Variant = await _wait_for(func() -> Variant:
+		return true if b.phase == BombRules.Phase.LIVE and b.bomb_carrier == me.peer_id else null)
+	_check(live == true, "client carries the bomb when round 1 goes live")
+
+	# R1: walk to site B and plant with the Interact key.
+	await _plant_at_b(me)
+	_check(b.bomb_state == BombRules.BombState.PLANTED and b.bomb_site == "B", "client planted at B")
+	var r1: Variant = await _wait_for(func() -> Variant: return true if b.bomb_state == BombRules.BombState.DEFUSED else null)
+	_check(r1 == true and b.round_winner == 0 and Match.team_scores[0] == 1, "client sees the defuse (Blue 1–0)")
+
+	# R2: shoot the host.
+	var r2: Variant = await _wait_for(func() -> Variant:
+		return true if b.round_number == 2 and b.phase == BombRules.Phase.LIVE else null)
+	_check(r2 == true, "round 2 live")
+	Input.action_press(&"aim")
+	var t := 0.0
+	while not host.health.is_dead and t < 15.0:
+		_aim_at(me, host.global_position + Vector3.UP * 1.0)
+		Input.action_press(&"shoot")
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	_release_inputs()
+	var r2_end: Variant = await _wait_for(func() -> Variant: return true if b.phase == BombRules.Phase.ROUND_END else null)
+	_check(r2_end == true and b.round_winner == 1, "Red wins round 2 (1–1)")
+
+	# R3: plant and wait for the explosion.
+	var r3: Variant = await _wait_for(func() -> Variant:
+		return true if b.round_number == 3 and b.phase == BombRules.Phase.LIVE and b.bomb_carrier == me.peer_id else null)
+	_check(r3 == true, "round 3 live with the bomb")
+	await _plant_at_b(me)
+	var over: Variant = await _wait_for(func() -> Variant: return true if Match.is_ended() else null)
+	_check(over == true and Match.winner_text == "Red team wins!", "client sees Red win the match")
+	NetworkManager.leave()
+	await _frames(10)
+	_finish()
+
+
+func _plant_at_b(me: PlayerController) -> void:
+	var site: Vector3 = (_level().bomb_sites.filter(func(m: Marker3D) -> bool: return m.name == "B")[0] as Marker3D).global_position
+	await _walk_to(me, site, 0.8)
+	await _frames(20)
+	_press(&"interact", true)
+	await _wait_for(func() -> Variant:
+		return true if Match.bomb.bomb_state == BombRules.BombState.PLANTED else null)
+	_press(&"interact", false)
+
+
+## Walks `p` (the local player) towards `target` until within `radius` metres.
+func _walk_to(p: PlayerController, target: Vector3, radius: float) -> void:
+	var t := 0.0
+	while t < 20.0:
+		var flat := Vector3(target.x - p.global_position.x, 0, target.z - p.global_position.z)
+		if flat.length() <= radius:
+			break
+		p.rotation.y = atan2(-flat.x, -flat.z)
+		Input.action_press(&"move_forward")
+		await get_tree().physics_frame
+		t += get_physics_process_delta_time()
+	Input.action_release(&"move_forward")
+
+
+## Sends a real input event (reaches _unhandled_input like a key press).
+func _press(action: StringName, pressed: bool) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = pressed
+	Input.parse_input_event(ev)
+
+
+func _release_inputs() -> void:
+	for a in InputMap.get_actions():
+		Input.action_release(a)
 
 
 ## Joins a dedicated server (started with `-- --server`) and checks the basics.

@@ -162,12 +162,15 @@ func server_force_respawn() -> void:
 # -----------------------------------------------------------------------------
 
 func _on_died(source: Node) -> void:
-	if not multiplayer.is_server():
+	if not multiplayer.is_server() or player.health.silent_death:
 		return
-	_respawn_timer = player.respawn_delay
+	# Bomb Defusal: no respawns during a round (the next round revives everyone).
+	if Match.mode != GameConfig.Mode.BOMB:
+		_respawn_timer = player.respawn_delay
 	var killer := source as PlayerController
+	var cause := player.health.last_cause if player.health.last_cause != "" else "Fall"
 	var weapon_name := killer.current_weapon.data.display_name \
-		if killer and killer.current_weapon else "Fall"
+		if killer and killer.current_weapon else cause
 	NetworkManager.report_kill(killer.peer_id if killer else -1, player.peer_id,
 		weapon_name, player.health.last_hit_headshot)
 
@@ -177,7 +180,9 @@ func _server_respawn() -> void:
 	var xform := level.next_spawn_transform(player.peer_id) if level else player.global_transform
 	var primary: String = NetworkManager.roster.get(player.peer_id, {}).get("primary", player.primary_id)
 	player.health.revive()
-	player.health.protect(SPAWN_PROTECTION)
+	# Bomb Defusal has freeze time instead of spawn protection.
+	if Match.mode != GameConfig.Mode.BOMB:
+		player.health.protect(SPAWN_PROTECTION)
 	_apply_respawn(xform, primary)
 	NetworkManager.send_to_ready(self, &"_respawn", [xform, primary])
 

@@ -22,6 +22,11 @@ var current: float
 var is_dead: bool = false
 ## Whether the most recent hit was a headshot (used for kill feed).
 var last_hit_headshot: bool = false
+## What caused the last damage when there was no attacker ("Fall", "Bomb").
+var last_cause: String = ""
+## True when the last death was administrative (late join / team switch in
+## Bomb Defusal) — no kill feed, no death counted.
+var silent_death: bool = false
 
 var _time_since_damage: float = 0.0
 var _protected_until: float = 0.0
@@ -50,7 +55,7 @@ func _process(delta: float) -> void:
 
 
 ## Server only. Returns true if this hit killed the owner.
-func take_damage(amount: float, source: Node = null, is_headshot: bool = false) -> bool:
+func take_damage(amount: float, source: Node = null, is_headshot: bool = false, cause: String = "") -> bool:
 	if not multiplayer.is_server() or is_dead or amount <= 0.0:
 		return false
 	# Spawn protection (fall damage still applies so nobody gets stuck).
@@ -58,6 +63,8 @@ func take_damage(amount: float, source: Node = null, is_headshot: bool = false) 
 		return false
 	_time_since_damage = 0.0
 	last_hit_headshot = is_headshot
+	last_cause = cause
+	silent_death = false
 	current = maxf(current - amount, 0.0)
 	var killed := current <= 0.0
 	if killed:
@@ -89,6 +96,18 @@ func revive() -> void:
 	_broadcast(0.0)
 	health_changed.emit(current, max_health)
 	revived.emit()
+
+
+## Server only: mark as dead without a kill (joined mid-round, switched team).
+func set_dead_silently() -> void:
+	if not multiplayer.is_server() or is_dead:
+		return
+	silent_death = true
+	is_dead = true
+	current = 0.0
+	_broadcast(0.0)
+	health_changed.emit(current, max_health)
+	died.emit(null)
 
 
 ## Server only: ignore damage from other players for `seconds`.

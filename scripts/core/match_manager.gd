@@ -10,6 +10,7 @@ extends Node
 ##   PRACTICE – offline, no limits
 ##   FFA      – first to `score_limit` kills, or most kills when time runs out
 ##   TDM      – two teams (auto-balanced), friendly fire off, team score
+##   BOMB     – rounds of Bomb Defusal (see BombRules); team_scores = round wins
 
 signal state_changed
 signal match_ended(winner_text: String)
@@ -31,6 +32,15 @@ var results_time: float = RESULTS_TIME
 
 var _results_timer: float = -1.0
 var _sync_timer: float = 0.0
+
+## Round logic for Bomb Defusal.
+var bomb: BombRules
+
+
+func _ready() -> void:
+	bomb = BombRules.new()
+	bomb.name = "BombRules"
+	add_child(bomb)
 
 
 func _process(delta: float) -> void:
@@ -74,6 +84,8 @@ func start_match() -> void:
 		NetworkManager.roster[id].deaths = 0
 	_broadcast()
 	state_changed.emit()
+	if mode == GameConfig.Mode.BOMB:
+		bomb.start_match()
 
 
 ## Server: pick a team for a newly joined player (smallest team).
@@ -98,6 +110,15 @@ func is_team_mode() -> bool:
 
 func is_ended() -> bool:
 	return state == State.ENDED
+
+
+## False while the match is over or during Bomb Defusal freeze time.
+func can_move() -> bool:
+	return not is_ended() and not bomb.is_frozen()
+
+
+func can_shoot() -> bool:
+	return can_move()
 
 
 func get_team(peer_id: int) -> int:
@@ -130,7 +151,11 @@ func team_map() -> Dictionary:
 func on_kill(killer_id: int, victim_id: int) -> void:
 	if not multiplayer.is_server() or state != State.PLAYING or mode == GameConfig.Mode.PRACTICE:
 		return
-	if is_team_mode():
+	if mode == GameConfig.Mode.BOMB:
+		var level := NetworkManager.current_level()
+		var victim := level.get_player(victim_id) if level else null
+		bomb.on_player_down(victim_id, victim.global_position if victim else Vector3.ZERO)
+	elif is_team_mode():
 		var t := get_team(killer_id)
 		if killer_id > 0 and killer_id != victim_id and t >= 0 and t != get_team(victim_id):
 			team_scores[t] += 1
@@ -179,7 +204,7 @@ func _leader_text(time_up: bool) -> String:
 func _next_map() -> void:
 	_results_timer = -1.0
 	if NetworkManager.is_online():
-		NetworkManager.change_map(GameConfig.next_map(NetworkManager.current_map))
+		NetworkManager.change_map(GameConfig.next_map(NetworkManager.current_map, mode))
 	else:
 		get_tree().reload_current_scene()
 
@@ -231,13 +256,24 @@ func _do_team_switch(peer_id: int) -> void:
 			counts[t] += 1
 	if counts[target] + 1 > counts[current]:
 		return # would unbalance the teams
+	var level := NetworkManager.current_level()
+	var p := level.get_player(peer_id) if level else null
+	if mode == GameConfig.Mode.BOMB and p:
+		bomb.on_player_down(peer_id, p.global_position) # drops the bomb if carried
 	NetworkManager.roster[peer_id].team = target
 	NetworkManager.broadcast_roster()
 	teams_changed.emit()
-	var level := get_tree().current_scene as Level
-	var p := level.get_player(peer_id) if level else null
 	if p:
-		p.net_sync.server_force_respawn()
+		if mode == GameConfig.Mode.BOMB and bomb.phase != BombRules.Phase.FREEZE:
+			p.health.set_dead_silently() # wait for the next round
+		else:
+			p.net_sync.server_force_respawn()
+
+
+## Server: a player disconnected.
+func on_player_left(peer_id: int, last_position: Vector3) -> void:
+	if mode == GameConfig.Mode.BOMB:
+		bomb.on_player_down(peer_id, last_position)
 
 
 func _set_loadout(peer_id: int, primary: String) -> void:

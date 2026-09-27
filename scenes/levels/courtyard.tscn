@@ -1,4 +1,4 @@
-[gd_scene load_steps=159 format=3]
+[gd_scene load_steps=162 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -75,6 +75,13 @@ render_priority = 0
 shader = ExtResource("4_grid")
 shader_parameter/base_color = Color(0.75, 0.3, 0.25, 1)
 shader_parameter/line_color = Color(0.6, 0.2, 0.18, 1)
+
+[sub_resource type="ShaderMaterial" id="Mat_site"]
+render_priority = 0
+shader = ExtResource("4_grid")
+shader_parameter/base_color = Color(0.95, 0.55, 0.15, 1)
+shader_parameter/line_color = Color(0.75, 0.35, 0.1, 1)
+shader_parameter/cell_size = 0.5
 
 [sub_resource type="BoxMesh" id="Mesh_1"]
 material = SubResource("Mat_stone")
@@ -576,7 +583,15 @@ size = Vector3(1.200, 1.000, 1.200)
 [sub_resource type="BoxShape3D" id="Shape_74"]
 size = Vector3(1.200, 1.000, 1.200)
 
-[node name="Courtyard" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points")]
+[sub_resource type="BoxMesh" id="Mesh_75"]
+material = SubResource("Mat_site")
+size = Vector3(7.000, 0.020, 7.000)
+
+[sub_resource type="BoxMesh" id="Mesh_76"]
+material = SubResource("Mat_site")
+size = Vector3(7.000, 0.020, 7.000)
+
+[node name="Courtyard" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points", "bomb_sites")]
 script = ExtResource("1_level")
 player_scene = ExtResource("6_player")
 world_environment = NodePath("WorldEnvironment")
@@ -584,6 +599,7 @@ sun = NodePath("Sun")
 spawn_points = [NodePath("SpawnPoints/Ffa1"), NodePath("SpawnPoints/Ffa2"), NodePath("SpawnPoints/Blue1"), NodePath("SpawnPoints/Blue2"), NodePath("SpawnPoints/Blue3"), NodePath("SpawnPoints/Blue4"), NodePath("SpawnPoints/Red1"), NodePath("SpawnPoints/Red2"), NodePath("SpawnPoints/Red3"), NodePath("SpawnPoints/Red4")]
 blue_spawn_points = [NodePath("SpawnPoints/Blue1"), NodePath("SpawnPoints/Blue2"), NodePath("SpawnPoints/Blue3"), NodePath("SpawnPoints/Blue4")]
 red_spawn_points = [NodePath("SpawnPoints/Red1"), NodePath("SpawnPoints/Red2"), NodePath("SpawnPoints/Red3"), NodePath("SpawnPoints/Red4")]
+bomb_sites = [NodePath("BombSites/A"), NodePath("BombSites/B")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env")
@@ -1244,6 +1260,18 @@ mesh = SubResource("Mesh_74")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/RoofCrate2"]
 shape = SubResource("Shape_74")
 
+[node name="SiteAPlate1" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, -21.000, 0.010, -4.000)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/SiteAPlate1"]
+mesh = SubResource("Mesh_75")
+
+[node name="SiteBPlate1" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, 1.000000, 21.000, 0.010, -4.000)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/SiteBPlate1"]
+mesh = SubResource("Mesh_76")
+
 [node name="SpawnPoints" type="Node3D" parent="."]
 
 [node name="Blue1" type="Marker3D" parent="SpawnPoints"]
@@ -1278,6 +1306,32 @@ transform = Transform3D(0.000000, 0, -1.000000, 0, 1, 0, 1.000000, 0, 0.000000, 
 
 [node name="Lights" type="Node3D" parent="."]
 
+
+[node name="BombSites" type="Node3D" parent="."]
+
+[node name="A" type="Marker3D" parent="BombSites"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.0, 0.0, -4.0)
+
+[node name="Letter" type="Label3D" parent="BombSites/A"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+billboard = 1
+modulate = Color(1, 0.6, 0.2, 0.9)
+outline_modulate = Color(0, 0, 0, 0.8)
+text = "A"
+font_size = 160
+outline_size = 24
+
+[node name="B" type="Marker3D" parent="BombSites"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21.0, 0.0, -4.0)
+
+[node name="Letter" type="Label3D" parent="BombSites/B"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+billboard = 1
+modulate = Color(1, 0.6, 0.2, 0.9)
+outline_modulate = Color(0, 0, 0, 0.8)
+text = "B"
+font_size = 160
+outline_size = 24
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 

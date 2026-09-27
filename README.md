@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🚧 Phase 6 — playable multiplayer shooter: Free-for-All & Team Deathmatch, 5 weapons, 3 greybox maps, voice chat, host / join / dedicated server.
+> **Status:** 🚧 Phase 6b — playable multiplayer shooter: Free-for-All, Team Deathmatch & Bomb Defusal, 5 weapons, 3 greybox maps, voice chat, host / join / dedicated server.
 
 ---
 
@@ -42,7 +42,7 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 
 - 🔫 **Core FPS gameplay** — smooth first-person movement (walk, sprint, crouch, jump, slide), aim-down-sights, recoil & spread, hitscan and projectile weapons.
 - 🌐 **Multiplayer** — client/server networking with lag compensation and client-side prediction.
-- 🎮 **Game modes** — Free-for-All, Team Deathmatch (Bomb/Defuse planned), offline Practice.
+- 🎮 **Game modes** — Free-for-All, Team Deathmatch, Bomb Defusal (rounds, plant/defuse), offline Practice.
 - ⚙️ **Graphics presets** — Low / Medium / High / Ultra + auto-detect on first launch.
 - 🔊 **3D spatial audio** — distance attenuation, occlusion, reverb zones.
 - 🎙️ **Voice chat** — team channel, proximity chat, push-to-talk / voice activation, per-player mute.
@@ -285,7 +285,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, and walking the ramps of Warehouse and Courtyard) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — and walking the ramps of Warehouse and Courtyard) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -304,7 +304,7 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
   ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16 --mode tdm --map warehouse
   # from source:
   godot --headless --path . -- --server --port 7777 --mode ffa --map courtyard
-  # --mode: ffa | tdm      --map: test_map | warehouse | courtyard
+  # --mode: ffa | tdm | bomb      --map: test_map | warehouse | courtyard
   ```
 
 **How it works**
@@ -333,8 +333,24 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 | **Practice** | Offline, any map, target dummies, no limits |
 | **Free-for-All** | First to **20** kills, or most kills after **10 min** |
 | **Team Deathmatch** | Blue vs Red, auto-balanced on join, **friendly fire off** (bullets pass through teammates), first team to **50** kills or most after **10 min** |
+| **Bomb Defusal** | Rounds, first team to **5 round wins**; sides swap after round 4. See below |
 
 Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **next map in the rotation** (Test Range → Warehouse → Courtyard → …), everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
+
+**Bomb Defusal**
+
+| Rule | Detail |
+|------|--------|
+| Sides | Red attacks first, Blue defends; **sides swap at halftime** (after `rounds to win − 1` rounds) |
+| Round | **5 s freeze** (can't move or shoot — pick your loadout) → **1:45** to plant → bomb timer **40 s** → 5 s round result |
+| Bomb | Given to a random attacker when the round goes live; carried on their back (visible to others); **dropped where the carrier dies**, any attacker can walk over it to pick it up |
+| Plant | Carrier stands still inside site **A** or **B** (orange floor + big letter) and **holds `E` for 3 s** |
+| Defuse | A defender stands still next to the bomb and **holds `E` for 5 s** (anyone can interrupt by killing them) |
+| Win a round | Attackers: bomb explodes (blast radius 15 m) or all defenders dead. Defenders: bomb defused, all attackers dead before a plant, or time runs out |
+| Death | **No respawn during a round** — you spectate living teammates (`Shoot` = next); no health regen; next round revives everyone with full ammo |
+| Joining | Freeze time waits until both teams have a player; joining mid-round = spectate until the next round |
+
+Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only send "holding E / released" and the server checks site, distance, standing still and timers. Bomb sites are `Marker3D`s in the level's `bomb_sites` list (`tools/greybox.py` → `m.site("A", pos)`).
 
 **Weapons** — loadout = one primary + the pistol. Switch with `1` / `2` / mouse wheel; pick your primary in the `Esc` menu (applies on your next spawn).
 
@@ -358,11 +374,11 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 
 Warehouse and Courtyard are generated by **`tools/greybox.py`** (boxes, ramps, doors, spawns, lights). Edit the layout in Python and run `python3 tools/greybox.py` to rebuild the `.tscn` files; replace the greybox with real art later.
 
-**Key scripts:** `scripts/core/match_manager.gd` (autoload `Match`), `scripts/core/game_config.gd`, `scripts/levels/level.gd` (team + safe spawns), `scripts/ui/hud.gd`, `scripts/ui/scope_overlay.gd`.
+**Key scripts:** `scripts/core/match_manager.gd` (autoload `Match`), `scripts/core/bomb_rules.gd` (`Match.bomb`), `scripts/core/game_config.gd`, `scripts/levels/level.gd` (team + safe spawns, spectator), `scripts/levels/bomb_visual.gd`, `scripts/ui/hud.gd`, `scripts/ui/scope_overlay.gd`.
 
 ### Testing multiplayer locally
 
-- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **rotates to Warehouse**, both players respawn there, and the client disconnects cleanly.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **rotates to Warehouse**, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client walks to site B and plants, the host walks over and defuses (Blue 1–0), the client eliminates the host (1–1), then plants again and the bomb explodes — Red wins 2–1 on both sides.
 - **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---
@@ -405,7 +421,7 @@ Dedicated server (no graphics, low CPU usage):
 | Aim down sights | `Right Mouse` |
 | Reload | `R` |
 | Switch weapon | `1` primary / `2` pistol / `Mouse Wheel` |
-| Interact | `E` |
+| Interact / plant / defuse (hold) | `E` |
 | Throw grenade | `G` |
 | **Push-to-talk (team)** | `V` |
 | **Push-to-talk (proximity)** | `B` |
@@ -472,7 +488,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute
 - [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)
 - [x] **Phase 6 — Content:** 5 weapons + loadouts, 3 maps, FFA & TDM with teams, match flow & map rotation, HUD & menus
-- [ ] **Phase 6b — Bomb/Defuse:** rounds, bomb plant/defuse, no respawns
+- [x] **Phase 6b — Bomb Defusal:** rounds, freeze time, bomb carry/drop/plant/defuse/explode, no respawns + spectating, halftime side swap
 - [ ] **Phase 7 — Optimization:** profiling on minimum-spec hardware, LODs, occlusion, auto-detect preset
 - [ ] **Phase 8 — Release:** installers, anti-cheat basics, beta testing, v1.0
 

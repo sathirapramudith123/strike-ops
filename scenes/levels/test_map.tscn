@@ -1,4 +1,4 @@
-[gd_scene load_steps=73 format=3]
+[gd_scene load_steps=75 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -6,6 +6,17 @@
 [ext_resource type="Shader" path="res://assets/shaders/prototype_grid.gdshader" id="4_grid"]
 [ext_resource type="PackedScene" path="res://scenes/levels/target_dummy.tscn" id="5_target"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="6_player"]
+
+[sub_resource type="ShaderMaterial" id="Mat_site"]
+render_priority = 0
+shader = ExtResource("4_grid")
+shader_parameter/base_color = Color(0.95, 0.55, 0.15, 1)
+shader_parameter/line_color = Color(0.75, 0.35, 0.1, 1)
+shader_parameter/cell_size = 0.5
+
+[sub_resource type="BoxMesh" id="Mesh_site"]
+material = SubResource("Mat_site")
+size = Vector3(7, 0.02, 7)
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.32, 0.5, 0.75, 1)
@@ -256,7 +267,7 @@ size = Vector3(1.5, 1.8, 1.5)
 [sub_resource type="BoxShape3D" id="Shape_31"]
 size = Vector3(3, 0.1, 4.4721)
 
-[node name="TestMap" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points")]
+[node name="TestMap" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points", "bomb_sites")]
 script = ExtResource("1_level")
 player_scene = ExtResource("6_player")
 world_environment = NodePath("WorldEnvironment")
@@ -264,6 +275,7 @@ sun = NodePath("Sun")
 spawn_points = [NodePath("SpawnPoints/Spawn1"), NodePath("SpawnPoints/Spawn2")]
 blue_spawn_points = [NodePath("SpawnPoints/Blue1"), NodePath("SpawnPoints/Blue2"), NodePath("SpawnPoints/Blue3")]
 red_spawn_points = [NodePath("SpawnPoints/Red1"), NodePath("SpawnPoints/Red2"), NodePath("SpawnPoints/Red3")]
+bomb_sites = [NodePath("BombSites/A"), NodePath("BombSites/B")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env")
@@ -582,6 +594,40 @@ move_distance = 3.0
 
 [node name="TargetPlatform" parent="Targets" instance=ExtResource("5_target")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 3, -20)
+
+[node name="BombSites" type="Node3D" parent="."]
+
+[node name="A" type="Marker3D" parent="BombSites"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 0, -4)
+
+[node name="Plate" type="MeshInstance3D" parent="BombSites/A"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
+mesh = SubResource("Mesh_site")
+
+[node name="Letter" type="Label3D" parent="BombSites/A"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+billboard = 1
+modulate = Color(1, 0.6, 0.2, 0.9)
+outline_modulate = Color(0, 0, 0, 0.8)
+text = "A"
+font_size = 160
+outline_size = 24
+
+[node name="B" type="Marker3D" parent="BombSites"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9, 0, 0)
+
+[node name="Plate" type="MeshInstance3D" parent="BombSites/B"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.01, 0)
+mesh = SubResource("Mesh_site")
+
+[node name="Letter" type="Label3D" parent="BombSites/B"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)
+billboard = 1
+modulate = Color(1, 0.6, 0.2, 0.9)
+outline_modulate = Color(0, 0, 0, 0.8)
+text = "B"
+font_size = 160
+outline_size = 24
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 

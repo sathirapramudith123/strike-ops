@@ -24,7 +24,10 @@ MATERIALS = {
     "stone": {"base_color": (0.7, 0.66, 0.58), "line_color": (0.55, 0.51, 0.45), "cell_size": 2.0},
     "blue": {"base_color": (0.25, 0.4, 0.75), "line_color": (0.18, 0.3, 0.6)},
     "red": {"base_color": (0.75, 0.3, 0.25), "line_color": (0.6, 0.2, 0.18)},
+    "site": {"base_color": (0.95, 0.55, 0.15), "line_color": (0.75, 0.35, 0.1), "cell_size": 0.5},
 }
+
+SITE_RADIUS = 3.5  # keep in sync with BombRules.SITE_RADIUS
 
 
 class Map:
@@ -33,6 +36,7 @@ class Map:
         self.boxes = []  # (name, pos, size, basis_rows, material, collide)
         self.spawns = {"ffa": [], "blue": [], "red": []}
         self.lights = []
+        self.sites = []  # (name, pos)
         self._n = {}
 
     def _id(self, prefix):
@@ -101,6 +105,12 @@ class Map:
         self.spawns[team].append((pos, yaw_deg))
         if team != "ffa":
             self.spawns["ffa"].append((pos, yaw_deg))
+
+    def site(self, name, pos):
+        """Bomb site: marker at the centre + an orange floor plate (visual)."""
+        self.sites.append((name, pos))
+        d = SITE_RADIUS * 2
+        self.box((pos[0], pos[1] + 0.01, pos[2]), (d, 0.02, d), "site", f"Site{name}Plate", collide=False)
 
     def omni(self, pos, energy=1.5, rng=12.0, color=(1.0, 0.9, 0.75)):
         self.lights.append((pos, energy, rng, color))
@@ -176,7 +186,13 @@ fog_density = {fog}
 volumetric_fog_density = 0.01
 
 '''
-        root = f'''[node name="{self.name}" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points")]
+        site_nodes, site_paths = [], []
+        for name, pos in self.sites:
+            site_nodes.append(f'[node name="{name}" type="Marker3D" parent="BombSites"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]}, {pos[1]}, {pos[2]})\n')
+            site_nodes.append(f'[node name="Letter" type="Label3D" parent="BombSites/{name}"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.2, 0)\nbillboard = 1\nmodulate = Color(1, 0.6, 0.2, 0.9)\noutline_modulate = Color(0, 0, 0, 0.8)\ntext = "{name}"\nfont_size = 160\noutline_size = 24\n')
+            site_paths.append(f'NodePath("BombSites/{name}")')
+
+        root = f'''[node name="{self.name}" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points", "bomb_sites")]
 script = ExtResource("1_level")
 player_scene = ExtResource("6_player")
 world_environment = NodePath("WorldEnvironment")
@@ -184,6 +200,7 @@ sun = NodePath("Sun")
 spawn_points = [{", ".join(all_ffa)}]
 blue_spawn_points = [{", ".join(groups["blue"])}]
 red_spawn_points = [{", ".join(groups["red"])}]
+bomb_sites = [{", ".join(site_paths)}]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env")
@@ -203,7 +220,8 @@ directional_shadow_max_distance = 100.0
 '''
         out = (head + "\n".join(mats) + "\n" + "\n".join(subs) + "\n" + root + "\n".join(nodes)
                + '\n[node name="SpawnPoints" type="Node3D" parent="."]\n\n' + "\n".join(spawn_nodes)
-               + '\n[node name="Lights" type="Node3D" parent="."]\n\n' + "\n".join(light_nodes) + "\n" + tail)
+               + '\n[node name="Lights" type="Node3D" parent="."]\n\n' + "\n".join(light_nodes)
+               + '\n[node name="BombSites" type="Node3D" parent="."]\n\n' + "\n".join(site_nodes) + "\n" + tail)
         with open(os.path.join(ROOT, path), "w") as f:
             f.write(out)
         print(f"wrote {path}: {len(self.boxes)} boxes, spawns blue={len(self.spawns['blue'])} red={len(self.spawns['red'])} ffa={len(self.spawns['ffa'])}")
@@ -264,6 +282,10 @@ def warehouse():
         for z in (-6, 6):
             m.omni((x, H - 1.2, z), 1.2, 14.0)
 
+    # Bomb sites (defenders = blue spawns in the south; attackers come from the north).
+    m.site("A", (-16.0, 0.0, 6.0))
+    m.site("B", (15.5, 0.0, 3.0))
+
     for x in (-4, 0, 4):
         m.spawn("blue", (x, 0.1, D / 2 - 2.0), 0)
     m.spawn("blue", (-12, 0.1, 10), 20)
@@ -323,6 +345,10 @@ def courtyard():
         m.wall_with_gaps((x_in, -bd / 2), (x_out, -bd / 2), 1.1, 0.3, [], "wall", y0=fh + 0.2, name="Parapet")
         # Cover crates on the roof.
         m.box((cx - sx * 1.5, fh + 0.7, -5.0), (1.2, 1.0, 1.2), "wood", "RoofCrate")
+
+    # Bomb sites on the ground floor of each building.
+    m.site("A", (-21.0, 0.0, -4.0))
+    m.site("B", (21.0, 0.0, -4.0))
 
     for x in (-6, 0, 6):
         m.spawn("blue", (x, 0.1, S / 2 - 3.0), 0)

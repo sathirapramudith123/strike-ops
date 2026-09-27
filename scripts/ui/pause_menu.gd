@@ -46,6 +46,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func open() -> void:
 	_panel.visible = true
+	if Match.mode == GameConfig.Mode.BOMB:
+		Match.bomb.request_interact(false)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if player:
 		player.input_enabled = false

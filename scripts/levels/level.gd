@@ -17,12 +17,18 @@ const DEFAULT_PLAYER_SCENE := "res://scenes/player/player.tscn"
 @export var spawn_points: Array[Marker3D] = []
 @export var blue_spawn_points: Array[Marker3D] = []
 @export var red_spawn_points: Array[Marker3D] = []
+## Bomb Defusal sites (Marker3D named "A", "B" at the centre of each site).
+## In Bomb Defusal the red spawns are the attackers' side and the blue spawns
+## the defenders', whichever team is attacking.
+@export var bomb_sites: Array[Marker3D] = []
 
 ## The local player (null on a dedicated server or before spawning).
 var player: PlayerController
 var players_root: Node3D
 
 var _spawn_index: int = 0
+var _spectate_index: int = 0
+var _spectating: PlayerController
 
 @onready var hud: Hud = $HUD
 @onready var pause_menu: PauseMenu = $PauseMenu
@@ -38,7 +44,15 @@ func _ready() -> void:
 	SettingsManager.graphics_changed.connect(_apply_graphics)
 	if NetworkManager.is_dedicated():
 		hud.visible = false
+	if not bomb_sites.is_empty() and not NetworkManager.is_dedicated():
+		var visual := BombVisual.new()
+		visual.name = "BombVisual"
+		add_child(visual)
 	NetworkManager.on_level_loaded(self)
+
+
+func _process(_delta: float) -> void:
+	_update_spectator()
 
 
 func spawn_player(peer_id: int, player_name: String, xform: Transform3D,
@@ -46,6 +60,10 @@ func spawn_player(peer_id: int, player_name: String, xform: Transform3D,
 	var existing := get_player(peer_id)
 	if existing:
 		return existing
+	# A player despawned this frame still holds the name — move it aside.
+	var stale := players_root.get_node_or_null(str(peer_id))
+	if stale:
+		stale.name = "%d_despawned" % peer_id
 	var p := player_scene.instantiate() as PlayerController
 	p.name = str(peer_id)
 	p.peer_id = peer_id
@@ -70,7 +88,8 @@ func despawn_player(peer_id: int) -> void:
 
 
 func get_player(peer_id: int) -> PlayerController:
-	return players_root.get_node_or_null(str(peer_id)) as PlayerController
+	var p := players_root.get_node_or_null(str(peer_id)) as PlayerController
+	return p if p and not p.is_queued_for_deletion() else null
 
 
 func get_players() -> Array[PlayerController]:
@@ -86,7 +105,10 @@ func get_players() -> Array[PlayerController]:
 func next_spawn_transform(peer_id: int = -1) -> Transform3D:
 	var candidates := spawn_points
 	if Match.is_team_mode():
-		match Match.get_team(peer_id):
+		var side := Match.get_team(peer_id)
+		if Match.mode == GameConfig.Mode.BOMB and side >= 0:
+			side = 1 if Match.bomb.is_attacker(peer_id) else 0
+		match side:
 			0: candidates = blue_spawn_points if not blue_spawn_points.is_empty() else spawn_points
 			1: candidates = red_spawn_points if not red_spawn_points.is_empty() else spawn_points
 	if candidates.is_empty():
@@ -114,6 +136,36 @@ func next_spawn_transform(peer_id: int = -1) -> Transform3D:
 			best_score = score
 			best = m
 	return best.global_transform
+
+
+## Bomb Defusal: while dead, watch a living teammate (Shoot = next player).
+func _update_spectator() -> void:
+	if player == null:
+		return
+	var want := player.health.is_dead and Match.mode == GameConfig.Mode.BOMB
+	if not want:
+		if _spectating:
+			_spectating = null
+			player.camera.current = true
+		return
+	var mates := get_players().filter(func(p: PlayerController) -> bool:
+		return p != player and not p.health.is_dead and Match.is_friendly(p.peer_id, player.peer_id))
+	if mates.is_empty():
+		if _spectating:
+			_spectating = null
+			player.camera.current = true
+		return
+	if Input.is_action_just_pressed(&"shoot"):
+		_spectate_index += 1
+	var target: PlayerController = mates[_spectate_index % mates.size()]
+	if target != _spectating:
+		_spectating = target
+		target.camera.current = true
+
+
+## Who the local player is watching (null when not spectating).
+func spectating() -> PlayerController:
+	return _spectating
 
 
 func _apply_graphics(_preset: GraphicsPreset) -> void:
