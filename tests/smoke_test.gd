@@ -536,6 +536,15 @@ func _test_bomb_defusal() -> void:
 	await _frames(30)
 	_check(b.phase == BombRules.Phase.LIVE, "round goes live after freeze")
 	_check(b.bomb_carrier == 1 and b.bomb_state == BombRules.BombState.CARRIED, "the attacker gets the bomb when the round goes live")
+	# Armour: full each Bomb Defusal round; soaks 40 % of a weapon hit.
+	_check(is_equal_approx(_player.health.armor, 100.0), "bomb round starts with 100 armour")
+	_player.health.take_damage(50.0, defender)
+	_check(is_equal_approx(_player.health.current, 70.0) and is_equal_approx(_player.health.armor, 80.0),
+		"armour takes 40 %% of a hit (health %.0f, armour %.0f)" % [_player.health.current, _player.health.armor])
+	_check(_level.hud._armor_label.text == "80" and _level.hud._armor_group.visible, "HUD shows the armour")
+	_player.health.take_damage(10.0, null, false, "Fall")
+	_check(is_equal_approx(_player.health.current, 60.0), "falls ignore armour")
+	_player.health.heal(100.0)
 
 	# Drop + pick up.
 	b.on_player_down(1, _player.global_position + Vector3(0.5, 0, 0))
@@ -876,10 +885,28 @@ func _test_maps() -> void:
 	_reset_player(Vector3(-32, 0.1, 22))
 	await _walk_forward_max_y(330)
 	_check(_player.global_position.z < -2.0, "kasbah: B Apartments corridor is passable (z=%.1f)" % _player.global_position.z)
+	# Enterable houses: in through a door, up the stairs.
+	_reset_player(Vector3(32, 0.1, -6.2), PI / 2)
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.x < 25.0, "kasbah: door into the house on A Long (x=%.1f)" % _player.global_position.x)
+	_reset_player(Vector3(19.15, 0.1, -8.5), PI)
+	var upstairs := await _walk_forward_max_y(200)
+	_check(upstairs > 3.9, "kasbah: stairs to the house's upper floor (y=%.2f)" % upstairs)
+	_reset_player(Vector3(-33, 0.1, 0.3), -PI / 2)
+	await _walk_forward_max_y(150)
+	_check(_player.global_position.x > -27.0, "kasbah: door into the house by B (x=%.1f)" % _player.global_position.x)
 
 	# Radar + location names (built from the map's collision shapes).
 	var radar: Minimap = _level.hud._minimap
 	_check(radar._polys.size() > 60, "radar outline built from the map (%d shapes)" % radar._polys.size())
+	_check((_level.hud._banner.get_node(^"Title") as Label).text == "KASBAH", "map name banner shows KASBAH")
+	var tex := load("res://assets/textures/surfaces_albedo.png") as TextureLayered
+	var nrm := load("res://assets/textures/surfaces_normal.png") as TextureLayered
+	_check(tex != null and nrm != null and tex.get_layers() == 7 and nrm.get_layers() == 7
+		and ProjectSettings.has_setting("shader_globals/surface_albedo"), "surface detail texture arrays (7 layers each)")
+	var signs := _level.get_node_or_null(^"Signs")
+	_check(signs != null and signs.get_child_count() >= 8, "painted A/B direction signs on the walls")
+	_check(is_zero_approx(_player.health.armor), "no armour outside Bomb Defusal")
 	_check(radar.location(Vector3(28, 1.1, -24)) == "Bombsite A" and radar.location(Vector3(0, 0.1, 8)) == "Mid"
 		and radar.location(Vector3(-34, 0.1, 10)) == "B Apartments", "location names: Bombsite A, Mid, B Apartments")
 	_check(radar.location(Vector3(-28, 0.1, -20)) == "Bombsite B", "bomb site fallback / callout for B")
@@ -912,13 +939,24 @@ func _test_maps() -> void:
 
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
-			["factory", Vector3(0, 0.1, 30), 0.0, func(p: Vector3) -> bool: return p.z < 12.0, "yard is open"],
-			["factory", Vector3(6.8, 0.1, -30), 0.0, func(p: Vector3) -> bool: return p.y > 3.3, "catwalk ramp in Hall A"],
+			["factory", Vector3(4.8, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.z < -29.5, "through the Lanka Steel doors to A"],
+			["factory", Vector3(-4.8, 0.1, -23.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 4.3, "stairs to Lanka Steel's upper floor"],
+			["factory", Vector3(-31, 0.1, 10), -PI / 2, func(p: Vector3) -> bool: return p.x > -7.0, "through the tunnels"],
+			["factory", Vector3(24, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the roof"],
+			["factory", Vector3(16.8, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the catwalk"],
+			["factory", Vector3(5, 0.1, 6), PI, func(p: Vector3) -> bool: return p.z > 20.0, "Lower Mid into B"],
 			["office", Vector3(0, 0.1, 40), 0.0, func(p: Vector3) -> bool: return p.z < 24.0, "front doors into the lobby"],
 			["office", Vector3(20, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.5, "stairs up to the mezzanine"],
 			["subway", Vector3(-15, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "west platform"],
 			["subway", Vector3(6, -1.1, -20), 0.0, func(p: Vector3) -> bool: return p.y > -0.1 and p.z < -30.0, "climb out of the track bed"],
 			["subway", Vector3(-10, 0.1, 4.7), -PI / 2, func(p: Vector3) -> bool: return p.x > -3.0, "walk through the train"],
+			["trainyard", Vector3(-27, 0.1, -10), PI / 2, func(p: Vector3) -> bool: return p.x < -33.0, "door into the signal tower"],
+			["trainyard", Vector3(-36.9, 0.1, -5.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "tower stairs to the upper room"],
+			["trainyard", Vector3(-27.5, 4.1, -8.2), PI / 2, func(p: Vector3) -> bool: return p.x < -32.0 and p.y > 3.9, "balcony door into the upper room"],
+			["rooftops", Vector3(-4, 0.1, -17.1), PI / 2, func(p: Vector3) -> bool: return p.x < -9.0, "door into the north-west building"],
+			["rooftops", Vector3(-19.9, 0.1, -19.85), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "stairs up to its roof"],
+			["docks", Vector3(16, 0.1, 16.8), -PI / 2, func(p: Vector3) -> bool: return p.x > 21.0, "door into the harbour office"],
+			["docks", Vector3(20.1, 0.1, 13.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.4, "harbour office stairs"],
 			["trainyard", Vector3(0, 0.1, 20), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "lane between the cars"],
 			["trainyard", Vector3(-28.9, 0.1, 7), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the tower balcony"]]:
 		if _level.name.to_lower() != route[0]:
@@ -927,8 +965,10 @@ func _test_maps() -> void:
 			_check(_player.is_on_floor(), "%s: player lands" % route[0])
 		_reset_player(route[1], route[2])
 		await _frames(2)
-		await _walk_forward_max_y(300)
-		_check((route[3] as Callable).call(_player.global_position), "%s: %s (at %s)" % [route[0], route[4], _player.global_position.snapped(Vector3.ONE * 0.1)])
+		# The check sees where the walk ended, with y = the highest point reached.
+		var peak := await _walk_forward_max_y(300)
+		var at := Vector3(_player.global_position.x, peak, _player.global_position.z)
+		_check((route[3] as Callable).call(at), "%s: %s (at %s)" % [route[0], route[4], at.snapped(Vector3.ONE * 0.1)])
 
 	# Every map has team spawns and bomb sites A + B.
 	for m: Dictionary in GameConfig.MAPS:

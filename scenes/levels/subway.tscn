@@ -1,4 +1,4 @@
-[gd_scene load_steps=403 format=3]
+[gd_scene load_steps=416 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -181,6 +181,15 @@ shader_parameter/kind = 11
 shader_parameter/base_color = Color(1.0, 0.95, 0.85, 1)
 shader_parameter/line_color = Color(1.0, 0.95, 0.85, 1)
 shader_parameter/grime = 0.0
+
+[sub_resource type="ShaderMaterial" id="Mat_paint_red"]
+render_priority = 0
+shader = ExtResource("4_grid")
+shader_parameter/kind = 4
+shader_parameter/base_color = Color(0.62, 0.1, 0.07, 1)
+shader_parameter/line_color = Color(0.62, 0.1, 0.07, 1)
+shader_parameter/grime = 0.0
+shader_parameter/roughness_value = 0.9
 
 [sub_resource type="BoxMesh" id="Mesh_1"]
 material = SubResource("Mat_gravel")
@@ -1554,6 +1563,54 @@ size = Vector3(7.000, 0.020, 7.000)
 material = SubResource("Mat_site")
 size = Vector3(7.000, 0.020, 7.000)
 
+[sub_resource type="BoxMesh" id="Mesh_227"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 1.000)
+
+[sub_resource type="BoxMesh" id="Mesh_228"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_229"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_230"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 1.000)
+
+[sub_resource type="BoxMesh" id="Mesh_231"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_232"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_233"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 1.000)
+
+[sub_resource type="BoxMesh" id="Mesh_234"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_235"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_236"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 1.000)
+
+[sub_resource type="BoxMesh" id="Mesh_237"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
+[sub_resource type="BoxMesh" id="Mesh_238"]
+material = SubResource("Mat_paint_red")
+size = Vector3(0.020, 0.120, 0.461)
+
 [sub_resource type="BoxShape3D" id="Zone_1"]
 size = Vector3(52.000, 7.000, 88.000)
 
@@ -2855,7 +2912,7 @@ mesh = SubResource("Mesh_155")
 shape = SubResource("Shape_155")
 
 [node name="Crate2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.956305, 0.000000, 0.292372, 0.000000, 1.000000, 0.000000, -0.292372, 0.000000, 0.956305, 21.500, 1.500, -10.000)
+transform = Transform3D(0.956305, 0.000000, -0.292372, 0.000000, 1.000000, 0.000000, 0.292372, 0.000000, 0.956305, 21.500, 1.500, -10.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Crate2"]
 mesh = SubResource("Mesh_156")
@@ -3344,37 +3401,37 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 mesh = SubResource("Mesh_218")
 
 [node name="StripLight27" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, -12.000, 4.950, -38.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -12.000, 4.950, -38.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/StripLight27"]
 mesh = SubResource("Mesh_219")
 
 [node name="StripLight28" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, 0.000, 4.950, -38.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000, 4.950, -38.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/StripLight28"]
 mesh = SubResource("Mesh_220")
 
 [node name="StripLight29" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, 12.000, 4.950, -38.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 12.000, 4.950, -38.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/StripLight29"]
 mesh = SubResource("Mesh_221")
 
 [node name="StripLight30" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, -12.000, 4.950, 38.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -12.000, 4.950, 38.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/StripLight30"]
 mesh = SubResource("Mesh_222")
 
 [node name="StripLight31" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, 0.000, 4.950, 38.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000, 4.950, 38.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/StripLight31"]
 mesh = SubResource("Mesh_223")
 
 [node name="StripLight32" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(0.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, -1.000000, 0.000000, 0.000000, 12.000, 4.950, 38.000)
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 12.000, 4.950, 38.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/StripLight32"]
 mesh = SubResource("Mesh_224")
@@ -3390,6 +3447,78 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/SiteBPlate1"]
 mesh = SubResource("Mesh_226")
+
+[node name="Arrow1" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -25.870, 2.550, -10.750)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow1"]
+mesh = SubResource("Mesh_227")
+
+[node name="Arrow2" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(-1.000000, -0.000000, 0.000000, 0.000000, 0.759257, 0.650791, -0.000000, 0.650791, -0.759257, -25.870, 2.700, -10.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow2"]
+mesh = SubResource("Mesh_228")
+
+[node name="Arrow3" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 0.759257, -0.650791, -0.000000, -0.650791, -0.759257, -25.870, 2.400, -10.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow3"]
+mesh = SubResource("Mesh_229")
+
+[node name="Arrow4" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 25.870, 2.550, -26.750)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow4"]
+mesh = SubResource("Mesh_230")
+
+[node name="Arrow5" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(-1.000000, -0.000000, 0.000000, 0.000000, 0.759257, 0.650791, -0.000000, 0.650791, -0.759257, 25.870, 2.700, -26.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow5"]
+mesh = SubResource("Mesh_231")
+
+[node name="Arrow6" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 0.759257, -0.650791, -0.000000, -0.650791, -0.759257, 25.870, 2.400, -26.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow6"]
+mesh = SubResource("Mesh_232")
+
+[node name="Arrow7" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, -25.870, 2.550, 26.750)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow7"]
+mesh = SubResource("Mesh_233")
+
+[node name="Arrow8" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 0.759257, 0.650791, 0.000000, -0.650791, 0.759257, -25.870, 2.700, 26.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow8"]
+mesh = SubResource("Mesh_234")
+
+[node name="Arrow9" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 0.759257, -0.650791, 0.000000, 0.650791, 0.759257, -25.870, 2.400, 26.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow9"]
+mesh = SubResource("Mesh_235")
+
+[node name="Arrow10" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(-1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, -0.000000, 0.000000, -1.000000, 25.870, 2.550, 26.750)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow10"]
+mesh = SubResource("Mesh_236")
+
+[node name="Arrow11" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 0.759257, 0.650791, 0.000000, -0.650791, 0.759257, 25.870, 2.700, 26.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow11"]
+mesh = SubResource("Mesh_237")
+
+[node name="Arrow12" type="StaticBody3D" parent="Geometry"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 0.759257, -0.650791, 0.000000, 0.650791, 0.759257, 25.870, 2.400, 26.425)
+
+[node name="Mesh" type="MeshInstance3D" parent="Geometry/Arrow12"]
+mesh = SubResource("Mesh_238")
 
 [node name="SpawnPoints" type="Node3D" parent="."]
 
@@ -3596,6 +3725,48 @@ metadata/size = Vector3(4, 5, 8)
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 2, 40)
 metadata/label = "Stairs"
 metadata/size = Vector3(4, 5, 8)
+
+[node name="Signs" type="Node3D" parent="."]
+
+[node name="Sign1" type="Label3D" parent="Signs"]
+transform = Transform3D(0.000000, 0, 1.000000, 0, 1, 0, -1.000000, 0, 0.000000, -25.870, 2.600, -12.000)
+pixel_size = 0.0045
+double_sided = false
+alpha_cut = 1
+modulate = Color(0.68, 0.1, 0.07, 0.95)
+text = "B"
+font_size = 256
+outline_size = 0
+
+[node name="Sign2" type="Label3D" parent="Signs"]
+transform = Transform3D(0.000000, 0, -1.000000, 0, 1, 0, 1.000000, 0, 0.000000, 25.870, 2.600, -28.000)
+pixel_size = 0.0045
+double_sided = false
+alpha_cut = 1
+modulate = Color(0.68, 0.1, 0.07, 0.95)
+text = "A"
+font_size = 256
+outline_size = 0
+
+[node name="Sign3" type="Label3D" parent="Signs"]
+transform = Transform3D(0.000000, 0, 1.000000, 0, 1, 0, -1.000000, 0, 0.000000, -25.870, 2.600, 28.000)
+pixel_size = 0.0045
+double_sided = false
+alpha_cut = 1
+modulate = Color(0.68, 0.1, 0.07, 0.95)
+text = "B"
+font_size = 256
+outline_size = 0
+
+[node name="Sign4" type="Label3D" parent="Signs"]
+transform = Transform3D(0.000000, 0, -1.000000, 0, 1, 0, 1.000000, 0, 0.000000, 25.870, 2.600, 28.000)
+pixel_size = 0.0045
+double_sided = false
+alpha_cut = 1
+modulate = Color(0.68, 0.1, 0.07, 0.95)
+text = "A"
+font_size = 256
+outline_size = 0
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 

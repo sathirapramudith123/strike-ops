@@ -20,6 +20,11 @@ uniform float metallic_value = 0.0;
 // Darkening at the bottom of walls (dirt / ambient occlusion look).
 uniform float grime = 0.3;
 global uniform float surface_detail;
+// Generated detail textures (tools/make_textures.py), one layer per surface
+// type: RGB = colour around mid-grey, A = roughness; plus normal maps.
+global uniform sampler2DArray surface_albedo;
+global uniform sampler2DArray surface_normal;
+uniform float normal_strength = 0.8;
 
 varying vec3 world_pos;
 varying vec3 world_normal;
@@ -162,6 +167,34 @@ void fragment() {
 		}
 	} else if (kind == 6) {
 		col *= 0.9;
+	}
+
+	// Texture detail (also only with Surface detail): colour, roughness and a
+	// normal map from the generated texture arrays, projected in world space.
+	if (surface_detail > 0.5) {
+		int layer = -1;
+		float scale = 0.5;
+		if (kind == 0 || kind == 1) { layer = 0; scale = 0.25; }
+		else if (kind == 2 && roughness_value > 0.2) { layer = 1; scale = 0.5; }
+		else if (kind == 3) { layer = 2; scale = 0.5; }
+		else if (kind == 4 || kind == 8) { layer = 3; scale = 0.35; }
+		else if (kind == 5 || kind == 7 || kind == 9) { layer = 4; scale = 0.3; }
+		else if (kind == 10) { layer = metallic_value > 0.2 ? 5 : 6; scale = metallic_value > 0.2 ? 0.5 : 1.0; }
+		if (layer >= 0) {
+			vec2 tuv = uv * scale;
+			// fract() + explicit gradients: tiles without a mipmap seam.
+			vec2 gx = dFdx(tuv);
+			vec2 gy = dFdy(tuv);
+			vec3 luv = vec3(fract(tuv), float(layer));
+			vec4 a = textureGrad(surface_albedo, luv, gx, gy);
+			col *= a.rgb * 2.0;
+			rough = clamp(rough * a.a * 2.0, 0.05, 1.0);
+			vec3 nt = textureGrad(surface_normal, luv, gx, gy).xyz * 2.0 - 1.0;
+			vec3 t_axis = floor_like ? vec3(1.0, 0.0, 0.0) : (n.x > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0));
+			vec3 b_axis = floor_like ? vec3(0.0, 0.0, 1.0) : vec3(0.0, 1.0, 0.0);
+			vec3 wn = normalize(normalize(world_normal) + (t_axis * nt.x + b_axis * nt.y) * normal_strength);
+			NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
+		}
 	}
 
 	// Grime: walls get darker towards the ground.

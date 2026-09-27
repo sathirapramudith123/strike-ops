@@ -256,6 +256,7 @@ func _run_bomb_client() -> void:
 	var live: Variant = await _wait_for(func() -> Variant:
 		return true if b.phase == BombRules.Phase.LIVE and b.bomb_carrier == me.peer_id else null)
 	_check(live == true, "client carries the bomb when round 1 goes live")
+	_check(is_equal_approx(me.health.armor, 100.0), "client gets its armour from the server (%.0f)" % me.health.armor)
 
 	# R1: walk to site B and plant with the Interact key.
 	await _plant_at_b(me)

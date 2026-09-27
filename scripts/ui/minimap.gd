@@ -14,11 +14,12 @@ const FLOOR_HEIGHT := 0.25
 const WALL_HEIGHT := 2.2
 const HEAD_HEIGHT := 2.6
 
-const COLOR_BACK := Color(0.04, 0.05, 0.06, 0.55)
-const COLOR_FLOOR := Color(0.52, 0.53, 0.5, 0.9)
-const COLOR_COVER := Color(0.34, 0.35, 0.34, 0.95)
-const COLOR_WALL := Color(0.14, 0.15, 0.16, 0.95)
-const COLOR_ME := Color(1, 0.85, 0.3)
+const COLOR_BACK := Color(0.03, 0.04, 0.05, 0.6)
+const COLOR_FLOOR := Color(0.6, 0.55, 0.45, 0.98)
+const COLOR_COVER := Color(0.38, 0.35, 0.3, 0.95)
+const COLOR_WALL := Color(0.11, 0.12, 0.13, 0.95)
+const COLOR_ME := Color(0.55, 0.9, 1.0)
+const COLOR_SITE := Color(1, 0.7, 0.2)
 const COLOR_BOMB := Color(1, 0.35, 0.2)
 
 var level: Level
@@ -152,15 +153,22 @@ func _draw_overlay() -> void:
 	for site in level.bomb_sites:
 		if site == null:
 			continue
-		var p := _to_screen(site.global_position, r - 10.0)
-		_overlay.draw_string(font, p + Vector2(-6, 7), site.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(1, 0.62, 0.25, 0.95))
+		var p := _to_screen(site.global_position, r - 12.0)
+		var box := Rect2(p - Vector2(9, 10), Vector2(18, 20))
+		_overlay.draw_rect(box, Color(0, 0, 0, 0.55))
+		_overlay.draw_rect(box, COLOR_SITE, false, 1.5)
+		_overlay.draw_string(font, p + Vector2(-5.5, 6.5), site.name, HORIZONTAL_ALIGNMENT_LEFT, -1, 17, COLOR_SITE)
 	# Teammates (everyone in FFA is an enemy — none shown).
 	if Match.is_team_mode():
 		for p in level.get_players():
 			if p == viewer or p.health.is_dead or not Match.is_friendly(p.peer_id, me):
 				continue
 			var sp := _to_screen(p.global_position, r - 5.0)
-			var col := GameConfig.team_color(Match.get_team(p.peer_id)).lightened(0.3)
+			var col := GameConfig.team_color(Match.get_team(p.peer_id)).lightened(0.35)
+			# A dot with a small tick showing where they look.
+			var look := -p.camera.global_basis.z
+			var dir := Vector2(look.x, look.z).normalized().rotated(_yaw)
+			_overlay.draw_line(sp, sp + dir * 8.0, Color(col, 0.9), 2.0)
 			_overlay.draw_circle(sp, 4.5, Color.BLACK)
 			_overlay.draw_circle(sp, 3.5, col)
 			if Match.mode == GameConfig.Mode.BOMB and Match.bomb.bomb_state == BombRules.BombState.CARRIED \
@@ -173,8 +181,11 @@ func _draw_overlay() -> void:
 			or (b.bomb_state == BombRules.BombState.DROPPED and b.is_attacker(me))
 		if show and (b.bomb_state != BombRules.BombState.PLANTED or fmod(Time.get_ticks_msec() / 400.0, 2.0) < 1.4):
 			var bp := _to_screen(b.bomb_position, r - 6.0)
+			# Dropped: a plain block. Planted: a block with a ring (blinking).
 			_overlay.draw_rect(Rect2(bp - Vector2(4, 4), Vector2(8, 8)), COLOR_BOMB)
 			_overlay.draw_rect(Rect2(bp - Vector2(4, 4), Vector2(8, 8)), Color.BLACK, false, 1.0)
+			if b.bomb_state == BombRules.BombState.PLANTED:
+				_overlay.draw_arc(bp, 8.0, 0.0, TAU, 16, COLOR_BOMB, 1.5)
 	# Me: an arrow pointing up, at the centre.
 	var arrow := PackedVector2Array([c + Vector2(0, -8), c + Vector2(6, 6), c + Vector2(0, 3), c + Vector2(-6, 6)])
 	_overlay.draw_colored_polygon(arrow, COLOR_ME)

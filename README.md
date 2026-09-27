@@ -465,6 +465,12 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 | **Reload (others)** | `PlayerNetSync` sends a `RELOADING` flag; `PlayerModel` tips the gun and swings its separate left arm; the *mag out* sound plays at the player |
 | **More maps** | `factory()`, `office()`, `subway()`, `trainyard()` in `tools/greybox.py`; new helpers for trucks, containers, freight cars, rails, desks, strip lights; new materials (brick, tile, carpet, glass, gravel, sleepers…) and an emissive *lamp* kind so indoor maps stay lit on Low, where real lights are off |
 
+| **Armour** | `Health.uses_armor` (players): 100 at each Bomb Defusal round (and spawn), absorbs `ARMOR_ABSORB` = 40 % of weapon damage; synced with health; falls/bomb ignore it |
+| **HUD details** | Health + armour row with bars, ammo bullet marks, drawn faces on top-bar cards (`TopBar._draw_face`), map name banner (`Hud.show_banner`, 6 s), radar with boxed sites and teammate view ticks |
+| **Detail textures** | `tools/make_textures.py` (numpy + Pillow) writes two tileable 512² texture arrays, 7 layers each: `assets/textures/surfaces_albedo.png` (colour around mid-grey + roughness) and `surfaces_normal.png`. They are global shader uniforms (`surface_albedo`, `surface_normal`); `prototype_grid.gdshader` picks a layer by surface kind and projects it in world space, only when *Surface detail* is on (Medium+). To use photo textures instead, replace a layer keeping size and order |
+| **Enterable buildings** | `_house(m, x0, x1, z0, z1, mat, floors, fh, doors, windows, stair_side)` in `tools/greybox.py`: walls with real door/window openings per floor (`_wall_openings`), a ramp stair along one wall, upper floor slabs with a railed stair hole, roof, lights and a reverb zone. Options: doors on upper floors (`(face, offset, width, floor)`), `stair_angle`, `roof_access`. Used for Kasbah's A House and B House, Factory's Lanka Steel, Train Yard's signal tower, two Rooftops buildings and the Docks harbour office |
+| **Wall signs** | `m.sign(pos, face, "A", toward=(x, z))` in `tools/greybox.py`: a painted Label3D letter + arrow boxes pointing towards a place; plus `_rug()`, `_tower()`, fruit crates on stalls |
+
 Draw calls at the worst view on Low (after batching): Courtyard ~120, Kasbah ~185, Factory ~190, Office / Train Yard ~205, Subway ~235 — still well within what the minimum-spec GPUs handle.
 
 ### Phase 7b — real-hardware tuning
@@ -567,7 +573,7 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Docks | Outdoor, lanes | Container stacks on a quay, a moored ship (Red spawns on its deck) with two gangways, a crane |
 | Bunker | Indoor, small (2–8 players) | Central atrium with four doors, four corner rooms, tight corridors — fast rounds |
 | Kasbah | Desert town, bomb defusal | Three lanes (A Long, Mid with doors, covered B Apartments), Connector and Short; A is a raised terrace, B a courtyard round a well |
-| Factory | Industrial, halls + yard | Machine hall with a catwalk (A), storage hall (B), CT offices between them, a yard of trucks, pipes and tanks, loading docks |
+| Factory | Industrial, 3 lanes | A under a gantry crane next to two silos with a flat roof overlooking it; B in a walled yard; West Lane past the Warehouse, Mid with a catwalk under the Lanka Steel building, Tunnels to Lower Mid, the Rail Yard along the east; painted T / CT spawns, coconut palms, a Sri Lankan flag |
 | Office | Indoor, two floors | Lobby with reception, open-plan office (A), conference + server room (B), break room and storage under a mezzanine reached by two stairs, side alleys |
 | Subway | Underground | Two side platforms and an island, track beds to drop into (climb out at the ends), a two-car train to walk through, ticket halls with turnstiles |
 | Train Yard | Outdoor, rail lanes | Six tracks of box, tank and hopper cars, a maintenance shed with a locomotive (A), a signal tower with a balcony and containers (B) |
@@ -726,6 +732,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [ ] **Phase 7b — Real-hardware pass:** ✅ tools done (full hardware test with renderer restarts, shareable reports, `tools/tune_presets.py`, measured GPU tiers for auto-detect) · ⏳ waiting for reports from the minimum-spec PCs (Intel UHD 620 / Vega 8) to tune the presets
 - [x] **Phase 8 — Release (beta):** export presets, release packages + checksums, Windows installer, dedicated-server package + Docker, CI + release workflows, anti-cheat, bug reporting, changelog
 - [x] **v0.9 — toward v1.0:** controller support (look curve, aim assist, rumble, remapping), new look from code (procedural materials, gun + soldier models, lighting), code-signing pipeline (off until certificates exist)
+- [x] **Concept-art pass (code only):** armour, health/armour/ammo HUD, faces in the top bar, map banner, painted A/B signs, rugs, fruit stalls, barrels, towers
 - [x] **Maps + CS-style HUD:** Kasbah, Factory, Office, Subway and Train Yard; radar with location names, top bar with player cards; first-person hands, new sniper model; reload animations in first and third person
 - [ ] **v1.0:** beta feedback, presets tuned from hardware reports (Phase 7b), real art (CC0 packs or an artist), certificates for signing
 
