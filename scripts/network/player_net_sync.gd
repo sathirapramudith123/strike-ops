@@ -1,0 +1,199 @@
+class_name PlayerNetSync
+extends Node
+## Replicates one player's movement and handles server-side respawns.
+##
+## • Owner (local player): sends its state to the server SEND_RATE times/sec.
+## • Server: validates the state (speed check), stamps it with server time,
+##   stores it in the history used by lag compensation and relays it to others.
+## • Everyone else: buffers snapshots and renders the player
+##   INTERPOLATION_DELAY in the past, interpolating between two snapshots.
+
+const SEND_RATE := 30.0
+const HISTORY_SECONDS := 1.0
+## Max horizontal speed accepted by the server (sprint + slide boost + margin).
+const MAX_SPEED := 14.0
+
+enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8 }
+
+@onready var player: PlayerController = get_parent()
+
+## Snapshots: { t, pos, yaw, pitch, height, flags } ordered by t (server time).
+var _snapshots: Array[Dictionary] = []
+var _send_timer: float = 0.0
+var _respawn_timer: float = -1.0
+var _last_valid_pos: Vector3
+var _last_valid_time: float = -1.0
+
+
+func _ready() -> void:
+	# Children are ready before the parent, so player.health isn't set yet.
+	(player.get_node("Health") as Health).died.connect(_on_died)
+
+
+func _physics_process(delta: float) -> void:
+	var now := NetworkManager.server_time()
+	if player.is_local:
+		_send_timer -= delta
+		if multiplayer.is_server():
+			# Host player: record every tick for lag compensation.
+			_push_snapshot(now, player.global_position, player.rotation.y,
+				player.head.rotation.x, player.current_height(), _flags())
+			if _send_timer <= 0.0:
+				_send_timer = 1.0 / SEND_RATE
+				NetworkManager.send_to_ready(self, &"_client_state", [now, player.global_position,
+					player.rotation.y, player.head.rotation.x, player.current_height(), _flags()])
+		elif _send_timer <= 0.0 and NetworkManager.is_online():
+			_send_timer = 1.0 / SEND_RATE
+			_server_state.rpc_id(1, player.global_position, player.rotation.y,
+				player.head.rotation.x, player.current_height(), _flags())
+	else:
+		_interpolate(now - NetworkManager.INTERPOLATION_DELAY)
+
+	if multiplayer.is_server() and _respawn_timer >= 0.0:
+		_respawn_timer -= delta
+		if _respawn_timer < 0.0:
+			_server_respawn()
+
+
+## Player state at a given server time (for lag compensation).
+func get_state_at(t: float) -> Dictionary:
+	if _snapshots.is_empty():
+		return { "pos": player.global_position, "height": player.current_height() }
+	return _sample(t)
+
+
+## Owner → server when the player falls out of the map.
+func report_fell() -> void:
+	if multiplayer.is_server():
+		player.health.take_damage(99999.0, null)
+	else:
+		_server_fell.rpc_id(1)
+
+
+# -----------------------------------------------------------------------------
+# RPCs
+# -----------------------------------------------------------------------------
+
+@rpc("any_peer", "call_remote", "unreliable_ordered", 1) # channel 1 = NetworkManager.CHANNEL_STATE
+func _server_state(pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != player.peer_id:
+		return
+	if player.health.is_dead:
+		return
+	var now := NetworkManager.server_time()
+	if _last_valid_time >= 0.0:
+		var dt := maxf(now - _last_valid_time, 1.0 / SEND_RATE)
+		var moved := Vector2(pos.x - _last_valid_pos.x, pos.z - _last_valid_pos.z).length()
+		if moved > 1.0 and moved / dt > MAX_SPEED * 1.5:
+			# Too fast — reject and snap the owner back.
+			_correct.rpc_id(player.peer_id, _last_valid_pos)
+			return
+	_last_valid_pos = pos
+	_last_valid_time = now
+	pitch = clampf(pitch, -PI * 0.5, PI * 0.5)
+	height = clampf(height, player.crouch_height, player.stand_height)
+	_push_snapshot(now, pos, yaw, pitch, height, flags)
+	NetworkManager.send_to_ready(self, &"_client_state", [now, pos, yaw, pitch, height, flags], [player.peer_id])
+
+
+@rpc("any_peer", "call_remote", "unreliable_ordered", 1) # channel 1 = NetworkManager.CHANNEL_STATE
+func _client_state(t: float, pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:
+	if multiplayer.get_remote_sender_id() != 1 or player.is_local:
+		return
+	_push_snapshot(t, pos, yaw, pitch, height, flags)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _correct(pos: Vector3) -> void:
+	if multiplayer.get_remote_sender_id() == 1 and player.is_local:
+		player.global_position = pos
+		player.velocity = Vector3.ZERO
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_fell() -> void:
+	if multiplayer.is_server() and multiplayer.get_remote_sender_id() == player.peer_id:
+		player.health.take_damage(99999.0, null)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _respawn(xform: Transform3D) -> void:
+	if multiplayer.get_remote_sender_id() != 1:
+		return
+	_apply_respawn(xform)
+
+
+# -----------------------------------------------------------------------------
+# Internals
+# -----------------------------------------------------------------------------
+
+func _on_died(source: Node) -> void:
+	if not multiplayer.is_server():
+		return
+	_respawn_timer = player.respawn_delay
+	var killer := source as PlayerController
+	var weapon_name := killer.current_weapon.data.display_name \
+		if killer and killer.current_weapon else "Fall"
+	NetworkManager.report_kill(killer.peer_id if killer else -1, player.peer_id,
+		weapon_name, player.health.last_hit_headshot)
+
+
+func _server_respawn() -> void:
+	var level := player.get_parent().get_parent() as Level
+	var xform := level.next_spawn_transform() if level else player.global_transform
+	player.health.revive()
+	_apply_respawn(xform)
+	NetworkManager.send_to_ready(self, &"_respawn", [xform])
+
+
+func _apply_respawn(xform: Transform3D) -> void:
+	_snapshots.clear()
+	_last_valid_pos = xform.origin
+	_last_valid_time = NetworkManager.server_time()
+	player.respawn_at(xform)
+
+
+func _push_snapshot(t: float, pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:
+	if not _snapshots.is_empty() and t <= _snapshots[-1].t:
+		return # out of order / duplicate
+	_snapshots.append({ "t": t, "pos": pos, "yaw": yaw, "pitch": pitch, "height": height, "flags": flags })
+	while _snapshots.size() > 2 and _snapshots[0].t < t - HISTORY_SECONDS:
+		_snapshots.pop_front()
+
+
+func _interpolate(render_t: float) -> void:
+	if _snapshots.is_empty():
+		return
+	var st := _sample(render_t)
+	player.apply_remote_state(st.pos, st.yaw, st.pitch, st.height, st.flags)
+
+
+## Interpolated snapshot at time t (clamped to the buffered range).
+func _sample(t: float) -> Dictionary:
+	if t <= _snapshots[0].t:
+		return _snapshots[0]
+	if t >= _snapshots[-1].t:
+		return _snapshots[-1]
+	var i := _snapshots.size() - 2
+	while i > 0 and _snapshots[i].t > t:
+		i -= 1
+	var a: Dictionary = _snapshots[i]
+	var b: Dictionary = _snapshots[i + 1]
+	var w := inverse_lerp(a.t, b.t, t)
+	return {
+		"t": t,
+		"pos": (a.pos as Vector3).lerp(b.pos, w),
+		"yaw": lerp_angle(a.yaw, b.yaw, w),
+		"pitch": lerpf(a.pitch, b.pitch, w),
+		"height": lerpf(a.height, b.height, w),
+		"flags": b.flags,
+	}
+
+
+func _flags() -> int:
+	var f := 0
+	if player.is_sprinting: f |= Flags.SPRINTING
+	if player.is_crouching: f |= Flags.CROUCHING
+	if player.is_sliding: f |= Flags.SLIDING
+	if player.current_weapon and player.current_weapon.is_aiming: f |= Flags.AIMING
+	return f

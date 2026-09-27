@@ -31,6 +31,8 @@ func _run() -> void:
 	await _test_reload()
 	await _test_ramps()
 	await _test_pause_disables_input()
+	await _test_fall_death_and_respawn()
+	_test_lag_compensation()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -165,6 +167,44 @@ func _test_pause_disables_input() -> void:
 	var moved := Vector2(_player.global_position.x - start.x, _player.global_position.z - start.z).length()
 	_check(moved < 0.05, "pause menu blocks movement")
 	_level.pause_menu.close()
+
+
+func _test_fall_death_and_respawn() -> void:
+	_reset_player(Vector3(0, -35, 6))
+	await _frames(5)
+	_check(_player.health.is_dead, "falling out of the map kills the player")
+	var deaths: int = NetworkManager.roster.get(1, {}).get("deaths", 0)
+	_check(deaths >= 1, "death counted in roster (%d)" % deaths)
+	await _frames(int(_player.respawn_delay * 60.0) + 10)
+	_check(not _player.health.is_dead and _player.global_position.y > -1.0, "player respawns at a spawn point")
+
+
+func _test_lag_compensation() -> void:
+	# Pure math.
+	var t_sphere := LagCompensation.ray_sphere(Vector3.ZERO, Vector3.FORWARD, Vector3(0, 0, -10), 1.0)
+	_check(is_equal_approx(t_sphere, 9.0), "ray_sphere distance (%.2f)" % t_sphere)
+	var t_caps := LagCompensation.ray_capsule(Vector3(0, 1, 0), Vector3.FORWARD, Vector3(0, 0.35, -10), Vector3(0, 1.4, -10), 0.35)
+	_check(is_equal_approx(t_caps, 9.65), "ray_capsule side hit (%.2f)" % t_caps)
+	var t_miss := LagCompensation.ray_capsule(Vector3(2, 1, 0), Vector3.FORWARD, Vector3(0, 0.35, -10), Vector3(0, 1.4, -10), 0.35)
+	_check(t_miss < 0.0, "ray_capsule miss")
+
+	# Rewind: a remote player was at x=-6 at t0 and x=-2 at t1.
+	var remote := _level.spawn_player(99, "Remote", Transform3D(Basis.IDENTITY, Vector3(-6, 0, 20)))
+	var t0 := NetworkManager.server_time() + 10.0
+	remote.net_sync._push_snapshot(t0, Vector3(-6, 0, 20), 0.0, 0.0, 1.8, 0)
+	remote.net_sync._push_snapshot(t0 + 0.2, Vector3(-2, 0, 20), 0.0, 0.0, 1.8, 0)
+	var space := _level.get_world_3d().direct_space_state
+	var players := _level.get_players()
+	var origin := Vector3(-6, 1.2, 26)
+	var hit_old := LagCompensation.trace(space, origin, Vector3.FORWARD, 50.0, _player, players, t0)
+	_check(hit_old.get("hitbox") == remote.body_hitbox, "shot at the old position hits when rewound")
+	var hit_new := LagCompensation.trace(space, origin, Vector3.FORWARD, 50.0, _player, players, t0 + 0.2)
+	_check(hit_new.get("hitbox") != remote.body_hitbox, "same shot misses at the newer position")
+	var mid := remote.net_sync.get_state_at(t0 + 0.1)
+	_check((mid.pos as Vector3).is_equal_approx(Vector3(-4, 0, 20)), "history interpolates between snapshots")
+	var head := LagCompensation.trace(space, Vector3(-6, 1.6, 26), Vector3.FORWARD, 50.0, _player, players, t0)
+	_check(head.get("hitbox") == remote.head_hitbox, "head height hits the head hitbox")
+	_level.despawn_player(99)
 
 
 # -----------------------------------------------------------------------------

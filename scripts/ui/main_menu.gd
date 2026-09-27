@@ -1,7 +1,5 @@
 extends Control
-## Main menu with a basic settings panel (graphics preset, display, audio, voice).
-
-const TEST_MAP := "res://scenes/levels/test_map.tscn"
+## Main menu: offline play, host / join multiplayer, and a basic settings panel.
 
 @onready var _main: VBoxContainer = %Main
 @onready var _settings: VBoxContainer = %Settings
@@ -27,6 +25,15 @@ func _ready() -> void:
 	%BackButton.pressed.connect(_show_settings.bind(false))
 	%QuitButton.pressed.connect(get_tree().quit)
 	%PlayButton.pressed.connect(_on_play_pressed)
+	%HostButton.pressed.connect(_on_host_pressed)
+	%JoinButton.pressed.connect(_on_join_pressed)
+	%AddressEdit.text_submitted.connect(func(_t: String) -> void: _on_join_pressed())
+	%NameEdit.text = SettingsManager.player_name
+	%AddressEdit.text = SettingsManager.last_join_address
+	%PortSpin.value = SettingsManager.host_port
+	%StatusLabel.text = NetworkManager.last_error
+	NetworkManager.last_error = ""
+	NetworkManager.connection_failed.connect(_on_connection_failed)
 	_restart_button.pressed.connect(SettingsManager.restart_game)
 
 	_quality.item_selected.connect(_on_quality_selected)
@@ -43,7 +50,53 @@ func _ready() -> void:
 
 
 func _on_play_pressed() -> void:
-	get_tree().change_scene_to_file(TEST_MAP)
+	_store_name()
+	NetworkManager.start_offline()
+
+
+func _on_host_pressed() -> void:
+	_store_name()
+	SettingsManager.host_port = int(%PortSpin.value)
+	SettingsManager.save()
+	if NetworkManager.host(SettingsManager.host_port) != OK:
+		%StatusLabel.text = NetworkManager.last_error
+
+
+func _on_join_pressed() -> void:
+	_store_name()
+	var text: String = %AddressEdit.text.strip_edges()
+	if text.is_empty():
+		text = "127.0.0.1"
+	var address := text
+	var port := NetworkManager.DEFAULT_PORT
+	if text.count(":") == 1:
+		address = text.get_slice(":", 0)
+		port = text.get_slice(":", 1).to_int()
+	SettingsManager.last_join_address = text
+	SettingsManager.save()
+	if NetworkManager.join(address, port) == OK:
+		%StatusLabel.text = "Connecting to %s:%d…" % [address, port]
+		_set_buttons_disabled(true)
+	else:
+		%StatusLabel.text = NetworkManager.last_error
+
+
+func _on_connection_failed(reason: String) -> void:
+	if is_inside_tree():
+		%StatusLabel.text = reason
+		_set_buttons_disabled(false)
+
+
+func _set_buttons_disabled(disabled: bool) -> void:
+	for b: String in ["PlayButton", "HostButton", "JoinButton"]:
+		(get_node("%" + b) as Button).disabled = disabled
+
+
+func _store_name() -> void:
+	var n: String = %NameEdit.text.strip_edges()
+	SettingsManager.player_name = n if not n.is_empty() else "Player"
+	NetworkManager.local_name = SettingsManager.player_name
+	SettingsManager.save()
 
 
 func _refresh() -> void:

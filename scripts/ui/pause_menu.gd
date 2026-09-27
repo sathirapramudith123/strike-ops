@@ -3,8 +3,6 @@ extends CanvasLayer
 ## In-game menu (Esc). The game keeps running underneath — this is a
 ## multiplayer shooter — only the local player's input is disabled.
 
-const MAIN_MENU := "res://scenes/main/main_menu.tscn"
-
 var player: PlayerController
 
 @onready var _panel: Control = %Panel
@@ -19,6 +17,7 @@ func _ready() -> void:
 	_panel.visible = false
 	for q: GraphicsPreset.Quality in SettingsManager.PRESET_FILES:
 		_quality.add_item(SettingsManager.load_preset(q).display_name, q)
+	%MainMenuButton.text = "Disconnect" if NetworkManager.is_online() else "Main menu"
 	%ResumeButton.pressed.connect(close)
 	%MainMenuButton.pressed.connect(_go_to_main_menu)
 	%QuitButton.pressed.connect(get_tree().quit)
@@ -71,4 +70,4 @@ func _on_fov_changed(value: float) -> void:
 func _go_to_main_menu() -> void:
 	SettingsManager.save()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
-	get_tree().change_scene_to_file(MAIN_MENU)
+	NetworkManager.leave()

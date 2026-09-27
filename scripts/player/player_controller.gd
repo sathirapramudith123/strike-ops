@@ -3,10 +3,18 @@ extends CharacterBody3D
 ## First-person player: mouse look, walk / sprint / crouch / slide / jump,
 ## camera effects (head bob, FOV kick, recoil) and weapon handling.
 ##
+## The same scene is used for every player in a match:
+##   • local player  (is_local)  – reads input, runs physics, first-person view
+##   • remote players            – driven by PlayerNetSync interpolation,
+##                                 third-person body + name tag
+##
 ## Scene layout (see scenes/player/player.tscn):
-##   Player (CharacterBody3D)
+##   Player (CharacterBody3D)          ← authority = owning peer
 ##   ├── CollisionShape3D (CapsuleShape3D, local to scene)
-##   ├── Health
+##   ├── Health                        ← authority = server
+##   ├── NetSync (PlayerNetSync)
+##   ├── BodyHitbox / Head/HeadHitbox  ← Hitbox (layer 3)
+##   ├── ThirdPerson (body mesh, hidden for the local player) + NameTag
 ##   └── Head (Node3D)                 ← pitch
 ##       └── Camera3D                  ← recoil + head bob
 ##           └── WeaponHolder (Node3D) ← weapons as children
@@ -49,6 +57,10 @@ signal respawned
 @export var fall_limit_y: float = -30.0
 @export var respawn_delay: float = 2.0
 
+## Network peer that owns this player (1 = server / offline).
+var peer_id: int = 1
+var player_name: String = "Player"
+var is_local: bool = true
 var input_enabled: bool = true
 var is_sprinting: bool = false
 var is_crouching: bool = false
@@ -59,6 +71,13 @@ var current_weapon: Weapon
 @onready var camera: Camera3D = $Head/Camera3D
 @onready var weapon_holder: Node3D = $Head/Camera3D/WeaponHolder
 @onready var health: Health = $Health
+@onready var net_sync: PlayerNetSync = $NetSync
+@onready var body_hitbox: Hitbox = $BodyHitbox
+@onready var head_hitbox: Hitbox = $Head/HeadHitbox
+@onready var hitboxes: Array[Hitbox] = [body_hitbox, head_hitbox]
+@onready var _third_person: Node3D = $ThirdPerson
+@onready var _name_tag: Label3D = $NameTag
+@onready var _body_hitbox_shape: CapsuleShape3D = $BodyHitbox/CollisionShape3D.shape
 @onready var _shape: CapsuleShape3D = $CollisionShape3D.shape
 @onready var _collision: CollisionShape3D = $CollisionShape3D
 
@@ -69,18 +88,35 @@ var _jump_buffer_timer: float = 0.0
 var _slide_cooldown_timer: float = 0.0
 var _bob_time: float = 0.0
 var _recoil := Vector2.ZERO # (pitch, yaw) in radians, applied to the camera
-var _spawn_transform: Transform3D
-var _respawn_timer: float = 0.0
+var _fell_reported: bool = false
+
+
+func _enter_tree() -> void:
+	# Must be set before _ready so RPCs route correctly from the first frame.
+	set_multiplayer_authority(peer_id)
+	$Health.set_multiplayer_authority(1)
 
 
 func _ready() -> void:
-	_spawn_transform = global_transform
+	is_local = peer_id == multiplayer.get_unique_id() and not NetworkManager.is_dedicated()
 	_height = stand_height
 	_apply_height()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	SettingsManager.apply_to_camera(camera)
-	SettingsManager.graphics_changed.connect(func(_p: GraphicsPreset) -> void: SettingsManager.apply_to_camera(camera))
 	health.died.connect(_on_died)
+	_name_tag.text = player_name
+
+	if is_local:
+		camera.current = true
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		SettingsManager.apply_to_camera(camera)
+		SettingsManager.graphics_changed.connect(func(_p: GraphicsPreset) -> void: SettingsManager.apply_to_camera(camera))
+		# Own body only casts shadows; own name tag hidden.
+		for mesh: GeometryInstance3D in _third_person.find_children("*", "GeometryInstance3D", true, false):
+			mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		_name_tag.visible = false
+	else:
+		camera.current = false
+		input_enabled = false
+		set_process_unhandled_input(false)
 
 	for child in weapon_holder.get_children():
 		if child is Weapon:
@@ -107,10 +143,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if health.is_dead:
-		_respawn_timer -= delta
-		if _respawn_timer <= 0.0:
-			respawn()
+	if not is_local or health.is_dead:
 		return
 
 	var input_dir := Vector2.ZERO
@@ -180,8 +213,9 @@ func _physics_process(delta: float) -> void:
 	_update_height(delta)
 	_update_camera(delta, on_floor)
 
-	if global_position.y < fall_limit_y:
-		respawn()
+	if global_position.y < fall_limit_y and not _fell_reported:
+		_fell_reported = true
+		net_sync.report_fell()
 
 
 # -----------------------------------------------------------------------------
@@ -202,18 +236,34 @@ func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 	_recoil.y += deg_to_rad(yaw_degrees)
 
 
-func set_spawn_transform(t: Transform3D) -> void:
-	_spawn_transform = t
-
-
-func respawn() -> void:
-	global_transform = _spawn_transform
+## Called on every peer by PlayerNetSync when the server respawns this player.
+func respawn_at(xform: Transform3D) -> void:
+	global_transform = xform
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
 	_recoil = Vector2.ZERO
 	is_sliding = false
-	health.revive()
+	_fell_reported = false
+	visible = true
+	_set_hitboxes_enabled(true)
 	respawned.emit()
+
+
+## Called by PlayerNetSync for remote players (interpolated state).
+func apply_remote_state(pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:
+	global_position = pos
+	rotation.y = yaw
+	head.rotation.x = pitch
+	is_sprinting = flags & PlayerNetSync.Flags.SPRINTING != 0
+	is_crouching = flags & PlayerNetSync.Flags.CROUCHING != 0
+	is_sliding = flags & PlayerNetSync.Flags.SLIDING != 0
+	if not is_equal_approx(height, _height):
+		_height = height
+		_apply_height()
+
+
+func current_height() -> float:
+	return _height
 
 
 # -----------------------------------------------------------------------------
@@ -260,6 +310,13 @@ func _apply_height() -> void:
 	_shape.height = _height
 	_collision.position.y = _height * 0.5
 	head.position.y = _height - eye_offset
+	# Keep hitboxes in sync with LagCompensation's analytic shapes.
+	var head_center := _height - LagCompensation.HEAD_DROP
+	head_hitbox.position.y = head_center - head.position.y
+	var body_height := maxf(head_center - LagCompensation.HEAD_RADIUS, LagCompensation.BODY_RADIUS * 2.0)
+	_body_hitbox_shape.height = body_height
+	body_hitbox.position.y = body_height * 0.5
+	_third_person.scale.y = _height / stand_height
 
 
 func _update_camera(delta: float, on_floor: bool) -> void:
@@ -286,6 +343,13 @@ func _update_camera(delta: float, on_floor: bool) -> void:
 
 
 func _on_died(_source: Node) -> void:
-	_respawn_timer = respawn_delay
 	velocity = Vector3.ZERO
 	is_sliding = false
+	_set_hitboxes_enabled(false)
+	if not is_local:
+		visible = false
+
+
+func _set_hitboxes_enabled(enabled: bool) -> void:
+	for hb: Hitbox in hitboxes:
+		hb.get_node("CollisionShape3D").set_deferred("disabled", not enabled)

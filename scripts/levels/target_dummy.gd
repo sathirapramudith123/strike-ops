@@ -1,7 +1,8 @@
 class_name TargetDummy
 extends Node3D
 ## Shooting-range target: flashes when hit, falls over when killed,
-## respawns after a delay. Can optionally strafe left/right.
+## respawns after a delay (server-driven). Can optionally strafe left/right —
+## the strafe is time-based so it looks the same on every peer.
 
 @export var respawn_time: float = 3.0
 ## Strafe distance (metres) to each side; 0 = static target.
@@ -31,19 +32,22 @@ func _ready() -> void:
 			_base_colors.append(mat.albedo_color)
 	health.damaged.connect(_on_damaged)
 	health.died.connect(_on_died)
+	health.revived.connect(_on_revived)
 
 
 func _process(delta: float) -> void:
 	if health.is_dead:
 		_visual.rotation.x = lerpf(_visual.rotation.x, -PI * 0.5, clampf(delta * 8.0, 0.0, 1.0))
-		_respawn_timer -= delta
-		if _respawn_timer <= 0.0:
-			_respawn()
+		# Only the server decides when targets come back; clients get `revived`.
+		if multiplayer.is_server():
+			_respawn_timer -= delta
+			if _respawn_timer <= 0.0:
+				health.revive()
 		return
 
 	_visual.rotation.x = lerpf(_visual.rotation.x, 0.0, clampf(delta * 8.0, 0.0, 1.0))
 	if move_distance > 0.0:
-		_time += delta
+		_time = NetworkManager.server_time()
 		position = _origin + basis.x * sin(_time * move_speed / move_distance) * move_distance
 
 	if _flash > 0.0:
@@ -62,7 +66,6 @@ func _on_died(_source: Node) -> void:
 		(hb as Hitbox).get_child(0).set_deferred("disabled", true)
 
 
-func _respawn() -> void:
-	health.revive()
+func _on_revived() -> void:
 	for hb: Node in _hitboxes:
 		(hb as Hitbox).get_child(0).set_deferred("disabled", false)

@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🚧 Phase 1 — playable single-player prototype (movement, rifle, test map).
+> **Status:** 🚧 Phase 4 — online multiplayer prototype (host / join / dedicated server) on the test map.
 
 ---
 
@@ -187,13 +187,13 @@ game-develop/
 │   ├── core/                # game manager, settings manager, save system
 │   ├── player/              # movement, input, health
 │   ├── weapons/             # shooting, recoil, ammo
-│   ├── network/             # server, client, lag compensation
+│   ├── network/             # NetworkManager, player state sync, lag compensation
 │   ├── audio/               # audio manager, occlusion, placeholder SFX
 │   ├── levels/              # level base script, target dummies
 │   ├── ui/                  # menus, HUD, crosshair
 │   └── voice/               # voice capture, encode/decode, playback
-├── tests/                   # automated tests (GUT)
-├── tools/                   # build & helper scripts
+├── tests/                   # smoke test + two-process multiplayer test
+├── tools/                   # helper scripts (run_net_test.sh)
 ├── docs/                    # design documents
 ├── .editorconfig            # tabs for GDScript, LF line endings
 ├── .gitattributes           # line endings + Git LFS rules
@@ -279,11 +279,48 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause) and exits with code `0` when all checks pass.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+
+### Phase 4 — multiplayer
+
+**Playing online**
+
+| Main menu button | What it does |
+|------------------|--------------|
+| **Play Offline** | Single player on the test map (no network) |
+| **Host Game** | Starts a *listen server* on the chosen port (default **7777/UDP**) and joins it yourself |
+| **Join** | Connects to `IP` or `IP:port` (e.g. `192.168.1.20:7777`) |
+
+- **LAN:** friends join with your local IP (`ipconfig` / `ip a`).
+- **Internet:** forward **UDP 7777** on your router to the host PC, or use a VPN such as Tailscale / ZeroTier / Radmin VPN.
+- **Dedicated server** (no graphics, very low CPU/RAM — good for a cheap VPS):
+  ```bash
+  ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16
+  # from source:
+  godot --headless --path . -- --server --port 7777
+  ```
+
+**How it works**
+
+| Topic | Implementation |
+|-------|----------------|
+| Transport | Godot High-Level Multiplayer over **ENet** (UDP). Channel 0 = reliable events, 1 = player state (unreliable-ordered), 2 = reserved for voice |
+| Authority | **Server-authoritative** health, damage, kills, deaths and respawns (`Health` only changes on the server and syncs to clients) |
+| Movement | The owner simulates its own movement instantly (no input lag) and sends state 30×/s; the server **validates speed** and snaps cheaters back |
+| Remote players | Snapshot buffer rendered **100 ms in the past** with interpolation → smooth even with jitter |
+| Shooting | Shooter predicts effects locally; the server re-traces the shot with **lag compensation** (rewinds other players up to 400 ms to what the shooter saw), checks fire rate and muzzle position, then applies damage |
+| Clock | Clients estimate server time from ping round-trips (used for interpolation and rewind) |
+| Join flow | connect → register name → server sends map → client loads it → server sends existing players + health → spawns the new player everywhere |
+| UI | Scoreboard (**Tab**: kills, deaths, ping), kill feed, ping in the `F3` overlay, name tags above players |
+
+**Key scripts:** `scripts/network/network_manager.gd` (autoload), `scripts/network/player_net_sync.gd`, `scripts/network/lag_compensation.gd`, `scripts/weapons/weapon.gd` (`_server_fire`), `scripts/levels/level.gd`.
+
+**Known limitations (next steps):** players pass through each other; ammo is not validated server-side yet (fire rate is); no NAT punch-through or encryption; one map / free-for-all only (teams & game modes come in Phase 6).
 
 ### Testing multiplayer locally
 
-In the Godot editor: **Debug → Customize Run Instances…** → enable multiple instances (e.g. 1 server + 2 clients), then press **F5**.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; the client walks, shoots the host dead and both sides check replication, damage, kills, kill feed, respawn, ping and clean disconnect.
+- **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---
 
@@ -388,7 +425,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 1 — Core gameplay:** player controller, camera, one weapon, test map, HUD, pause menu
 - [ ] **Phase 2 — Settings:** ~~graphics presets, save/load settings~~ (base done) → full settings UI, key remapping, custom preset editor
 - [ ] **Phase 3 — Audio:** 3D SFX, audio buses, occlusion, music
-- [ ] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation
+- [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
 - [ ] **Phase 5 — Voice chat:** mic capture, Opus encode/decode, team & proximity channels, push-to-talk
 - [ ] **Phase 6 — Content:** more weapons, 2–3 maps, game modes, HUD & menus
 - [ ] **Phase 7 — Optimization:** profiling on minimum-spec hardware, LODs, occlusion, auto-detect preset

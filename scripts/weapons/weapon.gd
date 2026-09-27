@@ -4,6 +4,10 @@ extends Node3D
 ##
 ## The node itself is the first-person viewmodel. It must be placed under the
 ## player's camera and is activated by PlayerController.equip_weapon().
+##
+## Networking: the shooter predicts effects locally (muzzle flash, sound,
+## impact) and sends the shot to the server. The server validates it, runs
+## LagCompensation.trace() and applies damage; other peers get the effects.
 
 signal fired
 signal ammo_changed(in_magazine: int, reserve: int)
@@ -45,6 +49,8 @@ var _impacts: Array[MeshInstance3D] = []
 var _impact_index: int = 0
 var _audio: AudioStreamPlayer3D
 var _rng := RandomNumberGenerator.new()
+var _viewmodel_meshes: Array[Node] = []
+var _server_last_shot: float = -1.0
 
 
 func _ready() -> void:
@@ -63,6 +69,8 @@ func _ready() -> void:
 	_audio.bus = &"SFX"
 	_audio.max_polyphony = 4
 	add_child(_audio)
+	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
+		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
 	_build_impact_pool()
 
 
@@ -71,6 +79,9 @@ func equip(player: PlayerController, camera: Camera3D) -> void:
 	_camera = camera
 	visible = true
 	set_physics_process(true)
+	# Remote players show a third-person gun instead of the viewmodel.
+	for mesh in _viewmodel_meshes:
+		mesh.visible = player.is_local
 	ammo_changed.emit(ammo_in_magazine, ammo_reserve)
 
 
@@ -87,6 +98,8 @@ func _physics_process(delta: float) -> void:
 	_cooldown = maxf(_cooldown - delta, 0.0)
 	_bloom = move_toward(_bloom, 0.0, data.bloom_recovery * delta)
 	_update_flash(delta)
+	if not _player.is_local:
+		return
 
 	var can_act := _player.input_enabled and not _player.health.is_dead
 	is_aiming = can_act and Input.is_action_pressed("aim") and not is_reloading and not _player.is_sprinting
@@ -131,10 +144,7 @@ func try_fire() -> bool:
 		data.recoil_pitch * _rng.randf_range(0.8, 1.2) * recoil_mult,
 		_rng.randf_range(-data.recoil_yaw, data.recoil_yaw) * recoil_mult)
 
-	if muzzle_flash:
-		muzzle_flash.visible = true
-		muzzle_flash.rotation.z = _rng.randf() * TAU
-		_flash_timer = 0.04
+	_show_muzzle_flash()
 	_play(fire_sound, _rng.randf_range(0.95, 1.05))
 	fired.emit()
 	ammo_changed.emit(ammo_in_magazine, ammo_reserve)
@@ -194,23 +204,100 @@ func _fire_ray() -> void:
 	var up := _camera.global_basis.y
 	var dir := forward.rotated(right, angle * sin(around)).rotated(up, angle * cos(around)).normalized()
 
-	var query := PhysicsRayQueryParameters3D.create(from, from + dir * data.max_range, HIT_MASK)
-	query.exclude = [_player.get_rid()]
-	var hit := get_world_3d().direct_space_state.intersect_ray(query)
-	if hit.is_empty():
-		return
+	if multiplayer.is_server():
+		# Offline / host: we are the authority.
+		_server_process_shot(from, dir, NetworkManager.server_time())
+	else:
+		# Client: predict the impact now, let the server decide the damage.
+		# Remote players are drawn INTERPOLATION_DELAY in the past — tell the
+		# server which moment we were looking at.
+		var render_time := NetworkManager.server_time() - NetworkManager.INTERPOLATION_DELAY
+		var exclude: Array[RID] = [_player.get_rid()]
+		for hb: Hitbox in _player.hitboxes:
+			exclude.append(hb.get_rid())
+		var query := PhysicsRayQueryParameters3D.create(from, from + dir * data.max_range, HIT_MASK, exclude)
+		var hit := get_world_3d().direct_space_state.intersect_ray(query)
+		if not hit.is_empty():
+			_spawn_impact(hit.position, hit.normal)
+		_server_fire.rpc_id(1, render_time, from, dir)
 
-	_spawn_impact(hit.position, hit.normal)
-	var hitbox := hit.collider as Hitbox
+
+## Server: validate a client's shot.
+@rpc("any_peer", "call_remote", "reliable")
+func _server_fire(render_time: float, origin: Vector3, dir: Vector3) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _player.peer_id:
+		return
+	if _player.health.is_dead:
+		return
+	var now := NetworkManager.server_time()
+	# Fire-rate check (20% tolerance for network jitter).
+	if _server_last_shot >= 0.0 and now - _server_last_shot < 60.0 / data.fire_rate * 0.8:
+		return
+	_server_last_shot = now
+	# The shot must come from roughly where the server thinks the head is.
+	var eye := _player.global_position + Vector3.UP * (_player.current_height() - _player.eye_offset)
+	if origin.distance_to(eye) > 2.0:
+		origin = eye
+	render_time = clampf(render_time, now - NetworkManager.MAX_REWIND, now)
+	_server_process_shot(origin, dir.normalized(), render_time)
+
+
+## Server: trace with lag compensation, apply damage, broadcast effects.
+func _server_process_shot(origin: Vector3, dir: Vector3, render_time: float) -> void:
+	var players: Array = get_tree().get_nodes_in_group(&"player")
+	var hit := LagCompensation.trace(get_world_3d().direct_space_state, origin, dir, data.max_range,
+		_player, players, render_time)
+
+	var has_hit := not hit.is_empty()
+	var hit_pos: Vector3 = hit.get("position", origin + dir * data.max_range)
+	var hit_normal: Vector3 = hit.get("normal", Vector3.UP)
+
+	if has_hit and _player.is_local:
+		_spawn_impact(hit_pos, hit_normal)
+
+	var hitbox: Hitbox = hit.get("hitbox") if has_hit else null
 	if hitbox:
-		var distance := from.distance_to(hit.position)
-		var falloff := remap(distance, data.falloff_start, data.max_range, 1.0, data.min_damage_multiplier)
+		var falloff := remap(hit.distance, data.falloff_start, data.max_range, 1.0, data.min_damage_multiplier)
 		var damage := data.damage * clampf(falloff, data.min_damage_multiplier, 1.0)
 		if hitbox.is_head:
 			# The weapon decides the headshot multiplier; cancel the hitbox's own one.
 			damage *= data.headshot_multiplier / maxf(hitbox.damage_multiplier, 0.001)
 		var killed := hitbox.apply_hit(damage, _player)
-		hit_confirmed.emit(killed, hitbox.is_head)
+		if _player.is_local:
+			hit_confirmed.emit(killed, hitbox.is_head)
+		else:
+			_client_hit_confirmed.rpc_id(_player.peer_id, killed, hitbox.is_head)
+
+	# Effects for everyone except the shooter (who already predicted them).
+	if not _player.is_local and not NetworkManager.is_dedicated():
+		_play_remote_fx(has_hit, hit_pos, hit_normal)
+	NetworkManager.send_to_ready(self, &"_remote_fire_fx", [has_hit, hit_pos, hit_normal], [_player.peer_id])
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _client_hit_confirmed(killed: bool, is_head: bool) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		hit_confirmed.emit(killed, is_head)
+
+
+@rpc("any_peer", "call_remote", "unreliable")
+func _remote_fire_fx(has_hit: bool, hit_pos: Vector3, hit_normal: Vector3) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		_play_remote_fx(has_hit, hit_pos, hit_normal)
+
+
+func _play_remote_fx(has_hit: bool, hit_pos: Vector3, hit_normal: Vector3) -> void:
+	_show_muzzle_flash()
+	_play(fire_sound, _rng.randf_range(0.95, 1.05))
+	if has_hit:
+		_spawn_impact(hit_pos, hit_normal)
+
+
+func _show_muzzle_flash() -> void:
+	if muzzle_flash:
+		muzzle_flash.visible = true
+		muzzle_flash.rotation.z = _rng.randf() * TAU
+		_flash_timer = 0.04
 
 
 func _update_viewmodel(delta: float) -> void:

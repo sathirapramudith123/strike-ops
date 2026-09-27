@@ -55,6 +55,11 @@ var proximity_chat_enabled: bool = true
 var mouse_sensitivity: float = 0.15
 var invert_y: bool = false
 
+# Multiplayer
+var player_name: String = "Player"
+var last_join_address: String = "127.0.0.1"
+var host_port: int = 7777
+
 var _config := ConfigFile.new()
 
 
@@ -242,6 +247,10 @@ func save() -> void:
 	_config.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	_config.set_value("controls", "invert_y", invert_y)
 
+	_config.set_value("network", "player_name", player_name)
+	_config.set_value("network", "last_join_address", last_join_address)
+	_config.set_value("network", "host_port", host_port)
+
 	var err := _config.save(SETTINGS_PATH)
 	if err != OK:
 		push_error("SettingsManager: failed to save settings (%s)" % error_string(err))
@@ -282,6 +291,10 @@ func _load_all(first_launch: bool) -> void:
 
 	mouse_sensitivity = _config.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	invert_y = _config.get_value("controls", "invert_y", invert_y)
+
+	player_name = _config.get_value("network", "player_name", player_name)
+	last_join_address = _config.get_value("network", "last_join_address", last_join_address)
+	host_port = _config.get_value("network", "host_port", host_port)
 
 
 ## The renderer can only be chosen at startup. If the saved preset wants a
