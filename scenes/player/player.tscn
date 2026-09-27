@@ -1,10 +1,14 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=20 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/core/health.gd" id="2_health"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/assault_rifle.tscn" id="3_rifle"]
 [ext_resource type="Script" path="res://scripts/network/player_net_sync.gd" id="4_net"]
 [ext_resource type="Script" path="res://scripts/core/hitbox.gd" id="5_hitbox"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/smg.tscn" id="6_smg"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/shotgun.tscn" id="7_shotgun"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/sniper.tscn" id="8_sniper"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/pistol.tscn" id="9_pistol"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 resource_local_to_scene = true
@@ -128,3 +132,11 @@ near = 0.02
 [node name="WeaponHolder" type="Node3D" parent="Head/Camera3D"]
 
 [node name="AssaultRifle" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("3_rifle")]
+
+[node name="Smg" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("6_smg")]
+
+[node name="Shotgun" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("7_shotgun")]
+
+[node name="Sniper" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("8_sniper")]
+
+[node name="Pistol" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("9_pistol")]

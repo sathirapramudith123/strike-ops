@@ -13,7 +13,10 @@ const DEFAULT_PLAYER_SCENE := "res://scenes/player/player.tscn"
 @export var player_scene: PackedScene
 @export var world_environment: WorldEnvironment
 @export var sun: DirectionalLight3D
+## Free-for-all spawns (also used in team modes if a team has none).
 @export var spawn_points: Array[Marker3D] = []
+@export var blue_spawn_points: Array[Marker3D] = []
+@export var red_spawn_points: Array[Marker3D] = []
 
 ## The local player (null on a dedicated server or before spawning).
 var player: PlayerController
@@ -38,7 +41,8 @@ func _ready() -> void:
 	NetworkManager.on_level_loaded(self)
 
 
-func spawn_player(peer_id: int, player_name: String, xform: Transform3D) -> PlayerController:
+func spawn_player(peer_id: int, player_name: String, xform: Transform3D,
+		primary: String = GameConfig.DEFAULT_PRIMARY, slot: int = 0) -> PlayerController:
 	var existing := get_player(peer_id)
 	if existing:
 		return existing
@@ -46,6 +50,8 @@ func spawn_player(peer_id: int, player_name: String, xform: Transform3D) -> Play
 	p.name = str(peer_id)
 	p.peer_id = peer_id
 	p.player_name = player_name
+	p.primary_id = primary
+	p.current_slot = slot
 	p.transform = xform
 	players_root.add_child(p)
 	if p.is_local:
@@ -75,13 +81,39 @@ func get_players() -> Array[PlayerController]:
 	return result
 
 
-## Server: next spawn point (round robin).
-func next_spawn_transform() -> Transform3D:
-	if spawn_points.is_empty():
+## Server: where `peer_id` should (re)spawn — their team's spawns in team
+## modes, and the spawn furthest from living enemies ("safe spawn").
+func next_spawn_transform(peer_id: int = -1) -> Transform3D:
+	var candidates := spawn_points
+	if Match.is_team_mode():
+		match Match.get_team(peer_id):
+			0: candidates = blue_spawn_points if not blue_spawn_points.is_empty() else spawn_points
+			1: candidates = red_spawn_points if not red_spawn_points.is_empty() else spawn_points
+	if candidates.is_empty():
 		return Transform3D(Basis.IDENTITY, Vector3.UP)
-	var marker := spawn_points[_spawn_index % spawn_points.size()]
-	_spawn_index += 1
-	return marker.global_transform
+
+	var enemies: Array[Vector3] = []
+	for p in get_players():
+		if p.peer_id != peer_id and not p.health.is_dead and not Match.is_friendly(peer_id, p.peer_id):
+			enemies.append(p.global_position)
+	if enemies.is_empty():
+		# Nobody to avoid: rotate through the spawns.
+		var marker := candidates[_spawn_index % candidates.size()]
+		_spawn_index += 1
+		return marker.global_transform
+
+	var best: Marker3D = candidates[0]
+	var best_score := -1.0
+	for m in candidates:
+		var nearest := INF
+		for e in enemies:
+			nearest = minf(nearest, m.global_position.distance_to(e))
+		# Small random jitter so equal spawns don't always pick the same one.
+		var score := nearest + randf() * 2.0
+		if score > best_score:
+			best_score = score
+			best = m
+	return best.global_transform
 
 
 func _apply_graphics(_preset: GraphicsPreset) -> void:

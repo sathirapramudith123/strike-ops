@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_data")
 display_name = "AR-7 Assault Rifle"
+weapon_id = "rifle"
 automatic = true
 fire_rate = 650.0
 damage = 24.0

@@ -1,7 +1,8 @@
 class_name Hud
 extends CanvasLayer
-## In-game HUD: crosshair, hit markers, health, ammo, reload bar,
-## damage flash, kill feed, scoreboard (Tab) and the F3 performance overlay.
+## In-game HUD: crosshair, scope, hit markers, health, ammo, weapon slots,
+## reload bar, damage flash, match timer/score, kill feed, scoreboard (Tab),
+## end-of-match results and the F3 performance overlay.
 
 const KILL_FEED_TIME := 5.0
 const KILL_FEED_MAX := 5
@@ -22,6 +23,13 @@ const KILL_FEED_MAX := 5
 @onready var _server_label: Label = %ServerLabel
 @onready var _mic_indicator: Label = %MicIndicator
 @onready var _speakers: VBoxContainer = %Speakers
+@onready var _scope: ScopeOverlay = %ScopeOverlay
+@onready var _match_bar: Label = %MatchBar
+@onready var _weapon_slots: Label = %WeaponSlots
+@onready var _end_screen: Control = %EndScreen
+@onready var _winner_label: Label = %WinnerLabel
+@onready var _next_map_label: Label = %NextMapLabel
+@onready var _end_grid: GridContainer = %EndGrid
 
 var _player: PlayerController
 var _weapon: Weapon
@@ -46,6 +54,8 @@ func _ready() -> void:
 	_mic_indicator.visible = false
 	VoiceChat.transmitting_changed.connect(_on_transmitting_changed)
 	VoiceChat.speaking_changed.connect(_on_speaking_changed)
+	Match.state_changed.connect(_on_match_state_changed)
+	_on_match_state_changed()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -69,6 +79,8 @@ func _process(delta: float) -> void:
 		_update_crosshair()
 		_reload_bar.visible = _weapon.is_reloading
 		_reload_bar.value = _weapon.get_reload_progress()
+		_scope.amount = clampf((_weapon.ads_blend - 0.85) / 0.15, 0.0, 1.0) if _weapon.data.scoped else 0.0
+	_update_match_bar()
 	if _perf_label.visible:
 		_update_perf()
 
@@ -78,6 +90,7 @@ func _bind_weapon(weapon: Weapon) -> void:
 	if weapon == null:
 		return
 	_weapon_label.text = weapon.data.display_name
+	_update_weapon_slots()
 	if not weapon.ammo_changed.is_connected(_on_ammo_changed):
 		weapon.ammo_changed.connect(_on_ammo_changed)
 		weapon.hit_confirmed.connect(func(kill: bool, _head: bool) -> void: _crosshair.show_hit(kill))
@@ -144,20 +157,86 @@ func _on_speaking_changed(peer_id: int, speaking: bool) -> void:
 		speaker.set_speaking(speaking)
 
 
-func _on_kill_feed(killer: String, victim: String, weapon_name: String, headshot: bool) -> void:
-	var label := Label.new()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	label.add_theme_constant_override(&"outline_size", 4)
-	label.add_theme_color_override(&"font_outline_color", Color.BLACK)
-	var how := weapon_name + (" (headshot)" if headshot else "")
-	label.text = "%s  [%s]  %s" % [killer, how, victim] if killer != "World" else "%s fell" % victim
-	var local_name := player_name_or_empty()
-	if local_name != "" and (killer == local_name or victim == local_name):
-		label.add_theme_color_override(&"font_color", Color(1, 0.85, 0.3))
-	_kill_feed.add_child(label)
+func _on_kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: bool) -> void:
+	var box := HBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_END
+	var local_id := multiplayer.get_unique_id()
+	if killer_id >= 0 and killer_id != victim_id:
+		box.add_child(_feed_label(NetworkManager.get_player_name(killer_id), killer_id))
+		box.add_child(_feed_label("  [%s%s]  " % [weapon_name, " HS" if headshot else ""], -2))
+		box.add_child(_feed_label(NetworkManager.get_player_name(victim_id), victim_id))
+	else:
+		box.add_child(_feed_label(NetworkManager.get_player_name(victim_id), victim_id))
+		box.add_child(_feed_label("  fell", -2))
+	if killer_id == local_id or victim_id == local_id:
+		box.modulate = Color(1, 1, 1, 1)
+	else:
+		box.modulate = Color(1, 1, 1, 0.8)
+	_kill_feed.add_child(box)
 	while _kill_feed.get_child_count() > KILL_FEED_MAX:
 		_kill_feed.get_child(0).queue_free()
-	get_tree().create_timer(KILL_FEED_TIME).timeout.connect(label.queue_free)
+	get_tree().create_timer(KILL_FEED_TIME).timeout.connect(box.queue_free)
+
+
+## Kill feed / scoreboard names are coloured by team (yellow = you).
+func _feed_label(text: String, peer_id: int) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_constant_override(&"outline_size", 4)
+	l.add_theme_color_override(&"font_outline_color", Color.BLACK)
+	l.add_theme_color_override(&"font_color", _name_color(peer_id))
+	return l
+
+
+func _name_color(peer_id: int) -> Color:
+	if peer_id == -2:
+		return Color(1, 1, 1, 0.8)
+	if peer_id == multiplayer.get_unique_id():
+		return Color(1, 0.85, 0.3)
+	if Match.is_team_mode():
+		return GameConfig.team_color(Match.get_team(peer_id)).lightened(0.25)
+	return Color.WHITE
+
+
+func _update_weapon_slots() -> void:
+	if _player == null:
+		return
+	var parts := PackedStringArray()
+	var ws := _player.loadout_weapons()
+	for i in ws.size():
+		if ws[i]:
+			var n := ws[i].data.display_name.get_slice(" ", 0)
+			parts.append(("[%d] %s" if i == _player.current_slot else "%d %s") % [i + 1, n])
+	_weapon_slots.text = "   ".join(parts)
+
+
+func _update_match_bar() -> void:
+	var t := ""
+	if Match.time_limit > 0.0:
+		var secs := ceili(Match.time_left)
+		t = "%d:%02d" % [secs / 60, secs % 60]
+	match Match.mode:
+		GameConfig.Mode.PRACTICE:
+			_match_bar.text = "Practice — %s" % GameConfig.map_name(NetworkManager.current_map)
+		GameConfig.Mode.TDM:
+			var my_team := Match.get_team(multiplayer.get_unique_id())
+			_match_bar.text = "BLUE %d   %s   %d RED\n%s" % [Match.team_scores[0], t, Match.team_scores[1],
+				("You are %s — first to %d" % [GameConfig.TEAM_NAMES[my_team], Match.score_limit]) if my_team >= 0 else ""]
+		_:
+			var mine: int = NetworkManager.roster.get(multiplayer.get_unique_id(), {}).get("kills", 0)
+			var best := 0
+			for id: int in NetworkManager.roster:
+				best = maxi(best, NetworkManager.roster[id].kills)
+			_match_bar.text = "%s\nYou %d · Leader %d · First to %d" % [t, mine, best, Match.score_limit]
+
+
+func _on_match_state_changed() -> void:
+	var ended := Match.is_ended()
+	if ended and not _end_screen.visible:
+		_winner_label.text = Match.winner_text
+		_next_map_label.text = "Next: %s" % GameConfig.map_name(GameConfig.next_map(NetworkManager.current_map))
+		_fill_score_grid(_end_grid)
+	_end_screen.visible = ended
 
 
 func player_name_or_empty() -> String:
@@ -165,29 +244,40 @@ func player_name_or_empty() -> String:
 
 
 func _refresh_scoreboard() -> void:
-	for child in _score_grid.get_children():
+	_fill_score_grid(_score_grid)
+	var n := NetworkManager.roster.size()
+	var where := "%s · %s" % [GameConfig.MODE_NAMES[Match.mode], GameConfig.map_name(NetworkManager.current_map)]
+	match NetworkManager.mode:
+		NetworkManager.Mode.OFFLINE: _server_label.text = "Offline · " + where
+		NetworkManager.Mode.HOST: _server_label.text = "Hosting · %s · %d player(s)" % [where, n]
+		_: _server_label.text = "Online · %s · %d player(s)" % [where, n]
+
+
+## Sorted by team (team modes) then kills.
+func _fill_score_grid(grid: GridContainer) -> void:
+	for child in grid.get_children():
 		child.queue_free()
 	for header: String in ["Player", "Kills", "Deaths", "Ping"]:
-		_add_score_cell(header, Color(1, 1, 1, 0.6))
+		_add_score_cell(grid, header, Color(1, 1, 1, 0.6))
 	var ids := NetworkManager.roster.keys()
 	ids.sort_custom(func(a: int, b: int) -> bool:
+		var ta := Match.get_team(a)
+		var tb := Match.get_team(b)
+		if ta != tb:
+			return ta < tb
 		return NetworkManager.roster[a].kills > NetworkManager.roster[b].kills)
 	for id: int in ids:
 		var e: Dictionary = NetworkManager.roster[id]
-		var col := Color(1, 0.85, 0.3) if id == multiplayer.get_unique_id() else Color.WHITE
-		_add_score_cell(("» " if VoiceChat.is_speaking(id) else "") + e.name, col)
-		_add_score_cell(str(e.kills), col)
-		_add_score_cell(str(e.deaths), col)
-		_add_score_cell("host" if id == 1 else str(e.ping), col)
-	match NetworkManager.mode:
-		NetworkManager.Mode.OFFLINE: _server_label.text = "Offline"
-		NetworkManager.Mode.HOST: _server_label.text = "Hosting — %d player(s)" % ids.size()
-		_: _server_label.text = "Online — %d player(s)" % ids.size()
+		var col := _name_color(id)
+		_add_score_cell(grid, ("» " if VoiceChat.is_speaking(id) else "") + e.name, col)
+		_add_score_cell(grid, str(e.kills), col)
+		_add_score_cell(grid, str(e.deaths), col)
+		_add_score_cell(grid, "host" if id == 1 else str(e.ping), col)
 
 
-func _add_score_cell(text: String, color: Color) -> void:
+func _add_score_cell(grid: GridContainer, text: String, color: Color) -> void:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_color_override(&"font_color", color)
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_score_grid.add_child(l)
+	grid.add_child(l)

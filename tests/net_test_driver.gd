@@ -19,7 +19,7 @@ func _ready() -> void:
 			_role = arg.get_slice("=", 1)
 		elif arg.begins_with("--port="):
 			_port = arg.get_slice("=", 1).to_int()
-	NetworkManager.kill_feed.connect(func(_k: String, _v: String, _w: String, _h: bool) -> void:
+	NetworkManager.kill_feed.connect(func(_k: int, _v: int, _w: String, _h: bool) -> void:
 		_kill_feed_seen = true)
 	get_tree().create_timer(TIMEOUT * 2.0).timeout.connect(func() -> void:
 		print("[%s] global timeout" % _role)
@@ -32,7 +32,12 @@ func _ready() -> void:
 
 func _run_host() -> void:
 	NetworkManager.local_name = "Host"
-	_check(NetworkManager.host(_port, 4) == OK, "host starts listening")
+	# Team deathmatch, first kill wins, short results screen → quick map rotation.
+	Match.configure(GameConfig.Mode.TDM, 1)
+	Match.results_time = 3.0
+	# game_mode -1 keeps the limits configured above.
+	_check(NetworkManager.host(_port, 4, false, GameConfig.map_path("test_map"), -1) == OK and Match.mode == GameConfig.Mode.TDM,
+		"host starts listening (TDM)")
 	var level: Level = await _wait_for(func() -> Variant: return _level())
 	var me: PlayerController = await _wait_for(func() -> Variant: return level.get_player(1))
 	_check(me != null and me.is_local, "host has a local player")
@@ -44,10 +49,13 @@ func _run_host() -> void:
 	if client == null:
 		return _finish()
 	var client_id := client.peer_id # the node is freed when the client leaves
+	_check(Match.get_team(1) == 0 and Match.get_team(client_id) == 1, "teams auto-balanced (host blue, client red)")
 	var start := client.global_position
 	var moved: Variant = await _wait_for(func() -> Variant:
 		return true if client.global_position.distance_to(start) > 1.0 else null)
 	_check(moved == true, "client movement replicated to host")
+
+	await _voice_exchange(client_id, 500.0, 440.0)
 
 	var hurt: Variant = await _wait_for(func() -> Variant:
 		return true if me.health.current < me.health.max_health or me.health.is_dead else null)
@@ -57,10 +65,16 @@ func _run_host() -> void:
 	_check(NetworkManager.roster.get(client_id, {}).get("kills", 0) >= 1, "kill credited to client")
 	_check(NetworkManager.roster.get(1, {}).get("deaths", 0) >= 1, "death credited to host")
 	_check(_kill_feed_seen, "kill feed on host")
-	var back: Variant = await _wait_for(func() -> Variant: return true if not me.health.is_dead else null)
-	_check(back == true and me.health.current == me.health.max_health, "host respawns with full health")
+	_check(Match.team_scores[1] == 1, "red team scores")
+	_check(Match.is_ended() and Match.winner_text == "Red team wins!", "score limit ends the match (%s)" % Match.winner_text)
 
-	await _voice_exchange(client_id, 500.0, 440.0)
+	# Map rotation: after the results screen everyone moves to the next map.
+	var rotated: Variant = await _wait_for(func() -> Variant:
+		var l := _level()
+		return l if l and l.name == "Warehouse" and l.get_player(1) and l.get_player(client_id) else null)
+	_check(rotated != null, "map rotates to Warehouse with both players respawned")
+	_check(not Match.is_ended() and Match.team_scores[0] == 0 and Match.team_scores[1] == 0, "new match starts with a fresh score")
+	level = rotated if rotated else level
 
 	var left: Variant = await _wait_for(func() -> Variant:
 		return true if NetworkManager.roster.size() == 1 and level.get_player(client_id) == null else null)
@@ -81,6 +95,9 @@ func _run_client() -> void:
 		return _finish()
 	_check(NetworkManager.roster.size() == 2, "roster has both players")
 
+	_check(Match.mode == GameConfig.Mode.TDM, "client knows the game mode (TDM)")
+	_check(Match.get_team(me.peer_id) == 1 and Match.get_team(1) == 0, "client sees the teams")
+
 	# Walk forward a bit (server must accept it — no snap-back).
 	await _frames(20)
 	var start := me.global_position
@@ -89,6 +106,8 @@ func _run_client() -> void:
 	Input.action_release(&"move_forward")
 	await _frames(30)
 	_check(me.global_position.distance_to(start) > 1.5, "client moves (not corrected by server)")
+
+	await _voice_exchange(1, 440.0, 500.0)
 
 	# Shoot the host until the server says it is dead.
 	Input.action_press(&"aim")
@@ -104,12 +123,15 @@ func _run_client() -> void:
 	await _frames(10)
 	_check(NetworkManager.roster.get(me.peer_id, {}).get("kills", 0) >= 1, "client sees its kill in roster")
 	_check(_kill_feed_seen, "kill feed on client")
-	var respawned: Variant = await _wait_for(func() -> Variant:
-		return true if not host.health.is_dead and host.visible else null)
-	_check(respawned == true, "host respawn replicated to client")
+	var ended: Variant = await _wait_for(func() -> Variant: return true if Match.is_ended() else null)
+	_check(ended == true and Match.winner_text == "Red team wins!", "match end replicated (%s)" % Match.winner_text)
 	_check(NetworkManager.ping_ms >= 0 and NetworkManager.ping_ms < 200, "ping measured (%d ms)" % NetworkManager.ping_ms)
 
-	await _voice_exchange(1, 440.0, 500.0)
+	var rotated: Variant = await _wait_for(func() -> Variant:
+		var l := _level()
+		return l if l and l.name == "Warehouse" and l.player and l.get_player(1) else null)
+	_check(rotated != null, "client follows the map rotation and respawns")
+	_check(not Match.is_ended(), "client sees the new match running")
 
 	NetworkManager.leave()
 	await _frames(30)
@@ -134,13 +156,15 @@ func _run_observer() -> void:
 ## Both sides talk at once (push-to-talk, team channel) with a test tone and
 ## check that the other side's tone arrives intact.
 func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> void:
-	var started := [false]
+	# The other side may already be talking when we get here.
+	var started := [VoiceChat.is_speaking(other_id)]
 	var stopped := [false]
 	VoiceChat.speaking_changed.connect(func(id: int, speaking: bool) -> void:
 		if id == other_id:
 			if speaking: started[0] = true
 			else: stopped[0] = true)
-	Input.action_press(&"push_to_talk_team")
+	# Different teams → proximity chat (team chat would not cross teams).
+	Input.action_press(&"push_to_talk_proximity")
 	var phase := 0.0
 	var t := 0.0
 	var got: Variant = null
@@ -167,7 +191,7 @@ func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> void:
 			phase += TAU * my_freq / 16000.0
 		VoiceChat.inject_test_audio(chunk)
 		await get_tree().process_frame
-	Input.action_release(&"push_to_talk_team")
+	Input.action_release(&"push_to_talk_proximity")
 	_check(VoiceChat.packets_sent > 20, "voice packets sent (%d)" % VoiceChat.packets_sent)
 	var pb: VoicePlayback = got
 	_check(pb != null, "voice received from the other player (%d packets)" % (pb.packets_received if pb else 0))

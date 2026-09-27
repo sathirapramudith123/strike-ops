@@ -24,6 +24,7 @@ var is_dead: bool = false
 var last_hit_headshot: bool = false
 
 var _time_since_damage: float = 0.0
+var _protected_until: float = 0.0
 var _regen_sync_timer: float = 0.0
 
 
@@ -51,6 +52,9 @@ func _process(delta: float) -> void:
 ## Server only. Returns true if this hit killed the owner.
 func take_damage(amount: float, source: Node = null, is_headshot: bool = false) -> bool:
 	if not multiplayer.is_server() or is_dead or amount <= 0.0:
+		return false
+	# Spawn protection (fall damage still applies so nobody gets stuck).
+	if is_protected() and source != null:
 		return false
 	_time_since_damage = 0.0
 	last_hit_headshot = is_headshot
@@ -85,6 +89,15 @@ func revive() -> void:
 	_broadcast(0.0)
 	health_changed.emit(current, max_health)
 	revived.emit()
+
+
+## Server only: ignore damage from other players for `seconds`.
+func protect(seconds: float) -> void:
+	_protected_until = Time.get_ticks_msec() / 1000.0 + seconds
+
+
+func is_protected() -> bool:
+	return Time.get_ticks_msec() / 1000.0 < _protected_until
 
 
 ## Server only: sends the current state to one peer (late joiners).

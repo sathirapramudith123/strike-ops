@@ -123,8 +123,8 @@ static func recipients_for(sender_id: int, channel: Channel, players: Array, tea
 				if sender and p.global_position.distance_to(sender.global_position) <= PROXIMITY_RANGE:
 					result.append(p.peer_id)
 			Channel.TEAM:
-				# Free-for-all has no teams yet: everyone is on team 0.
-				if teams.get(p.peer_id, 0) == teams.get(sender_id, 0):
+				# In free-for-all everyone has team -1, so "team" reaches everyone.
+				if teams.get(p.peer_id, -1) == teams.get(sender_id, -1):
 					result.append(p.peer_id)
 			_:
 				result.append(p.peer_id)
@@ -249,7 +249,7 @@ func _relay(sender_id: int, seq: int, channel: int, packet: PackedByteArray, sam
 	if level == null:
 		return
 	var ready_ids := NetworkManager.ready_peer_ids()
-	for id: int in recipients_for(sender_id, channel as Channel, level.get_players()):
+	for id: int in recipients_for(sender_id, channel as Channel, level.get_players(), Match.team_map()):
 		if id == 1:
 			if not NetworkManager.is_dedicated():
 				_receive(sender_id, seq, channel, packet, sample_count)

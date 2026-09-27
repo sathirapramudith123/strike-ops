@@ -24,6 +24,13 @@ func _ready() -> void:
 	_sensitivity.value_changed.connect(_on_sensitivity_changed)
 	_fov.value_changed.connect(_on_fov_changed)
 	%MuteAllCheck.toggled.connect(func(on: bool) -> void: VoiceChat.mute_all = on)
+	for id: String in GameConfig.PRIMARY_WEAPONS:
+		%LoadoutOption.add_item(GameConfig.PRIMARY_NAMES[id])
+	%LoadoutOption.item_selected.connect(func(i: int) -> void:
+		Match.request_loadout(GameConfig.PRIMARY_WEAPONS[i]))
+	%TeamButton.pressed.connect(func() -> void:
+		Match.request_team_switch()
+		close())
 	_quality.item_selected.connect(func(i: int) -> void:
 		SettingsManager.set_graphics_quality(_quality.get_item_id(i) as GraphicsPreset.Quality))
 
@@ -48,6 +55,8 @@ func open() -> void:
 	_fov_value.text = str(int(SettingsManager.field_of_view))
 	_quality.select(_quality.get_item_index(SettingsManager.graphics.quality))
 	_build_mute_list()
+	%LoadoutOption.select(maxi(GameConfig.PRIMARY_WEAPONS.find(SettingsManager.preferred_primary), 0))
+	%TeamButton.visible = Match.is_team_mode()
 	%ResumeButton.grab_focus()
 
 

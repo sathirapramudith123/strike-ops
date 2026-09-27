@@ -66,6 +66,12 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
 var current_weapon: Weapon
+## Loadout: primary weapon id (GameConfig.PRIMARY_WEAPONS) + the pistol.
+var primary_id: String = GameConfig.DEFAULT_PRIMARY
+## 0 = primary, 1 = secondary.
+var current_slot: int = 0
+## weapon_id -> Weapon (every weapon exists on every player; see GameConfig.WEAPONS).
+var weapons: Dictionary = {}
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -89,6 +95,7 @@ var _slide_cooldown_timer: float = 0.0
 var _bob_time: float = 0.0
 var _recoil := Vector2.ZERO # (pitch, yaw) in radians, applied to the camera
 var _fell_reported: bool = false
+var _torso_material: StandardMaterial3D
 
 
 func _enter_tree() -> void:
@@ -103,6 +110,10 @@ func _ready() -> void:
 	_apply_height()
 	health.died.connect(_on_died)
 	_name_tag.text = player_name
+	_torso_material = ($ThirdPerson/Torso as MeshInstance3D).mesh.surface_get_material(0).duplicate()
+	($ThirdPerson/Torso as MeshInstance3D).material_override = _torso_material
+	NetworkManager.roster_changed.connect(_update_team_visuals)
+	_update_team_visuals()
 
 	if is_local:
 		camera.current = true
@@ -120,9 +131,10 @@ func _ready() -> void:
 
 	for child in weapon_holder.get_children():
 		if child is Weapon:
-			(child as Weapon).unequip()
-	if weapon_holder.get_child_count() > 0:
-		equip_weapon(weapon_holder.get_child(0) as Weapon)
+			var w := child as Weapon
+			weapons[w.data.weapon_id] = w
+			w.unequip()
+	apply_loadout(primary_id, current_slot)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -137,6 +149,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-motion.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * invert,
 			-deg_to_rad(max_pitch_degrees), deg_to_rad(max_pitch_degrees))
+	elif event.is_action_pressed(&"weapon_1"):
+		select_slot(0)
+	elif event.is_action_pressed(&"weapon_2"):
+		select_slot(1)
+	elif event.is_action_pressed(&"weapon_next") or event.is_action_pressed(&"weapon_prev"):
+		select_slot(1 - current_slot)
 	elif event is InputEventMouseButton and event.pressed \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -147,7 +165,7 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var input_dir := Vector2.ZERO
-	if input_enabled:
+	if input_enabled and not Match.is_ended():
 		input_dir = Input.get_vector(&"move_left", &"move_right", &"move_forward", &"move_back")
 	var wish_dir := (transform.basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	var on_floor := is_on_floor()
@@ -222,7 +240,41 @@ func _physics_process(delta: float) -> void:
 # Public API
 # -----------------------------------------------------------------------------
 
+## Weapons in slot order: [primary, secondary].
+func loadout_weapons() -> Array[Weapon]:
+	var primary: Weapon = weapons.get(primary_id, weapons.get(GameConfig.DEFAULT_PRIMARY))
+	return [primary, weapons.get(GameConfig.SECONDARY_WEAPON)]
+
+
+## Sets the primary weapon, refills ammo and equips `slot` (spawn / respawn).
+func apply_loadout(primary: String, slot: int = 0) -> void:
+	primary_id = primary if weapons.has(primary) else GameConfig.DEFAULT_PRIMARY
+	for w: Weapon in weapons.values():
+		w.refill_ammo()
+	current_slot = -1
+	_equip_slot(clampi(slot, 0, 1))
+
+
+## Local player switches weapon (keys 1/2, mouse wheel); replicated via NetSync.
+func select_slot(slot: int) -> void:
+	if slot == current_slot or health.is_dead:
+		return
+	_equip_slot(slot)
+	net_sync.send_slot(slot)
+
+
+## Applies a slot change without replicating it (used by NetSync).
+func _equip_slot(slot: int) -> void:
+	var w: Weapon = loadout_weapons()[slot]
+	if w == null:
+		return
+	current_slot = slot
+	equip_weapon(w)
+
+
 func equip_weapon(weapon: Weapon) -> void:
+	if current_weapon == weapon:
+		return
 	if current_weapon:
 		current_weapon.unequip()
 	current_weapon = weapon
@@ -237,7 +289,8 @@ func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 
 
 ## Called on every peer by PlayerNetSync when the server respawns this player.
-func respawn_at(xform: Transform3D) -> void:
+func respawn_at(xform: Transform3D, primary: String) -> void:
+	apply_loadout(primary, 0)
 	global_transform = xform
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -264,6 +317,17 @@ func apply_remote_state(pos: Vector3, yaw: float, pitch: float, height: float, f
 
 func current_height() -> float:
 	return _height
+
+
+## Team colour on the body; name tags of enemies are hidden behind walls
+## (no wallhack), teammates' tags are always visible.
+func _update_team_visuals() -> void:
+	var team := Match.get_team(peer_id)
+	var local_id := multiplayer.get_unique_id()
+	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, local_id)
+	_torso_material.albedo_color = GameConfig.team_color(team)
+	_name_tag.no_depth_test = friendly
+	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
 
 
 ## Voice chat indicator on the name tag.

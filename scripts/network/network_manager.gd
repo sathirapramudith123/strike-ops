@@ -19,11 +19,12 @@ extends Node
 signal connection_failed(reason: String)
 signal server_disconnected
 signal roster_changed
-signal kill_feed(killer_name: String, victim_name: String, weapon_name: String, headshot: bool)
+## killer_id is -1 for environmental deaths (falling).
+signal kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: bool)
 
 enum Mode { OFFLINE, HOST, DEDICATED, CLIENT }
 
-const PROTOCOL_VERSION := 1
+const PROTOCOL_VERSION := 2
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
@@ -45,7 +46,7 @@ var local_name: String = "Player"
 var current_map: String = DEFAULT_MAP
 ## Shown by the main menu after being kicked back to it.
 var last_error: String = ""
-## peer_id -> { "name": String, "kills": int, "deaths": int, "ping": int }
+## peer_id -> { "name", "kills", "deaths", "ping", "team" (-1 = none), "primary" (weapon id) }
 var roster: Dictionary = {}
 ## Round-trip time to the server in milliseconds (clients only).
 var ping_ms: int = 0
@@ -82,7 +83,7 @@ func _process(delta: float) -> void:
 		_roster_timer -= delta
 		if _roster_timer <= 0.0:
 			_roster_timer = 2.0
-			_sync_roster.rpc(roster)
+			broadcast_roster()
 
 
 # -----------------------------------------------------------------------------
@@ -108,11 +109,13 @@ func start_offline(map_path: String = DEFAULT_MAP) -> void:
 	_reset_peer()
 	mode = Mode.OFFLINE
 	current_map = map_path
+	Match.configure(GameConfig.Mode.PRACTICE)
 	get_tree().change_scene_to_file(map_path)
 
 
+## `game_mode` = -1 keeps whatever Match.configure() set last (default FFA).
 func host(port: int = DEFAULT_PORT, max_players: int = DEFAULT_MAX_PLAYERS,
-		dedicated: bool = false, map_path: String = DEFAULT_MAP) -> Error:
+		dedicated: bool = false, map_path: String = DEFAULT_MAP, game_mode: int = -1) -> Error:
 	_reset_peer()
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(port, max_players)
@@ -122,10 +125,15 @@ func host(port: int = DEFAULT_PORT, max_players: int = DEFAULT_MAX_PLAYERS,
 	multiplayer.multiplayer_peer = peer
 	mode = Mode.DEDICATED if dedicated else Mode.HOST
 	current_map = map_path
+	if game_mode >= 0:
+		Match.configure(game_mode as GameConfig.Mode)
+	elif Match.mode == GameConfig.Mode.PRACTICE:
+		Match.configure(GameConfig.Mode.FFA)
 	if not dedicated:
-		roster[1] = _new_entry(local_name)
-	print("[net] %s server listening on port %d (max %d players)" % [
-		"Dedicated" if dedicated else "Listen", port, max_players])
+		_add_local_entry()
+	print("[net] %s server listening on port %d (max %d players, %s on %s)" % [
+		"Dedicated" if dedicated else "Listen", port, max_players,
+		GameConfig.MODE_NAMES[Match.mode], GameConfig.map_name(map_path)])
 	get_tree().change_scene_to_file(map_path)
 	return OK
 
@@ -153,7 +161,31 @@ func leave(reason: String = "") -> void:
 
 
 func get_player_name(peer_id: int) -> String:
+	if peer_id < 0:
+		return "World"
 	return roster.get(peer_id, {}).get("name", "Player %d" % peer_id)
+
+
+## Server: push the roster to everyone now (and to local listeners).
+func broadcast_roster() -> void:
+	if is_online() and multiplayer.is_server():
+		_sync_roster.rpc(roster)
+	roster_changed.emit()
+
+
+## Server: switch every peer to another map (map rotation). Players stay
+## connected; each client reloads and goes through _level_ready again.
+func change_map(map_path: String) -> void:
+	if not multiplayer.is_server():
+		return
+	print("[net] Changing map to %s" % GameConfig.map_name(map_path))
+	current_map = map_path
+	_ready_peers.clear()
+	_level = null
+	for id: int in roster:
+		if id != 1:
+			_client_load_map.rpc_id(id, map_path)
+	get_tree().change_scene_to_file(map_path)
 
 
 ## Sends an RPC to every peer that has finished loading the level.
@@ -175,9 +207,12 @@ func ready_peer_ids() -> Array:
 func on_level_loaded(level: Level) -> void:
 	_level = level
 	if multiplayer.is_server():
+		if mode == Mode.OFFLINE:
+			Match.configure(GameConfig.Mode.PRACTICE)
+		Match.start_match()
 		if mode != Mode.DEDICATED:
 			if not roster.has(1):
-				roster[1] = _new_entry(local_name)
+				_add_local_entry()
 			_ready_peers[1] = true
 			_server_spawn(1)
 	else:
@@ -192,12 +227,11 @@ func report_kill(killer_id: int, victim_id: int, weapon_name: String, headshot: 
 		roster[victim_id].deaths += 1
 	if roster.has(killer_id) and killer_id != victim_id:
 		roster[killer_id].kills += 1
-	var killer_name := get_player_name(killer_id) if killer_id > 0 else "World"
-	_announce_kill(killer_name, get_player_name(victim_id), weapon_name, headshot)
+	Match.on_kill(killer_id, victim_id)
+	_announce_kill(killer_id, victim_id, weapon_name, headshot)
 	if is_online():
-		_announce_kill.rpc(killer_name, get_player_name(victim_id), weapon_name, headshot)
-		_sync_roster.rpc(roster)
-	roster_changed.emit()
+		_announce_kill.rpc(killer_id, victim_id, weapon_name, headshot)
+	broadcast_roster()
 
 
 # -----------------------------------------------------------------------------
@@ -218,14 +252,13 @@ func _on_peer_disconnected(id: int) -> void:
 	if _level:
 		_level.despawn_player(id)
 	send_to_ready(self, &"_despawn_player", [id])
-	_sync_roster.rpc(roster)
-	roster_changed.emit()
+	broadcast_roster()
 
 
 func _on_connected_to_server() -> void:
 	_connect_timer = -1.0
 	print("[net] Connected as peer %d" % multiplayer.get_unique_id())
-	_register_player.rpc_id(1, local_name, PROTOCOL_VERSION)
+	_register_player.rpc_id(1, local_name, PROTOCOL_VERSION, SettingsManager.preferred_primary)
 
 
 func _on_connection_failed() -> void:
@@ -248,18 +281,18 @@ func _fail(reason: String) -> void:
 # -----------------------------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register_player(player_name: String, protocol: int) -> void:
+func _register_player(player_name: String, protocol: int, primary: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
 	if protocol != PROTOCOL_VERSION:
 		_kicked.rpc_id(id, "Version mismatch (server %d, client %d)." % [PROTOCOL_VERSION, protocol])
 		return
-	roster[id] = _new_entry(_sanitize_name(player_name, id))
+	roster[id] = _new_entry(_sanitize_name(player_name, id), primary)
+	roster[id].team = Match.assign_team(id)
 	print("[net] %s (%d) joined" % [roster[id].name, id])
 	_client_load_map.rpc_id(id, current_map)
-	_sync_roster.rpc(roster)
-	roster_changed.emit()
+	broadcast_roster()
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -270,9 +303,11 @@ func _level_ready() -> void:
 	if not roster.has(id):
 		return
 	_ready_peers[id] = true
-	# 1) Existing players, 2) current health of everything, 3) the new player.
+	# 1) Match state, 2) existing players, 3) current health of everything,
+	# 4) the new player.
+	Match.send_state_to(id)
 	for p: PlayerController in _level.get_players():
-		_spawn_player.rpc_id(id, p.peer_id, p.player_name, p.global_transform)
+		_spawn_player.rpc_id(id, p.peer_id, p.player_name, p.global_transform, p.primary_id, p.current_slot)
 	for h: Health in get_tree().get_nodes_in_group(Health.NET_GROUP):
 		h.send_state_to(id)
 	_server_spawn(id)
@@ -302,9 +337,9 @@ func _client_load_map(map_path: String) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _spawn_player(peer_id: int, player_name: String, xform: Transform3D) -> void:
+func _spawn_player(peer_id: int, player_name: String, xform: Transform3D, primary: String, slot: int) -> void:
 	if _level:
-		_level.spawn_player(peer_id, player_name, xform)
+		_level.spawn_player(peer_id, player_name, xform, primary, slot)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -320,8 +355,8 @@ func _sync_roster(data: Dictionary) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func _announce_kill(killer: String, victim: String, weapon_name: String, headshot: bool) -> void:
-	kill_feed.emit(killer, victim, weapon_name, headshot)
+func _announce_kill(killer_id: int, victim_id: int, weapon_name: String, headshot: bool) -> void:
+	kill_feed.emit(killer_id, victim_id, weapon_name, headshot)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -345,10 +380,16 @@ func _kicked(reason: String) -> void:
 # -----------------------------------------------------------------------------
 
 func _server_spawn(peer_id: int) -> void:
-	var xform := _level.next_spawn_transform()
+	var xform := _level.next_spawn_transform(peer_id)
 	var player_name := get_player_name(peer_id)
-	_level.spawn_player(peer_id, player_name, xform)
-	send_to_ready(self, &"_spawn_player", [peer_id, player_name, xform])
+	var primary: String = roster.get(peer_id, {}).get("primary", GameConfig.DEFAULT_PRIMARY)
+	_level.spawn_player(peer_id, player_name, xform, primary, 0)
+	send_to_ready(self, &"_spawn_player", [peer_id, player_name, xform, primary, 0])
+
+
+func _add_local_entry() -> void:
+	roster[1] = _new_entry(local_name, SettingsManager.preferred_primary)
+	roster[1].team = Match.assign_team(1)
 
 
 func _reset_peer() -> void:
@@ -364,8 +405,13 @@ func _reset_peer() -> void:
 	ping_ms = 0
 
 
-func _new_entry(player_name: String) -> Dictionary:
-	return { "name": player_name, "kills": 0, "deaths": 0, "ping": 0 }
+func _new_entry(player_name: String, primary: String = GameConfig.DEFAULT_PRIMARY) -> Dictionary:
+	if not primary in GameConfig.PRIMARY_WEAPONS:
+		primary = GameConfig.DEFAULT_PRIMARY
+	return {
+		"name": player_name, "kills": 0, "deaths": 0, "ping": 0,
+		"team": GameConfig.TEAM_NONE, "primary": primary,
+	}
 
 
 func _sanitize_name(raw: String, id: int) -> String:
@@ -377,7 +423,7 @@ func _local_time() -> float:
 	return Time.get_ticks_usec() / 1_000_000.0
 
 
-## `godot --headless -- --server [--port 7777] [--max-players 16] [--map res://…]`
+## `godot --headless -- --server [--port 7777] [--max-players 16] [--map warehouse] [--mode tdm]`
 func _start_dedicated_from_args() -> void:
 	var args := OS.get_cmdline_user_args()
 	if not "--server" in args:
@@ -385,6 +431,7 @@ func _start_dedicated_from_args() -> void:
 	var port := DEFAULT_PORT
 	var max_players := DEFAULT_MAX_PLAYERS
 	var map_path := DEFAULT_MAP
+	var game_mode := GameConfig.Mode.FFA
 	for i in args.size():
 		var key := args[i]
 		var value := args[i + 1] if i + 1 < args.size() else ""
@@ -394,7 +441,8 @@ func _start_dedicated_from_args() -> void:
 		match key:
 			"--port": port = value.to_int()
 			"--max-players": max_players = value.to_int()
-			"--map": map_path = value
-	if host(port, max_players, true, map_path) != OK:
+			"--map": map_path = GameConfig.map_path(value)
+			"--mode": game_mode = GameConfig.MODE_IDS.get(value.to_lower(), GameConfig.Mode.FFA)
+	if host(port, max_players, true, map_path, game_mode) != OK:
 		push_error(last_error)
 		get_tree().quit(1)

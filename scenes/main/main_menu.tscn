@@ -53,10 +53,25 @@ layout_mode = 2
 placeholder_text = "Player name"
 max_length = 16
 
+[node name="GameRow" type="HBoxContainer" parent="Center/Main"]
+layout_mode = 2
+
+[node name="MapOption" type="OptionButton" parent="Center/Main/GameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Map"
+
+[node name="ModeOption" type="OptionButton" parent="Center/Main/GameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "Game mode (host)"
+
 [node name="PlayButton" type="Button" parent="Center/Main"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Play Offline (Test Map)"
+text = "Play Offline (Practice)"
 
 [node name="HostRow" type="HBoxContainer" parent="Center/Main"]
 layout_mode = 2

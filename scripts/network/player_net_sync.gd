@@ -12,6 +12,8 @@ const SEND_RATE := 30.0
 const HISTORY_SECONDS := 1.0
 ## Max horizontal speed accepted by the server (sprint + slide boost + margin).
 const MAX_SPEED := 14.0
+## Seconds of invulnerability after (re)spawning.
+const SPAWN_PROTECTION := 1.5
 
 enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8 }
 
@@ -117,10 +119,42 @@ func _server_fell() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _respawn(xform: Transform3D) -> void:
+func _respawn(xform: Transform3D, primary: String) -> void:
 	if multiplayer.get_remote_sender_id() != 1:
 		return
-	_apply_respawn(xform)
+	_apply_respawn(xform, primary)
+
+
+## Owner → server → everyone: weapon slot changes.
+func send_slot(slot: int) -> void:
+	if not NetworkManager.is_online():
+		return
+	if multiplayer.is_server():
+		NetworkManager.send_to_ready(self, &"_client_slot", [slot], [player.peer_id])
+	else:
+		_server_slot.rpc_id(1, slot)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _server_slot(slot: int) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != player.peer_id:
+		return
+	slot = clampi(slot, 0, 1)
+	player._equip_slot(slot)
+	NetworkManager.send_to_ready(self, &"_client_slot", [slot], [player.peer_id])
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _client_slot(slot: int) -> void:
+	if multiplayer.get_remote_sender_id() == 1 and not player.is_local:
+		player._equip_slot(clampi(slot, 0, 1))
+
+
+## Server: respawn right now without counting a death (team switch).
+func server_force_respawn() -> void:
+	if multiplayer.is_server():
+		_respawn_timer = -1.0
+		_server_respawn()
 
 
 # -----------------------------------------------------------------------------
@@ -140,17 +174,19 @@ func _on_died(source: Node) -> void:
 
 func _server_respawn() -> void:
 	var level := player.get_parent().get_parent() as Level
-	var xform := level.next_spawn_transform() if level else player.global_transform
+	var xform := level.next_spawn_transform(player.peer_id) if level else player.global_transform
+	var primary: String = NetworkManager.roster.get(player.peer_id, {}).get("primary", player.primary_id)
 	player.health.revive()
-	_apply_respawn(xform)
-	NetworkManager.send_to_ready(self, &"_respawn", [xform])
+	player.health.protect(SPAWN_PROTECTION)
+	_apply_respawn(xform, primary)
+	NetworkManager.send_to_ready(self, &"_respawn", [xform, primary])
 
 
-func _apply_respawn(xform: Transform3D) -> void:
+func _apply_respawn(xform: Transform3D, primary: String) -> void:
 	_snapshots.clear()
 	_last_valid_pos = xform.origin
 	_last_valid_time = NetworkManager.server_time()
-	player.respawn_at(xform)
+	player.respawn_at(xform, primary)
 
 
 func _push_snapshot(t: float, pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:

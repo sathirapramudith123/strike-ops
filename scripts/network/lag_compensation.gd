@@ -20,8 +20,11 @@ const HEAD_DROP := 0.2
 
 
 ## Returns {} on miss, otherwise { position, normal, distance, hitbox }.
+## `players` must contain every player (their hitboxes are removed from the
+## physics query and tested analytically instead); players in `ignore`
+## (teammates) are not hit at all — bullets pass through them.
 static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, max_range: float,
-		shooter: PlayerController, players: Array, rewind_time: float) -> Dictionary:
+		shooter: PlayerController, players: Array, rewind_time: float, ignore: Array = []) -> Dictionary:
 	dir = dir.normalized()
 	var best := {}
 	var best_distance := max_range
@@ -45,7 +48,7 @@ static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector
 
 	# 2) Players, rewound to what the shooter saw.
 	for p: PlayerController in players:
-		if p == shooter or p.health.is_dead:
+		if p == shooter or p.health.is_dead or p in ignore:
 			continue
 		var state: Dictionary = p.net_sync.get_state_at(rewind_time)
 		var feet: Vector3 = state.pos

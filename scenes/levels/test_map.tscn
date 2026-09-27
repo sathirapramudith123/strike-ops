@@ -256,12 +256,14 @@ size = Vector3(1.5, 1.8, 1.5)
 [sub_resource type="BoxShape3D" id="Shape_31"]
 size = Vector3(3, 0.1, 4.4721)
 
-[node name="TestMap" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points")]
+[node name="TestMap" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points")]
 script = ExtResource("1_level")
 player_scene = ExtResource("6_player")
 world_environment = NodePath("WorldEnvironment")
 sun = NodePath("Sun")
 spawn_points = [NodePath("SpawnPoints/Spawn1"), NodePath("SpawnPoints/Spawn2")]
+blue_spawn_points = [NodePath("SpawnPoints/Blue1"), NodePath("SpawnPoints/Blue2"), NodePath("SpawnPoints/Blue3")]
+red_spawn_points = [NodePath("SpawnPoints/Red1"), NodePath("SpawnPoints/Red2"), NodePath("SpawnPoints/Red3")]
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Env")
@@ -541,6 +543,24 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.1, 6)
 
 [node name="Spawn2" type="Marker3D" parent="SpawnPoints"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.1, 6)
+
+[node name="Blue1" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0.1, 13)
+
+[node name="Blue2" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4, 0.1, 13)
+
+[node name="Blue3" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, 0.1, 11)
+
+[node name="Red1" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0.1, -3)
+
+[node name="Red2" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 3, 0.1, -3)
+
+[node name="Red3" type="Marker3D" parent="SpawnPoints"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -2, 0.1, -3)
 
 [node name="Targets" type="Node3D" parent="."]
 

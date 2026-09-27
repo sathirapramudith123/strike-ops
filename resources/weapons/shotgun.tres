@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="WeaponData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+display_name = "M-12 Shotgun"
+weapon_id = "shotgun"
+automatic = false
+fire_rate = 70.0
+damage = 13.0
+pellets = 9
+headshot_multiplier = 1.5
+max_range = 40.0
+falloff_start = 8.0
+min_damage_multiplier = 0.3
+magazine_size = 6
+starting_reserve = 24
+reload_time = 2.6
+hip_spread = 6.0
+ads_spread = 4.5
+spread_per_shot = 0.0
+max_bloom = 0.0
+bloom_recovery = 10.0
+moving_spread = 1.0
+air_spread = 2.0
+recoil_pitch = 4.0
+recoil_yaw = 1.0
+ads_recoil_multiplier = 0.8
+ads_time = 0.2
+ads_fov_multiplier = 0.9
+ads_sensitivity_multiplier = 0.85
+ads_move_speed_multiplier = 0.7

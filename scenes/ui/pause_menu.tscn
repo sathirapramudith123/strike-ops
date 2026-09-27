@@ -89,6 +89,23 @@ layout_mode = 2
 [node name="Spacer" type="Control" parent="Panel/Center/Box/Grid"]
 layout_mode = 2
 
+[node name="LoadoutRow" type="HBoxContainer" parent="Panel/Center/Box"]
+layout_mode = 2
+
+[node name="LoadoutLabel" type="Label" parent="Panel/Center/Box/LoadoutRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Primary weapon (next spawn)"
+
+[node name="LoadoutOption" type="OptionButton" parent="Panel/Center/Box/LoadoutRow"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TeamButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Switch team"
+
 [node name="VoiceTitle" type="Label" parent="Panel/Center/Box"]
 modulate = Color(1, 1, 1, 0.7)
 layout_mode = 2

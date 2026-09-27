@@ -35,6 +35,11 @@ func _run() -> void:
 	_test_lag_compensation()
 	_test_voice_codec()
 	await _test_voice_loopback()
+	await _test_weapon_switching()
+	await _test_shotgun_and_sniper()
+	await _test_loadout_on_respawn()
+	_test_friendly_fire_and_match_end()
+	await _test_maps()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -258,6 +263,158 @@ func _test_voice_loopback() -> void:
 	_check(pb != null and pb.samples_decoded >= 15000, "mic test loopback decodes the injected audio")
 	_check(VoiceChat.input_level > 0.05, "mic level meter reacts (%.2f)" % VoiceChat.input_level)
 	VoiceChat.loopback = false
+
+
+func _test_weapon_switching() -> void:
+	_reset_player(Vector3(0, 0.1, 6))
+	await _frames(5)
+	_check(_player.current_weapon.data.weapon_id == "rifle", "starts with the rifle")
+	_tap(&"weapon_2")
+	await _frames(3)
+	_check(_player.current_weapon.data.weapon_id == "pistol", "key 2 switches to the pistol")
+	var pistol := _player.current_weapon
+	var before := pistol.ammo_in_magazine
+	Input.action_press(&"shoot")
+	await _frames(30)
+	Input.action_release(&"shoot")
+	_check(before - pistol.ammo_in_magazine == 1, "pistol is semi-automatic (one shot per click)")
+	_tap(&"weapon_1")
+	await _frames(3)
+	_check(_player.current_weapon.data.weapon_id == "rifle", "key 1 switches back")
+
+
+func _test_shotgun_and_sniper() -> void:
+	var target := _level.get_node("Targets/Target1") as TargetDummy
+	_player.apply_loadout("shotgun")
+	await _frames(20) # let the dummy finish respawning from earlier tests
+	target.health.revive()
+	_reset_player(target.global_position + Vector3(0, 0.1, 6))
+	await _frames(5)
+	_aim_at(target.global_position + Vector3(0, 0.9, 0))
+	var hits := [0]
+	var on_damaged := func(_a: float, _s: Node, _h: bool) -> void: hits[0] += 1
+	target.health.damaged.connect(on_damaged)
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(2)
+	target.health.damaged.disconnect(on_damaged)
+	_check(hits[0] >= 3, "shotgun pellets hit several times (%d)" % hits[0])
+	target.health.revive()
+
+	# Target2 from 10 m has a clear line of sight (see _test_shooting).
+	target = _level.get_node("Targets/Target2") as TargetDummy
+	target.health.revive()
+	_player.apply_loadout("sniper")
+	var sniper := _player.current_weapon
+	_reset_player(Vector3(0, 0.1, -12))
+	await _frames(5)
+	_aim_at(target.global_position + Vector3(0, 0.9, 0))
+	Input.action_press(&"aim")
+	await _frames(30)
+	_check(sniper.is_scoped(), "sniper scope engages when aiming")
+	_check(_player.camera.fov < SettingsManager.field_of_view * 0.4, "scope zooms in (fov %.0f)" % _player.camera.fov)
+	_check(not sniper.get_node("Receiver").visible, "viewmodel hidden while scoped")
+	_aim_at(target.global_position + Vector3(0, 0.9, 0))
+	Input.action_press(&"shoot")
+	await _frames(2)
+	_release_all()
+	await _frames(5)
+	_check(target.health.is_dead, "one sniper body shot kills")
+	_player.apply_loadout("rifle")
+
+
+func _test_loadout_on_respawn() -> void:
+	Match.request_loadout("smg")
+	_check(NetworkManager.roster[1].primary == "smg", "loadout stored in roster")
+	_reset_player(Vector3(0, -35, 6))
+	await _frames(int(_player.respawn_delay * 60.0) + 15)
+	_check(_player.primary_id == "smg" and _player.current_weapon.data.weapon_id == "smg",
+		"respawn uses the new primary (SMG)")
+	_check(_player.current_weapon.ammo_in_magazine == _player.current_weapon.data.magazine_size, "ammo refilled on respawn")
+	Match.request_loadout("rifle")
+
+
+func _test_friendly_fire_and_match_end() -> void:
+	# Team deathmatch rules offline: us (blue) + a teammate in front of an enemy.
+	Match.configure(GameConfig.Mode.TDM, 1)
+	NetworkManager.roster[1].team = 0
+	NetworkManager.roster[401] = NetworkManager._new_entry("Mate")
+	NetworkManager.roster[401].team = 0
+	NetworkManager.roster[402] = NetworkManager._new_entry("Enemy")
+	NetworkManager.roster[402].team = 1
+	_reset_player(Vector3(-20, 0.1, 20))
+	var mate := _level.spawn_player(401, "Mate", Transform3D(Basis.IDENTITY, Vector3(-20, 0, 15)))
+	var enemy := _level.spawn_player(402, "Enemy", Transform3D(Basis.IDENTITY, Vector3(-20, 0, 10)))
+	var rifle: Weapon = _player.weapons["rifle"]
+	var origin := Vector3(-20, 1.2, 20)
+	rifle._server_process_shot(origin, PackedVector3Array([Vector3.FORWARD]), NetworkManager.server_time())
+	_check(mate.health.current == mate.health.max_health, "no friendly fire (teammate untouched)")
+	_check(enemy.health.current < enemy.health.max_health, "bullet passes through teammate and hits the enemy")
+	_check(Match.is_friendly(1, 401) and not Match.is_friendly(1, 402), "is_friendly follows teams")
+
+	Match.results_time = 999.0
+	NetworkManager.report_kill(1, 402, "AR-7", false)
+	_check(Match.team_scores[0] == 1, "team score counts the kill")
+	_check(Match.is_ended() and Match.winner_text == "Blue team wins!", "score limit ends the match (%s)" % Match.winner_text)
+	_check(_level.hud.get_node("%EndScreen").visible, "results screen shown")
+	await_safe_cleanup(mate, enemy)
+
+
+func await_safe_cleanup(mate: PlayerController, enemy: PlayerController) -> void:
+	_level.despawn_player(mate.peer_id)
+	_level.despawn_player(enemy.peer_id)
+	NetworkManager.roster.erase(401)
+	NetworkManager.roster.erase(402)
+	NetworkManager.roster[1].team = GameConfig.TEAM_NONE
+	Match.results_time = Match.RESULTS_TIME
+	Match.configure(GameConfig.Mode.PRACTICE)
+	Match.start_match()
+
+
+func _test_maps() -> void:
+	# Warehouse: ramp from the ground up to the catwalk (3 m).
+	await _load_map("res://scenes/levels/warehouse.tscn")
+	_check(_level.blue_spawn_points.size() >= 3 and _level.red_spawn_points.size() >= 3, "warehouse has team spawns")
+	await _frames(40)
+	_check(_player.is_on_floor(), "warehouse: player lands on the floor")
+	_reset_player(Vector3(15, 0.1, -2.0))
+	Input.action_press(&"move_forward")
+	var top := 0.0
+	for i in 150:
+		await get_tree().physics_frame
+		top = maxf(top, _player.global_position.y)
+	_release_all()
+	_check(top > 2.8, "warehouse: ramp reaches the catwalk (max y=%.2f)" % top)
+
+	# Courtyard: ramp inside the west building to the upper floor (3.6 m).
+	await _load_map("res://scenes/levels/courtyard.tscn")
+	await _frames(40)
+	_check(_player.is_on_floor(), "courtyard: player lands on the floor")
+	_reset_player(Vector3(-23.5, 0.1, 7.7))
+	Input.action_press(&"move_forward")
+	top = 0.0
+	for i in 150:
+		await get_tree().physics_frame
+		top = maxf(top, _player.global_position.y)
+	_release_all()
+	_check(top > 3.4, "courtyard: ramp reaches the upper floor (max y=%.2f)" % top)
+
+
+func _load_map(path: String) -> void:
+	_level.queue_free()
+	await _frames(2)
+	_level = (load(path) as PackedScene).instantiate() as Level
+	add_child(_level)
+	await _frames(5)
+	_player = _level.player
+
+
+func _tap(action: StringName) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = true
+	Input.parse_input_event(ev)
 
 
 # -----------------------------------------------------------------------------

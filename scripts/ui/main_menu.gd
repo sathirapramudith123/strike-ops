@@ -31,6 +31,12 @@ func _ready() -> void:
 	%NameEdit.text = SettingsManager.player_name
 	%AddressEdit.text = SettingsManager.last_join_address
 	%PortSpin.value = SettingsManager.host_port
+	for m: Dictionary in GameConfig.MAPS:
+		%MapOption.add_item(m.name)
+	%MapOption.select(maxi(GameConfig.map_index(SettingsManager.selected_map), 0))
+	for mode_id: int in [GameConfig.Mode.FFA, GameConfig.Mode.TDM]:
+		%ModeOption.add_item(GameConfig.MODE_NAMES[mode_id], mode_id)
+	%ModeOption.select(maxi(%ModeOption.get_item_index(SettingsManager.host_mode), 0))
 	%StatusLabel.text = NetworkManager.last_error
 	NetworkManager.last_error = ""
 	NetworkManager.connection_failed.connect(_on_connection_failed)
@@ -52,14 +58,16 @@ func _ready() -> void:
 
 func _on_play_pressed() -> void:
 	_store_name()
-	NetworkManager.start_offline()
+	NetworkManager.start_offline(_selected_map())
 
 
 func _on_host_pressed() -> void:
 	_store_name()
 	SettingsManager.host_port = int(%PortSpin.value)
+	SettingsManager.host_mode = %ModeOption.get_selected_id()
 	SettingsManager.save()
-	if NetworkManager.host(SettingsManager.host_port) != OK:
+	if NetworkManager.host(SettingsManager.host_port, NetworkManager.DEFAULT_MAX_PLAYERS, false,
+			_selected_map(), SettingsManager.host_mode) != OK:
 		%StatusLabel.text = NetworkManager.last_error
 
 
@@ -91,6 +99,13 @@ func _on_connection_failed(reason: String) -> void:
 func _set_buttons_disabled(disabled: bool) -> void:
 	for b: String in ["PlayButton", "HostButton", "JoinButton"]:
 		(get_node("%" + b) as Button).disabled = disabled
+
+
+func _selected_map() -> String:
+	var path: String = GameConfig.MAPS[maxi(%MapOption.selected, 0)].path
+	SettingsManager.selected_map = path
+	SettingsManager.save()
+	return path
 
 
 func _store_name() -> void:

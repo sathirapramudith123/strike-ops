@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🚧 Phase 5 — online multiplayer prototype with in-game voice chat (host / join / dedicated server) on the test map.
+> **Status:** 🚧 Phase 6 — playable multiplayer shooter: Free-for-All & Team Deathmatch, 5 weapons, 3 greybox maps, voice chat, host / join / dedicated server.
 
 ---
 
@@ -42,7 +42,7 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 
 - 🔫 **Core FPS gameplay** — smooth first-person movement (walk, sprint, crouch, jump, slide), aim-down-sights, recoil & spread, hitscan and projectile weapons.
 - 🌐 **Multiplayer** — client/server networking with lag compensation and client-side prediction.
-- 🎮 **Game modes** (planned) — Team Deathmatch, Free-for-All, Bomb/Defuse.
+- 🎮 **Game modes** — Free-for-All, Team Deathmatch (Bomb/Defuse planned), offline Practice.
 - ⚙️ **Graphics presets** — Low / Medium / High / Ultra + auto-detect on first launch.
 - 🔊 **3D spatial audio** — distance attenuation, occlusion, reverb zones.
 - 🎙️ **Voice chat** — team channel, proximity chat, push-to-talk / voice activation, per-player mute.
@@ -199,7 +199,7 @@ game-develop/
 │   ├── ui/                  # menus, HUD, crosshair
 │   └── voice/               # voice capture, encode/decode, playback
 ├── tests/                   # smoke test + two-process multiplayer test
-├── tools/                   # helper scripts (run_net_test.sh)
+├── tools/                   # run_net_test.sh, greybox.py (map generator)
 ├── docs/                    # design documents
 ├── .editorconfig            # tabs for GDScript, LF line endings
 ├── .gitattributes           # line endings + Git LFS rules
@@ -285,7 +285,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, and walking the ramps of Warehouse and Courtyard) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -301,9 +301,10 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 - **Internet:** forward **UDP 7777** on your router to the host PC, or use a VPN such as Tailscale / ZeroTier / Radmin VPN.
 - **Dedicated server** (no graphics, very low CPU/RAM — good for a cheap VPS):
   ```bash
-  ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16
+  ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16 --mode tdm --map warehouse
   # from source:
-  godot --headless --path . -- --server --port 7777
+  godot --headless --path . -- --server --port 7777 --mode ffa --map courtyard
+  # --mode: ffa | tdm      --map: test_map | warehouse | courtyard
   ```
 
 **How it works**
@@ -321,11 +322,47 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 
 **Key scripts:** `scripts/network/network_manager.gd` (autoload), `scripts/network/player_net_sync.gd`, `scripts/network/lag_compensation.gd`, `scripts/weapons/weapon.gd` (`_server_fire`), `scripts/levels/level.gd`.
 
-**Known limitations (next steps):** players pass through each other; ammo is not validated server-side yet (fire rate is); no NAT punch-through or encryption; one map / free-for-all only (teams & game modes come in Phase 6).
+**Known limitations (next steps):** players pass through each other; ammo is not validated server-side yet (fire rate is); no NAT punch-through or encryption.
+
+### Phase 6 — modes, weapons & maps
+
+**Game modes** (chosen by the host; the main menu also picks the map)
+
+| Mode | Rules |
+|------|-------|
+| **Practice** | Offline, any map, target dummies, no limits |
+| **Free-for-All** | First to **20** kills, or most kills after **10 min** |
+| **Team Deathmatch** | Blue vs Red, auto-balanced on join, **friendly fire off** (bullets pass through teammates), first team to **50** kills or most after **10 min** |
+
+Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **next map in the rotation** (Test Range → Warehouse → Courtyard → …), everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
+
+**Weapons** — loadout = one primary + the pistol. Switch with `1` / `2` / mouse wheel; pick your primary in the `Esc` menu (applies on your next spawn).
+
+| Weapon | Type | Damage | RPM | Mag | Notes |
+|--------|------|--------|-----|-----|-------|
+| AR-7 | Assault rifle | 24 | 650 | 30 | All-rounder |
+| V-10 | SMG | 17 | 900 | 32 | Fast, accurate while moving, short range |
+| M-12 | Shotgun | 9 × 13 | 70 | 6 | Pellets in one packet, deadly up close |
+| LR-50 | Sniper | 110 | 45 | 5 | One-shot body kill, **scope overlay** (4× zoom) |
+| P-9 | Pistol | 30 | 400 (semi) | 12 | Secondary for everyone |
+
+All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weapon: new `WeaponData` `.tres` + viewmodel scene using `weapon.gd`, register it in `scripts/core/game_config.gd`, and add an instance under the player's `WeaponHolder`.
+
+**Maps**
+
+| Map | Style | Features |
+|-----|-------|----------|
+| Test Range | Shooting range | Targets, ramp, stairs, crouch tunnel |
+| Warehouse | Close quarters | Shelf aisles, crate stacks, raised catwalk with ramps, two offices |
+| Courtyard | Outdoor, mid-range | Fountain plaza, pillars, low walls, two 2-storey buildings with roof access |
+
+Warehouse and Courtyard are generated by **`tools/greybox.py`** (boxes, ramps, doors, spawns, lights). Edit the layout in Python and run `python3 tools/greybox.py` to rebuild the `.tscn` files; replace the greybox with real art later.
+
+**Key scripts:** `scripts/core/match_manager.gd` (autoload `Match`), `scripts/core/game_config.gd`, `scripts/levels/level.gd` (team + safe spawns), `scripts/ui/hud.gd`, `scripts/ui/scope_overlay.gd`.
 
 ### Testing multiplayer locally
 
-- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; the client walks, shoots the host dead and both sides check replication, damage, kills, kill feed, respawn, ping, **two-way voice chat** (test tones must arrive at the right frequency, speaking indicators on/off) and clean disconnect.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **rotates to Warehouse**, both players respawn there, and the client disconnects cleanly.
 - **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---
@@ -367,7 +404,7 @@ Dedicated server (no graphics, low CPU usage):
 | Shoot | `Left Mouse` |
 | Aim down sights | `Right Mouse` |
 | Reload | `R` |
-| Switch weapon | `1`–`4` / `Mouse Wheel` |
+| Switch weapon | `1` primary / `2` pistol / `Mouse Wheel` |
 | Interact | `E` |
 | Throw grenade | `G` |
 | **Push-to-talk (team)** | `V` |
@@ -434,7 +471,8 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
 - [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute
 - [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)
-- [ ] **Phase 6 — Content:** more weapons, 2–3 maps, game modes, HUD & menus
+- [x] **Phase 6 — Content:** 5 weapons + loadouts, 3 maps, FFA & TDM with teams, match flow & map rotation, HUD & menus
+- [ ] **Phase 6b — Bomb/Defuse:** rounds, bomb plant/defuse, no respawns
 - [ ] **Phase 7 — Optimization:** profiling on minimum-spec hardware, LODs, occlusion, auto-detect preset
 - [ ] **Phase 8 — Release:** installers, anti-cheat basics, beta testing, v1.0
 

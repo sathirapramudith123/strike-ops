@@ -61,6 +61,10 @@ var invert_y: bool = false
 var player_name: String = "Player"
 var last_join_address: String = "127.0.0.1"
 var host_port: int = 7777
+var host_mode: int = 1 # GameConfig.Mode.FFA
+var selected_map: String = "res://scenes/levels/test_map.tscn"
+## Primary weapon id for the loadout (see GameConfig.PRIMARY_WEAPONS).
+var preferred_primary: String = "rifle"
 
 var _config := ConfigFile.new()
 
@@ -253,6 +257,9 @@ func save() -> void:
 	_config.set_value("network", "player_name", player_name)
 	_config.set_value("network", "last_join_address", last_join_address)
 	_config.set_value("network", "host_port", host_port)
+	_config.set_value("network", "host_mode", host_mode)
+	_config.set_value("network", "selected_map", selected_map)
+	_config.set_value("controls", "preferred_primary", preferred_primary)
 
 	var err := _config.save(SETTINGS_PATH)
 	if err != OK:
@@ -299,6 +306,9 @@ func _load_all(first_launch: bool) -> void:
 	player_name = _config.get_value("network", "player_name", player_name)
 	last_join_address = _config.get_value("network", "last_join_address", last_join_address)
 	host_port = _config.get_value("network", "host_port", host_port)
+	host_mode = _config.get_value("network", "host_mode", host_mode)
+	selected_map = _config.get_value("network", "selected_map", selected_map)
+	preferred_primary = _config.get_value("controls", "preferred_primary", preferred_primary)
 
 
 ## The renderer can only be chosen at startup. If the saved preset wants a

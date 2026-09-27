@@ -3,12 +3,17 @@ extends Resource
 ## All tunable stats of one weapon. Stored as .tres in res://resources/weapons/.
 
 @export var display_name: String = "Weapon"
+## Key in GameConfig.WEAPONS.
+@export var weapon_id: String = ""
 
 @export_group("Firing")
 @export var automatic: bool = true
 ## Rounds per minute.
 @export var fire_rate: float = 600.0
+## Damage per pellet.
 @export var damage: float = 25.0
+## Projectiles per shot (shotguns > 1). All pellets are sent in one packet.
+@export_range(1, 16) var pellets: int = 1
 @export var headshot_multiplier: float = 2.0
 @export var max_range: float = 150.0
 ## Damage starts dropping after this distance…
@@ -38,6 +43,8 @@ extends Resource
 @export_group("Aim down sights")
 @export var ads_time: float = 0.18
 ## Camera FOV multiplier while aiming (0.8 = 20% zoom).
-@export_range(0.3, 1.0, 0.05) var ads_fov_multiplier: float = 0.8
+@export_range(0.15, 1.0, 0.05) var ads_fov_multiplier: float = 0.8
 @export_range(0.1, 1.0, 0.05) var ads_sensitivity_multiplier: float = 0.7
 @export_range(0.1, 1.0, 0.05) var ads_move_speed_multiplier: float = 0.6
+## Sniper scope: hides the viewmodel and shows a scope overlay while aiming.
+@export var scoped: bool = false
