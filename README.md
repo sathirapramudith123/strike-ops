@@ -415,7 +415,7 @@ tools/run_benchmark.sh godot --preset low --set dynamic_lights=true   # A/B any 
 tools/run_benchmark.sh godot --no-batching                       # A/B static batching
 ```
 
-Or in game: **Settings → Graphics → Run benchmark** (the result and advice appear on the main menu).
+Or in game: **Settings → Graphics → Run benchmark** (the result and advice appear on the main menu). To compare *all* presets and options on a PC, use the **Full hardware test** (Phase 7b).
 
 **What was optimised** (measured with the benchmark; numbers below are from a *software* renderer — Mesa llvmpipe, no GPU — so absolute FPS is far lower than any real PC, but the before/after differences are real):
 
@@ -437,13 +437,47 @@ Overall Low preset, 3 maps, 12 bots (llvmpipe): **avg 30.2 → 37.2 FPS**, worst
 
 **Budgets enforced by the smoke test:** ≤ 90 nodes per player, one decal node per level, static batching at least halves mesh count, occluders present, dynamic resolution drops/recovers, Low turns lights off.
 
+### Phase 7b — real-hardware tuning
+
+The presets can only be tuned on real PCs, so the game measures itself and players send the results.
+
+**1. Players run the full hardware test** — *Settings → Graphics → Full hardware test* (≈5 min; don't touch the mouse). It plays Warehouse and Courtyard with 12 bots and measures:
+
+| Stage | Measured |
+|-------|----------|
+| OpenGL (Compatibility) | Low; Low at render scale 0.5 and 1.0; Low + shadows / lamps / glow / FXAA |
+| Vulkan (Forward+) | Medium, High, Ultra, Low on Vulkan; Medium + SSAO / SSR / volumetric fog / TAA / MSAA 2× / 2048 shadows / full resolution / SDFGI |
+
+The renderer can only change at startup, so the game **restarts itself once** between the stages (and once more back to your own settings). Progress is saved: if a stage crashes (e.g. a broken Vulkan driver) the test records that and carries on; a PC without Vulkan is reported as "Vulkan unsupported".
+
+At the end the main menu shows the results — every preset as *smooth* (≥ 60 FPS average and ≥ 50 FPS 1% low), *playable* (≥ 30 FPS 1% low) or *too slow*, what each option costs on this PC, and the recommended preset — with **Use this preset**, **Copy report**, **Send to the developers** (opens a pre-filled *Hardware report* issue on GitHub; the report is also on the clipboard) and **Open folder** (`hardware_report_*.json` + `.md` in the benchmarks folder). From the command line: `FPSGame -- --hardware-test [--quick] [--quit]`.
+
+**2. Tune from the reports** — save the JSON files in a folder and run:
+
+```bash
+tools/tune_presets.py reports/*.json            # analysis + suggestions
+tools/tune_presets.py reports/*.json --apply    # also update resources/settings/gpu_tiers.cfg
+```
+
+It prints each GPU's results and suggests:
+- the **render scale Low needs** on minimum-spec GPUs (fitted from the 0.5 / 0.7 / 1.0 runs), or that a PC is **CPU-bound** (lower resolution won't help);
+- whether **OpenGL or Vulkan is faster** for Low on integrated GPUs;
+- the **cost of each option** on integrated vs discrete GPUs → what to drop from High first, and what Low could afford for free;
+- a **starting preset per GPU model**. With `--apply` these go into `resources/settings/gpu_tiers.cfg`, which the first-launch auto-detect reads (GPU names are normalised, so *Mesa Intel(R) UHD Graphics 620 (KBL GT2)* on Linux and *Intel(R) UHD Graphics 620* on Windows are the same entry).
+
+Preset files themselves are only *suggested* — review and edit `resources/settings/graphics_presets/*.tres` by hand.
+
+**Status:** the tools are ready and tested, but **no real-hardware reports exist yet** — the presets are still the Phase 7 values and `gpu_tiers.cfg` only lists the README's minimum-spec GPUs (UHD 620, Vega 8, older Intel HD) as *not measured yet*. Reports from a minimum-spec laptop are the next step.
+
+**Found on the way:** ENet's packet throttle dropped *unreliable* packets (voice and player movement) whenever round-trip times fluctuated — under CPU load a listener received only a fraction of the voice packets. Every connection now keeps unreliable traffic at full rate; voice now arrives complete (125 of 125 packets in the tests).
+
 ### Phase 2 — settings
 
 **Settings** is one screen (`scenes/ui/settings_menu.tscn`) used by both the main menu and the in-game `Esc` menu. Every change applies and saves immediately.
 
 | Tab | What you can change |
 |-----|---------------------|
-| **Graphics** | Preset (Low / Medium / High / Ultra / Custom), *Auto-detect for this PC*, renderer (restart), render scale, upscaler (FSR 1 / FSR 2.2), MSAA, FXAA, TAA, texture & model detail, draw distance, foliage, particles, shadows (on/off, resolution, filtering, cascades), SSAO, SSIL, SSR, SDFGI, bloom, volumetric fog, depth of field |
+| **Graphics** | Preset (Low / Medium / High / Ultra / Custom), *Auto-detect for this PC*, *Run benchmark*, *Full hardware test*, renderer (restart), render scale, upscaler (FSR 1 / FSR 2.2), MSAA, FXAA, TAA, texture & model detail, draw distance, foliage, particles, shadows (on/off, resolution, filtering, cascades), SSAO, SSIL, SSR, SDFGI, bloom, volumetric fog, depth of field |
 | **Display** | Window mode, window size, V-Sync, FPS limit, field of view, brightness, performance overlay |
 | **Audio** | Master, music, effects, voice chat and interface volume |
 | **Voice** | On/off, push-to-talk or voice activation, microphone, mic volume, activation level, live mic meter, noise suppression, proximity chat, "hear myself" test |
@@ -640,7 +674,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 6 — Content:** 5 weapons + loadouts, 6 maps + map selection screen + map vote, FFA & TDM with teams, match flow & map rotation, HUD & menus
 - [x] **Phase 6b — Bomb Defusal:** rounds, freeze time, bomb carry/drop/plant/defuse/explode, no respawns + spectating, halftime side swap
 - [x] **Phase 7 — Optimization:** built-in benchmark, dynamic resolution, performance advisor, static batching + occluders + detail distance, shared decals, shader warm-up, Low-preset light cuts, better auto-detect
-- [ ] **Phase 7b — Real-hardware pass:** run the benchmark on the minimum-spec PC (Intel UHD 620 / Vega 8) and tune presets from the results
+- [ ] **Phase 7b — Real-hardware pass:** ✅ tools done (full hardware test with renderer restarts, shareable reports, `tools/tune_presets.py`, measured GPU tiers for auto-detect) · ⏳ waiting for reports from the minimum-spec PCs (Intel UHD 620 / Vega 8) to tune the presets
 - [x] **Phase 8 — Release (beta):** export presets, release packages + checksums, Windows installer, dedicated-server package + Docker, CI + release workflows, anti-cheat, bug reporting, changelog
 - [ ] **v1.0:** beta feedback, real art, code signing, controller support
 

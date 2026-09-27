@@ -19,6 +19,8 @@ const SETTINGS_PATH := "user://settings.cfg"
 ## Used when running anything under res://tests/ so tests never touch (or
 ## depend on) the player's real settings.
 const TEST_SETTINGS_PATH := "user://settings_test.cfg"
+## GPU name → starting preset (see gpu_tier()).
+const GPU_TIERS_PATH := "res://resources/settings/gpu_tiers.cfg"
 const PRESET_DIR := "res://resources/settings/graphics_presets/"
 const PRESET_FILES := {
 	GraphicsPreset.Quality.LOW: "low.tres",
@@ -139,6 +141,16 @@ func _ready() -> void:
 	var bench := BenchmarkRunner.from_args(OS.get_cmdline_user_args())
 	if bench:
 		get_tree().root.add_child.call_deferred(bench)
+	# Full hardware test: `-- --hardware-test`, or continuing after its restart.
+	# (Never inside test runs or on a dedicated server.)
+	var server_args := OS.get_cmdline_args() + OS.get_cmdline_user_args()
+	if settings_path != TEST_SETTINGS_PATH and not OS.has_feature("dedicated_server") and not "--server" in server_args:
+		if "--hardware-test" in OS.get_cmdline_user_args() and not HardwareTest.is_running():
+			HardwareTest.start("--quick" in OS.get_cmdline_user_args())
+		else:
+			var test := HardwareTest.resume_if_pending()
+			if test:
+				get_tree().root.add_child.call_deferred(test)
 
 
 # -----------------------------------------------------------------------------
@@ -187,6 +199,32 @@ static func vulkan_fallback_happened() -> bool:
 		and DisplayServer.get_name() != "headless"
 
 
+## Preset for a GPU name from GPU_TIERS_PATH, or -1 if it isn't listed.
+static func gpu_tier(adapter_name: String, path: String = GPU_TIERS_PATH) -> int:
+	var cfg := ConfigFile.new()
+	if cfg.load(path) != OK:
+		return -1
+	var gpu := normalize_gpu_name(adapter_name)
+	for pattern in cfg.get_sections():
+		if pattern in gpu:
+			return ["low", "medium", "high", "ultra"].find(str(cfg.get_value(pattern, "preset", "")).to_lower())
+	return -1
+
+
+## "Mesa Intel(R) UHD Graphics 620 (KBL GT2)" → "intel uhd graphics 620", so one
+## entry matches the same GPU on every OS/driver. Keep in sync with
+## normalize_gpu() in tools/tune_presets.py.
+static func normalize_gpu_name(adapter_name: String) -> String:
+	var s := adapter_name.to_lower().replace("(r)", "").replace("(tm)", "").get_slice("/", 0)
+	var trailing := RegEx.create_from_string("\\s*\\([^()]*\\)\\s*$")
+	var before := ""
+	while before != s:
+		before = s
+		s = trailing.sub(s, "")
+	s = s.strip_edges().trim_prefix("mesa ")
+	return RegEx.create_from_string("\\s+").sub(s, " ", true).strip_edges()
+
+
 ## Picks a sensible starting preset from the hardware (used on first launch).
 static func detect_recommended_quality() -> GraphicsPreset.Quality:
 	var adapter_type := RenderingServer.get_video_adapter_type()
@@ -204,6 +242,10 @@ static func detect_recommended_quality() -> GraphicsPreset.Quality:
 	# (the other presets are tuned for Forward+).
 	if vulkan_fallback_happened():
 		return GraphicsPreset.Quality.LOW
+	# Measured / known GPUs (resources/settings/gpu_tiers.cfg, from hardware reports).
+	var tier := gpu_tier(adapter)
+	if tier >= 0:
+		return tier as GraphicsPreset.Quality
 	if adapter_type == RenderingDevice.DEVICE_TYPE_INTEGRATED_GPU:
 		return GraphicsPreset.Quality.LOW if ram_gb < 7.5 else GraphicsPreset.Quality.MEDIUM
 	if ram_gb > 0.0 and ram_gb < 7.5 or cores <= 2:
@@ -449,6 +491,14 @@ func _ensure_renderer_matches() -> void:
 
 ## Restarts the game using the renderer required by the current preset.
 func restart_game() -> void:
+	OS.set_restart_on_exit(true, restart_args(graphics.rendering_method))
+	get_tree().quit.call_deferred()
+
+
+## Command line for restarting with `renderer`. User arguments (after `--`,
+## e.g. --hardware-test) are dropped on purpose. Godot consumes `--path`, so
+## it is added back when running from source with the editor binary.
+static func restart_args(renderer: String) -> PackedStringArray:
 	var args := PackedStringArray()
 	var skip_next := false
 	for arg in OS.get_cmdline_args():
@@ -458,9 +508,10 @@ func restart_game() -> void:
 			skip_next = true
 		else:
 			args.append(arg)
-	args.append_array([RENDERER_ARG, graphics.rendering_method])
-	OS.set_restart_on_exit(true, args)
-	get_tree().quit.call_deferred()
+	if OS.has_feature("editor") and not "--path" in args:
+		args.append_array(["--path", ProjectSettings.globalize_path("res://").trim_suffix("/")])
+	args.append_array([RENDERER_ARG, renderer])
+	return args
 
 
 func _graphics_property_names() -> PackedStringArray:

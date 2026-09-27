@@ -1,0 +1,28 @@
+name: Hardware report
+description: Results of Settings → Graphics → "Full hardware test" (helps tune the presets for PCs like yours)
+title: "Hardware report: "
+labels: ["hardware"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! The game fills this in (the report is also on your clipboard — paste it below if the box is empty).
+  - type: input
+    id: gpu
+    attributes:
+      label: Graphics card / chip
+      placeholder: Intel(R) UHD Graphics 620
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: Report
+      description: From the game's hardware test.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: How did it feel? (optional)
+      description: Laptop on battery or charger? Any stutter, overheating, fan noise?

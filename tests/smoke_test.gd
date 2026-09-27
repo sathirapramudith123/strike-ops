@@ -44,6 +44,7 @@ func _run() -> void:
 	await _test_settings_menu()
 	await _test_performance()
 	await _test_maps()
+	_test_hardware_report()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -307,6 +308,17 @@ func _test_opus() -> void:
 			continue
 		n += dec2.decode(packets[k], 640, 2 if k == 6 else 0).size()
 	_check(n == 10 * 640 and dec2.concealed == 2, "two lost packets are concealed (%d samples)" % n)
+
+	# A gap the server made on purpose (listener out of proximity range) is not
+	# packet loss: nothing is concealed. A real gap is.
+	var pb := VoicePlayback.new()
+	add_child(pb)
+	pb.push_packet(1, 0, packets[0], 640)
+	pb.push_packet(3, 0, packets[2], 640, true)
+	var after_fresh := pb.concealed
+	pb.push_packet(5, 0, packets[4], 640)
+	_check(after_fresh == 0 and pb.concealed == 1, "skipped-on-purpose gaps aren't concealed, lost packets are")
+	pb.queue_free()
 
 	# End of a sentence: a short tail is padded for Opus and trimmed again.
 	var short := enc.encode(frame.slice(0, 300))
@@ -993,6 +1005,50 @@ func _reverb_zone_at(pos: Vector3) -> Area3D:
 		if a and a.reverb_bus_enabled and (best == null or a.priority > best.priority):
 			best = a
 	return best
+
+
+## Phase 7b: GPU tiers, report logic (the full test itself needs restarts —
+## CI runs it separately with `-- --hardware-test --quick --quit`).
+func _test_hardware_report() -> void:
+	_check(SettingsManager.normalize_gpu_name("Mesa Intel(R) UHD Graphics 620 (KBL GT2)") == "intel uhd graphics 620"
+		and SettingsManager.normalize_gpu_name("NVIDIA GeForce GTX 1050/PCIe/SSE2") == "nvidia geforce gtx 1050"
+		and SettingsManager.normalize_gpu_name("AMD Radeon(TM) Vega 8 Graphics") == "amd radeon vega 8 graphics",
+		"GPU names normalised like tools/tune_presets.py")
+	_check(SettingsManager.gpu_tier("Intel(R) UHD Graphics 620") == GraphicsPreset.Quality.LOW
+		and SettingsManager.gpu_tier("AMD Radeon(TM) Vega 8 Graphics") == GraphicsPreset.Quality.LOW
+		and SettingsManager.gpu_tier("NVIDIA GeForce RTX 3060") == -1, "minimum-spec GPUs start on Low (gpu_tiers.cfg)")
+	var cfg := ConfigFile.new()
+	cfg.set_value("nvidia geforce gtx 1650", "preset", "medium")
+	cfg.set_value("uhd graphics 6", "preset", "low")
+	cfg.save("user://gpu_tiers_test.cfg")
+	_check(SettingsManager.gpu_tier("NVIDIA GeForce GTX 1650/PCIe/SSE2", "user://gpu_tiers_test.cfg") == GraphicsPreset.Quality.MEDIUM,
+		"measured GPU entries are used")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://gpu_tiers_test.cfg"))
+
+	# Report from synthetic results: Medium smooth, High not → Medium.
+	var mk := func(n: String, r: String, vs: String, avg: float, low: float) -> Dictionary:
+		return { "name": n, "renderer": r, "preset": 0, "set": {}, "vs": vs, "avg_fps": avg, "low_fps": low,
+			"avg_frame_ms": 1000.0 / avg, "low_frame_ms": 1000.0 / low, "draw_calls": 40, "video_mem_mb": 100.0 }
+	var state := { "quick": false, "stages": {
+		"gl_compatibility": { "status": "ok", "results": [mk.call("Low", "gl_compatibility", "", 140.0, 110.0),
+			mk.call("Low + glow", "gl_compatibility", "Low", 130.0, 100.0)] },
+		"forward_plus": { "status": "ok", "results": [mk.call("Medium", "forward_plus", "", 90.0, 70.0),
+			mk.call("High", "forward_plus", "", 55.0, 40.0), mk.call("Ultra", "forward_plus", "", 25.0, 18.0),
+			mk.call("Medium + SSAO", "forward_plus", "Medium", 70.0, 55.0)] } } }
+	var report := HardwareTest.build_report(state)
+	_check(report.recommended == "Medium", "recommends the highest smooth preset (%s)" % report.recommended)
+	_check(report.option_costs.size() == 2 and report.option_costs[0].name == "Medium + SSAO"
+		and absf(report.option_costs[0].delta_ms - (1000.0 / 70.0 - 1000.0 / 90.0)) < 0.02,
+		"option costs vs their baseline, most expensive first")
+	var md: String = report.markdown
+	_check("| Medium | Vulkan | 90 | 70 | ✔ smooth |" in md and "| Ultra | Vulkan | 25 | 18 | ✘ too slow |" in md
+		and "Recommended preset:** Medium" in md, "Markdown report table")
+	_check("[table=5]" in HardwareTest.bbcode(report) and HardwareTest.issue_url(report).length() < 8000,
+		"in-game view + GitHub link fit (%d chars)" % HardwareTest.issue_url(report).length())
+	state.stages.forward_plus = { "status": "unsupported" }
+	var no_vulkan := HardwareTest.build_report(state)
+	_check(no_vulkan.recommended == "Low" and "Vulkan unsupported" in no_vulkan.markdown,
+		"no Vulkan → Low, and the report says so")
 
 
 func _walk_forward_max_y(frames: int) -> float:

@@ -31,6 +31,10 @@ var preset_override: int = -1
 ## GraphicsPreset property -> value, applied for this run only.
 var graphics_overrides: Dictionary = {}
 var dynamic_resolution: bool = false
+## Save the JSON to user://benchmarks/ (HardwareTest saves one combined report).
+var save_results: bool = true
+## Return to the main menu when done (HardwareTest chains several runs).
+var leave_when_done: bool = true
 
 ## Last finished run (kept for the main menu to show).
 static var last_results: Dictionary = {}
@@ -129,6 +133,7 @@ func _run() -> void:
 		"renderer": RenderingServer.get_current_rendering_method(),
 		"gpu": RenderingServer.get_video_adapter_name(),
 		"cpu": OS.get_processor_name(),
+		"maps_tested": maps.map(func(p: String) -> String: return GameConfig.map_name(p)),
 		"cores": OS.get_processor_count(),
 		"render_scale": tested.render_scale,
 		"dynamic_resolution": dynamic_resolution,
@@ -140,12 +145,14 @@ func _run() -> void:
 	}
 	last_results = results
 	_print(results)
-	_save(results)
+	if save_results:
+		_save(results)
 	finished.emit(results)
 	if quit_when_done:
 		get_tree().quit()
 	else:
-		NetworkManager.leave()
+		if leave_when_done:
+			NetworkManager.leave()
 		queue_free()
 
 

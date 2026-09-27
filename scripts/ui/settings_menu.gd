@@ -124,6 +124,9 @@ func _build_graphics() -> void:
 		var bench := BenchmarkRunner.new()
 		bench.duration = 8.0
 		get_tree().root.add_child(bench))
+	_add_button(t, "", "Full hardware test (≈5 min, restarts the game once)", func() -> void:
+		close()
+		HardwareTest.start())
 	_add_button(t, "", "Auto-detect for this PC", func() -> void:
 		var best := SettingsManager.detect_recommended_quality()
 		SettingsManager.set_graphics_quality(best)

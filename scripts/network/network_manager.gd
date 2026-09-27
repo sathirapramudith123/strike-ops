@@ -286,8 +286,20 @@ func report_kill(killer_id: int, victim_id: int, weapon_name: String, headshot: 
 # -----------------------------------------------------------------------------
 
 func _on_peer_connected(id: int) -> void:
+	_disable_throttle(id)
 	if multiplayer.is_server():
 		print("[net] Peer %d connected" % id)
+
+
+## ENet's packet throttle drops *unreliable* packets (voice, player movement)
+## whenever round-trip times fluctuate — a busy PC or Wi-Fi was enough to lose
+## a large share of voice packets and cause movement stutter. Our unreliable
+## traffic is small and time-critical, so it always goes out at full rate.
+func _disable_throttle(id: int) -> void:
+	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	var peer := enet.get_peer(id) if enet else null
+	if peer:
+		peer.throttle_configure(5000, 2, 0) # interval ms, acceleration, deceleration 0 = never slow down
 
 
 func _on_peer_disconnected(id: int) -> void:

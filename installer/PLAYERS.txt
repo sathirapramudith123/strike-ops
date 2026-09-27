@@ -5,6 +5,8 @@ Play
   Windows : run FPSGame.exe          Linux : ./FPSGame.x86_64
   First launch picks graphics settings for your PC automatically.
   Settings → Graphics → "Run benchmark" checks how well it runs.
+  Help us tune the game for PCs like yours: Settings → Graphics →
+  "Full hardware test" (≈5 min, restarts once) → "Send to the developers".
 
 Multiplayer
   Host Game  : starts a game on your PC (UDP port 7777).

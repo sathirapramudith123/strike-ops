@@ -46,7 +46,8 @@ func is_speaking() -> bool:
 	return Time.get_ticks_msec() / 1000.0 - last_packet_time < SPEAKING_HOLD
 
 
-func push_packet(seq: int, channel: int, packet: PackedByteArray, sample_count: int) -> void:
+## `fresh`: earlier packets were withheld on purpose (see VoiceChat._voice_down).
+func push_packet(seq: int, channel: int, packet: PackedByteArray, sample_count: int, fresh: bool = false) -> void:
 	# Drop duplicates / late packets (unreliable_ordered can still skip).
 	var now := Time.get_ticks_msec() / 1000.0
 	var lost := 0
@@ -55,7 +56,7 @@ func push_packet(seq: int, channel: int, packet: PackedByteArray, sample_count: 
 		if delta <= 0:
 			return
 		# A gap while talking = lost packets (a gap between sentences is silence).
-		if now - last_packet_time < 0.25:
+		if now - last_packet_time < 0.25 and not fresh:
 			lost = delta - 1
 	_last_seq = seq
 	var samples := _decoder.decode(packet, sample_count, lost)

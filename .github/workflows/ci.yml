@@ -40,8 +40,14 @@ jobs:
       - name: Smoke test
         run: ~/godot/godot --headless --path . res://tests/smoke_test.tscn
 
-      - name: Multiplayer tests (TDM, Bomb Defusal, anti-cheat)
+      - name: Multiplayer tests (TDM, Bomb Defusal, anti-cheat, mixed voice codecs)
         run: tools/run_net_test.sh ~/godot/godot
+
+      - name: Hardware test flow + preset tuning script
+        run: |
+          python3 tools/tune_presets.py --self-test
+          ~/godot/godot --headless --path . -- --hardware-test --quick --quit
+          python3 tools/tune_presets.py ~/.local/share/FPSGame/benchmarks/hardware_report_*.json --include-quick
 
       - name: Upload test logs
         if: failure()

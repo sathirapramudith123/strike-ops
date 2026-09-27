@@ -61,6 +61,10 @@ var _speaking: Dictionary = {} # peer_id -> bool (last emitted state)
 var _rate_counters: Dictionary = {} # server: peer_id -> [window_start, count]
 var _state_timer: float = 0.0
 var _encoder := VoiceEncoder.new()
+## Server: last seq received per sender, and last seq forwarded per
+## (listener, sender) — to tell listeners when a gap was on purpose.
+var _relay_seen: Dictionary = {}
+var _relay_sent: Dictionary = {}
 
 
 func _ready() -> void:
@@ -261,11 +265,14 @@ func _voice_up(seq: int, channel: int, packet: PackedByteArray, sample_count: in
 	_relay(sender, seq, channel, packet, clampi(sample_count, 0, VoiceEncoder.PACKET_SAMPLES))
 
 
+## `fresh`: the server skipped this sender's previous packet(s) for this
+## listener on purpose (out of proximity range, …) — not packet loss, so
+## nothing must be concealed.
 @rpc("any_peer", "call_remote", "unreliable_ordered", 2)
-func _voice_down(sender_id: int, seq: int, channel: int, packet: PackedByteArray, sample_count: int) -> void:
+func _voice_down(sender_id: int, seq: int, channel: int, packet: PackedByteArray, sample_count: int, fresh: bool) -> void:
 	if multiplayer.get_remote_sender_id() != 1:
 		return
-	_receive(sender_id, seq, channel, packet, sample_count)
+	_receive(sender_id, seq, channel, packet, sample_count, fresh)
 
 
 ## Server: forward a packet to everyone who should hear it.
@@ -274,15 +281,23 @@ func _relay(sender_id: int, seq: int, channel: int, packet: PackedByteArray, sam
 	if level == null:
 		return
 	var ready_ids := NetworkManager.ready_peer_ids()
+	var previous: int = _relay_seen.get(sender_id, -1)
+	_relay_seen[sender_id] = seq
 	for id: int in recipients_for(sender_id, channel as Channel, level.get_players(), Match.team_map()):
+		# Did this listener get every packet we had from this sender? If not,
+		# the gap is ours, not the network's.
+		var key := Vector2i(id, sender_id)
+		var fresh: bool = _relay_sent.get(key, -2) != previous
+		_relay_sent[key] = seq
 		if id == 1:
 			if not NetworkManager.is_dedicated():
-				_receive(sender_id, seq, channel, packet, sample_count)
+				_receive(sender_id, seq, channel, packet, sample_count, fresh)
 		elif id in ready_ids:
-			_voice_down.rpc_id(id, sender_id, seq, channel, packet, sample_count)
+			_voice_down.rpc_id(id, sender_id, seq, channel, packet, sample_count, fresh)
 
 
-func _receive(sender_id: int, seq: int, channel: int, packet: PackedByteArray, sample_count: int) -> void:
+func _receive(sender_id: int, seq: int, channel: int, packet: PackedByteArray, sample_count: int,
+		fresh: bool = false) -> void:
 	if not SettingsManager.voice_enabled or mute_all or muted.has(sender_id):
 		return
 	var pb: VoicePlayback = _playbacks.get(sender_id)
@@ -295,7 +310,7 @@ func _receive(sender_id: int, seq: int, channel: int, packet: PackedByteArray, s
 	var level := get_tree().current_scene as Level
 	var speaker := level.get_player(sender_id) if level else null
 	pb.attach_to(speaker.head if speaker else null)
-	pb.push_packet(seq, channel, packet, sample_count)
+	pb.push_packet(seq, channel, packet, sample_count, fresh)
 
 
 func _rate_ok(peer_id: int) -> bool:

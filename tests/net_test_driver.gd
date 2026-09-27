@@ -429,9 +429,10 @@ func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> VoiceP
 		if t > 2.0 and pb and pb.packets_received > 20:
 			got = pb
 			break
-	# Keep talking a little so the other side also finishes its check.
+	# Keep talking so the other side also gets > 20 packets, even if it
+	# started listening later than we did.
 	var extra := 0.0
-	while extra < 1.0:
+	while extra < 3.0:
 		await get_tree().process_frame
 		extra += get_process_delta_time()
 		speak.call(get_process_delta_time())
@@ -458,6 +459,9 @@ func _check_codec(pb: VoicePlayback, codec: int) -> void:
 		var kbps := avg * 8.0 / 40.0
 		var ok := kbps < 40.0 if codec == VoiceCodec.CODEC_OPUS else kbps > 60.0
 		_check(ok, "%s voice ≈ %.0f kbps (%.0f bytes / 40 ms packet)" % [name, kbps, avg])
+		# ~5 s of real-time voice: nearly all of it must arrive (ENet's
+		# throttle used to drop most unreliable packets under CPU load).
+		_check(pb.packets_received >= 60, "voice arrives without gaps (%d packets)" % pb.packets_received)
 		# Real-time voice on localhost: nothing should need concealing.
 		_check(pb.concealed <= 2, "no packet loss on localhost (%d concealed)" % pb.concealed)
 

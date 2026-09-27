@@ -29,6 +29,16 @@
   Settings → Voice. Network protocol version 4.
 - Fixed: hosting a game briefly "ended" the match before the map loaded
   (spurious "Time's up — Draw!" and lose sound).
+- **Full hardware test (Phase 7b):** Settings → Graphics → "Full hardware
+  test" measures every preset on OpenGL and Vulkan plus what each option
+  costs on your PC (restarts the game once), recommends a preset and lets you
+  send the report to the developers. `tools/tune_presets.py` turns reports
+  into preset suggestions and per-GPU starting presets
+  (`resources/settings/gpu_tiers.cfg`, used by the first-launch auto-detect).
+- Fixed: ENet's packet throttle dropped voice and movement packets when
+  ping fluctuated (busy PC, Wi-Fi) — voice cut out and players stuttered.
+- Fixed: a listener at the edge of proximity-chat range heard made-up
+  "concealed" audio for packets the server skipped on purpose.
 
 ## v0.8.0 beta — first public beta
 
