@@ -51,6 +51,7 @@ var _audio: AudioStreamPlayer3D
 var _rng := RandomNumberGenerator.new()
 var _viewmodel_meshes: Array[Node] = []
 var _server_last_shot: float = -1.0
+var _aim_toggled: bool = false
 
 
 func _ready() -> void:
@@ -87,6 +88,7 @@ func equip(player: PlayerController, camera: Camera3D) -> void:
 
 func unequip() -> void:
 	is_aiming = false
+	_aim_toggled = false
 	is_reloading = false
 	ads_blend = 0.0
 	visible = false
@@ -103,7 +105,14 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot()
-	is_aiming = can_act and Input.is_action_pressed("aim") and not is_reloading and not _player.is_sprinting
+	var aim_input := Input.is_action_pressed(&"aim")
+	if SettingsManager.aim_toggle:
+		if can_act and Input.is_action_just_pressed(&"aim"):
+			_aim_toggled = not _aim_toggled
+		if _player.is_sprinting or not can_act:
+			_aim_toggled = false
+		aim_input = _aim_toggled
+	is_aiming = can_act and aim_input and not is_reloading and not _player.is_sprinting
 	ads_blend = move_toward(ads_blend, 1.0 if is_aiming else 0.0, delta / maxf(data.ads_time, 0.01))
 
 	if is_reloading:

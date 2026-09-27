@@ -5,7 +5,6 @@ extends Control
 
 @export var line_length: float = 8.0
 @export var thickness: float = 2.0
-@export var color: Color = Color(1, 1, 1, 0.9)
 @export var outline_color: Color = Color(0, 0, 0, 0.6)
 @export var hit_color: Color = Color(1, 1, 1, 1)
 @export var kill_color: Color = Color(1, 0.25, 0.2, 1)
@@ -30,15 +29,22 @@ func _process(delta: float) -> void:
 
 
 func _draw() -> void:
+	# Colour, size and centre dot come from Settings → Gameplay.
+	var color := SettingsManager.crosshair_color()
+	var scale_f := SettingsManager.crosshair_size
+	var len_px := line_length * scale_f
+	var thick := maxf(thickness * scale_f, 1.0)
+	var gap_px := gap * lerpf(1.0, scale_f, 0.3)
 	var c := size * 0.5
 	var alpha := 1.0 - ads
 	if alpha > 0.01:
 		for dir: Vector2 in [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]:
-			var a := c + dir * gap
-			var b := c + dir * (gap + line_length)
-			draw_line(a, b, Color(outline_color, outline_color.a * alpha), thickness + 2.0)
-			draw_line(a, b, Color(color, color.a * alpha), thickness)
-	draw_circle(c, 1.5, color)
+			var a := c + dir * gap_px
+			var b := c + dir * (gap_px + len_px)
+			draw_line(a, b, Color(outline_color, outline_color.a * alpha), thick + 2.0)
+			draw_line(a, b, Color(color, color.a * alpha), thick)
+	if SettingsManager.crosshair_dot:
+		draw_circle(c, 1.5 * scale_f, color)
 
 	if _hit_timer > 0.0:
 		var col := kill_color if _hit_is_kill else hit_color

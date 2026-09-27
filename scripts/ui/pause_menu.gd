@@ -6,23 +6,22 @@ extends CanvasLayer
 var player: PlayerController
 
 @onready var _panel: Control = %Panel
-@onready var _sensitivity: HSlider = %SensitivitySlider
-@onready var _sensitivity_value: Label = %SensitivityValue
-@onready var _fov: HSlider = %FovSlider
-@onready var _fov_value: Label = %FovValue
-@onready var _quality: OptionButton = %QualityOption
+@onready var _box: Control = $Panel/Center
+@onready var _settings: SettingsMenu = %SettingsMenu
 
 
 func _ready() -> void:
 	_panel.visible = false
-	for q: GraphicsPreset.Quality in SettingsManager.PRESET_FILES:
-		_quality.add_item(SettingsManager.load_preset(q).display_name, q)
+	%SettingsButton.pressed.connect(func() -> void:
+		_box.visible = false
+		_settings.open())
+	_settings.closed.connect(func() -> void:
+		_box.visible = true
+		%SettingsButton.grab_focus())
 	%MainMenuButton.text = "Disconnect" if NetworkManager.is_online() else "Main menu"
 	%ResumeButton.pressed.connect(close)
 	%MainMenuButton.pressed.connect(_go_to_main_menu)
 	%QuitButton.pressed.connect(get_tree().quit)
-	_sensitivity.value_changed.connect(_on_sensitivity_changed)
-	_fov.value_changed.connect(_on_fov_changed)
 	%MuteAllCheck.toggled.connect(func(on: bool) -> void: VoiceChat.mute_all = on)
 	for id: String in GameConfig.PRIMARY_WEAPONS:
 		%LoadoutOption.add_item(GameConfig.PRIMARY_NAMES[id])
@@ -31,13 +30,13 @@ func _ready() -> void:
 	%TeamButton.pressed.connect(func() -> void:
 		Match.request_team_switch()
 		close())
-	_quality.item_selected.connect(func(i: int) -> void:
-		SettingsManager.set_graphics_quality(_quality.get_item_id(i) as GraphicsPreset.Quality))
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed(&"pause"):
-		if _panel.visible:
+		if _settings.visible:
+			_settings.close() # Esc backs out of the settings first
+		elif _panel.visible:
 			close()
 		else:
 			open()
@@ -51,11 +50,6 @@ func open() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	if player:
 		player.input_enabled = false
-	_sensitivity.set_value_no_signal(SettingsManager.mouse_sensitivity)
-	_sensitivity_value.text = "%.2f" % SettingsManager.mouse_sensitivity
-	_fov.set_value_no_signal(SettingsManager.field_of_view)
-	_fov_value.text = str(int(SettingsManager.field_of_view))
-	_quality.select(_quality.get_item_index(SettingsManager.graphics.quality))
 	_build_mute_list()
 	%LoadoutOption.select(maxi(GameConfig.PRIMARY_WEAPONS.find(SettingsManager.preferred_primary), 0))
 	%TeamButton.visible = Match.is_team_mode()
@@ -85,21 +79,14 @@ func _build_mute_list() -> void:
 
 
 func close() -> void:
+	if _settings.visible:
+		_settings.close()
+	_box.visible = true
 	_panel.visible = false
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if player:
 		player.input_enabled = true
 	SettingsManager.save()
-
-
-func _on_sensitivity_changed(value: float) -> void:
-	SettingsManager.mouse_sensitivity = value
-	_sensitivity_value.text = "%.2f" % value
-
-
-func _on_fov_changed(value: float) -> void:
-	SettingsManager.field_of_view = value
-	_fov_value.text = str(int(value))
 
 
 func _go_to_main_menu() -> void:

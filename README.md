@@ -121,7 +121,7 @@ The game picks a preset automatically on first launch (based on GPU & VRAM), and
 | Volumetric fog | Off | Off | On | On (high) |
 | Target | 60 FPS @ iGPU | 60 FPS @ entry GPU | 60+ FPS @ mid GPU | 100+ FPS @ high-end GPU |
 
-**Other display options:** resolution, window mode (fullscreen / borderless / windowed), V-Sync, FPS cap (30 / 60 / 120 / 144 / 240 / unlimited), field of view (70–110), brightness, and a *Custom* preset where every option can be changed individually.
+**Other display options:** window mode (windowed / borderless / exclusive fullscreen), window size, V-Sync, FPS cap (30–240 / unlimited), field of view (70–110), brightness, and a *Custom* preset — change any single option in **Settings → Graphics** and the preset becomes *Custom* (saved and restored on the next launch).
 
 Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so they can be tuned without code changes.
 
@@ -285,7 +285,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — and walking the ramps of Warehouse and Courtyard) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and walking the ramps of Warehouse and Courtyard) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -323,6 +323,21 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 **Key scripts:** `scripts/network/network_manager.gd` (autoload), `scripts/network/player_net_sync.gd`, `scripts/network/lag_compensation.gd`, `scripts/weapons/weapon.gd` (`_server_fire`), `scripts/levels/level.gd`.
 
 **Known limitations (next steps):** players pass through each other; ammo is not validated server-side yet (fire rate is); no NAT punch-through or encryption.
+
+### Phase 2 — settings
+
+**Settings** is one screen (`scenes/ui/settings_menu.tscn`) used by both the main menu and the in-game `Esc` menu. Every change applies and saves immediately.
+
+| Tab | What you can change |
+|-----|---------------------|
+| **Graphics** | Preset (Low / Medium / High / Ultra / Custom), *Auto-detect for this PC*, renderer (restart), render scale, upscaler (FSR 1 / FSR 2.2), MSAA, FXAA, TAA, texture & model detail, draw distance, foliage, particles, shadows (on/off, resolution, filtering, cascades), SSAO, SSIL, SSR, SDFGI, bloom, volumetric fog, depth of field |
+| **Display** | Window mode, window size, V-Sync, FPS limit, field of view, brightness, performance overlay |
+| **Audio** | Master, music, effects, voice chat and interface volume |
+| **Voice** | On/off, push-to-talk or voice activation, microphone, mic volume, activation level, live mic meter, noise suppression, proximity chat, "hear myself" test |
+| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 23 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
+| **Gameplay** | Player name, crosshair colour / size / centre dot with live preview |
+
+*Reset tab* restores that tab's defaults. Settings live in `user://settings.cfg` (key bindings in its `[bindings]` section, stored by physical key position so they work on any keyboard layout). Tests use a separate `settings_test.cfg`, so running them never changes your settings. `Esc`/Pause stays fixed so you can always reach the menu.
 
 ### Phase 6 — modes, weapons & maps
 
@@ -430,7 +445,7 @@ Dedicated server (no graphics, low CPU usage):
 | Pause / Settings | `Esc` |
 | Performance overlay | `F3` |
 
-All keys can be remapped in **Settings → Controls**.
+All keys (except `Esc`) can be remapped in **Settings → Controls**; aim and crouch can be set to *toggle*.
 
 ---
 
@@ -482,7 +497,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 
 - [x] **Phase 0 — Setup:** repository, `.gitignore`, README, Godot project, Git LFS rules
 - [x] **Phase 1 — Core gameplay:** player controller, camera, one weapon, test map, HUD, pause menu
-- [ ] **Phase 2 — Settings:** ~~graphics presets, save/load settings~~ (base done) → full settings UI, key remapping, custom preset editor
+- [x] **Phase 2 — Settings:** full settings screen (6 tabs), custom graphics editor, key remapping, hold/toggle aim & crouch, crosshair options
 - [ ] **Phase 3 — Audio:** 3D SFX, audio buses, occlusion, music
 - [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
 - [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute

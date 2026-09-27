@@ -40,6 +40,7 @@ func _run() -> void:
 	await _test_loadout_on_respawn()
 	_test_friendly_fire_and_match_end()
 	await _test_bomb_defusal()
+	await _test_settings_menu()
 	await _test_maps()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -289,8 +290,13 @@ func _test_shotgun_and_sniper() -> void:
 	_player.apply_loadout("shotgun")
 	await _frames(20) # let the dummy finish respawning from earlier tests
 	target.health.revive()
-	_reset_player(target.global_position + Vector3(0, 0.1, 6))
+	# Close range + aiming so the random pellet spread (4.5° ADS) stays on
+	# the target (0.3 m capsule) — keeps the test deterministic.
+	_reset_player(target.global_position + Vector3(0, 0.1, 3))
 	await _frames(5)
+	_aim_at(target.global_position + Vector3(0, 0.9, 0))
+	Input.action_press(&"aim")
+	await _frames(20)
 	_aim_at(target.global_position + Vector3(0, 0.9, 0))
 	var hits := [0]
 	var on_damaged := func(_a: float, _s: Node, _h: bool) -> void: hits[0] += 1
@@ -300,7 +306,8 @@ func _test_shotgun_and_sniper() -> void:
 	Input.action_release(&"shoot")
 	await _frames(2)
 	target.health.damaged.disconnect(on_damaged)
-	_check(hits[0] >= 3, "shotgun pellets hit several times (%d)" % hits[0])
+	Input.action_release(&"aim")
+	_check(hits[0] >= 5, "shotgun pellets hit several times (%d of 9)" % hits[0])
 	target.health.revive()
 
 	# Target2 from 10 m has a clear line of sight (see _test_shooting).
@@ -473,6 +480,127 @@ func _test_bomb_defusal() -> void:
 	Match.configure(GameConfig.Mode.PRACTICE)
 	Match.start_match()
 	await _frames(int(_player.respawn_delay * 60.0) + 10)
+
+
+func _test_settings_menu() -> void:
+	_check(SettingsManager.settings_path == SettingsManager.TEST_SETTINGS_PATH, "tests use their own settings file")
+	var menu := (load("res://scenes/ui/settings_menu.tscn") as PackedScene).instantiate() as SettingsMenu
+	add_child(menu)
+	menu.open()
+	await _frames(2)
+	var tabs := menu.get_node("%Tabs") as TabContainer
+	_check(tabs.get_tab_count() == 6, "settings has 6 tabs")
+	var all_built := true
+	for i in tabs.get_tab_count():
+		all_built = all_built and (tabs.get_child(i).get_node("Grid") as GridContainer).get_child_count() >= 4
+	_check(all_built, "every tab has settings rows")
+
+	# Graphics: editing one option turns the preset into Custom.
+	SettingsManager.set_graphics_quality(GraphicsPreset.Quality.HIGH)
+	menu._build_all()
+	var msaa := _row_control(menu, "Graphics", "MSAA") as OptionButton
+	msaa.select(0)
+	msaa.item_selected.emit(0)
+	_check(SettingsManager.graphics.quality == GraphicsPreset.Quality.CUSTOM and SettingsManager.graphics.msaa == Viewport.MSAA_DISABLED,
+		"editing a graphics option → Custom preset")
+	_check(get_viewport().msaa_3d == Viewport.MSAA_DISABLED, "custom option applied to the viewport")
+	var cfg := ConfigFile.new()
+	cfg.load(SettingsManager.settings_path)
+	_check(cfg.get_value("graphics", "quality") == GraphicsPreset.Quality.CUSTOM, "custom preset saved")
+
+	# Key remapping: jump → J, then jump → W swaps with move forward.
+	menu._start_capture(&"jump")
+	menu._input(_key(KEY_J))
+	_check(SettingsManager.binding_text(&"jump") == "J", "jump rebound to J")
+	menu._start_capture(&"jump")
+	menu._input(_key(KEY_W))
+	_check(SettingsManager.binding_text(&"jump") == "W" and SettingsManager.binding_text(&"move_forward") == "J",
+		"rebinding to a used key swaps the two actions")
+	cfg.load(SettingsManager.settings_path)
+	_check((cfg.get_value("bindings", "jump") as Dictionary).code == KEY_W, "bindings saved to the settings file")
+	menu._start_capture(&"reload")
+	menu._input(_key(KEY_ESCAPE))
+	_check(SettingsManager.binding_text(&"reload") == "R", "Esc cancels a rebind")
+
+	# The new binding really drives the player (and the old key doesn't).
+	SettingsManager.reset_bindings()
+	menu._start_capture(&"jump")
+	menu._input(_key(KEY_J))
+	_reset_player(Vector3(0, 0.1, 6))
+	await _frames(10)
+	var y0 := _player.global_position.y
+	Input.parse_input_event(_key(KEY_SPACE))
+	await _frames(15)
+	Input.parse_input_event(_key(KEY_SPACE, false))
+	_check(_player.global_position.y - y0 < 0.1, "old key (Space) no longer jumps")
+	await _frames(30)
+	Input.parse_input_event(_key(KEY_J))
+	await _frames(15)
+	Input.parse_input_event(_key(KEY_J, false))
+	_check(_player.global_position.y - y0 > 0.5, "new key (J) jumps")
+	await _frames(40)
+	SettingsManager.reset_bindings()
+	_check(SettingsManager.binding_text(&"jump") == "Space" and SettingsManager.binding_text(&"move_forward") == "W",
+		"reset restores the default bindings")
+
+	# Toggle aim / crouch.
+	SettingsManager.aim_toggle = true
+	SettingsManager.crouch_toggle = true
+	_reset_player(Vector3(0, 0.1, 6))
+	await _frames(5)
+	_tap_hold(&"aim")
+	await _frames(20)
+	_check(_player.current_weapon.is_aiming, "toggle aim stays aimed after releasing")
+	_tap_hold(&"aim")
+	await _frames(20)
+	_check(not _player.current_weapon.is_aiming, "second press stops aiming")
+	_tap_hold(&"crouch")
+	await _frames(30)
+	_check(_player.is_crouching, "toggle crouch stays crouched")
+	_tap_hold(&"crouch")
+	await _frames(30)
+	_check(not _player.is_crouching, "second press stands up")
+	SettingsManager.aim_toggle = false
+	SettingsManager.crouch_toggle = false
+
+	# Crosshair + reset tab.
+	var colour := _row_control(menu, "Gameplay", "Colour") as OptionButton
+	var green := SettingsManager.CROSSHAIR_COLORS.keys().find("Green")
+	colour.select(green)
+	colour.item_selected.emit(green)
+	_check(SettingsManager.crosshair_color() == SettingsManager.CROSSHAIR_COLORS["Green"], "crosshair colour setting")
+	SettingsManager.mouse_sensitivity = 0.8
+	tabs.current_tab = SettingsMenu.TAB_NAMES.find("Controls")
+	menu._reset_current_tab()
+	_check(is_equal_approx(SettingsManager.mouse_sensitivity, 0.15), "Reset tab restores control defaults")
+	menu.close()
+	menu.queue_free()
+	SettingsManager.crosshair_color_name = "White"
+	SettingsManager.set_graphics_quality(GraphicsPreset.Quality.MEDIUM)
+
+
+## The control next to the label `text` in a settings tab.
+func _row_control(menu: SettingsMenu, tab: String, text: String) -> Control:
+	var grid := menu._grid(tab)
+	for i in range(0, grid.get_child_count() - 1):
+		var l := grid.get_child(i) as Label
+		if l and l.text == text:
+			return grid.get_child(i + 1) as Control
+	return null
+
+
+func _key(code: Key, pressed: bool = true) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.physical_keycode = code
+	e.keycode = code
+	e.pressed = pressed
+	return e
+
+
+func _tap_hold(action: StringName) -> void:
+	Input.action_press(action)
+	await _frames(3)
+	Input.action_release(action)
 
 
 func _test_maps() -> void:

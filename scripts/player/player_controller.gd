@@ -97,6 +97,7 @@ var _recoil := Vector2.ZERO # (pitch, yaw) in radians, applied to the camera
 var _fell_reported: bool = false
 var _torso_material: StandardMaterial3D
 var _default_regen: float = 0.0
+var _crouch_toggled: bool = false
 
 
 func _enter_tree() -> void:
@@ -146,7 +147,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		var motion := event as InputEventMouseMotion
 		var sens := SettingsManager.mouse_sensitivity * 0.01
 		if current_weapon:
-			sens *= lerpf(1.0, current_weapon.data.ads_sensitivity_multiplier, current_weapon.ads_blend)
+			sens *= lerpf(1.0, current_weapon.data.ads_sensitivity_multiplier * SettingsManager.ads_sensitivity_scale,
+				current_weapon.ads_blend)
 		var invert := -1.0 if SettingsManager.invert_y else 1.0
 		rotate_y(-motion.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * invert,
@@ -189,8 +191,17 @@ func _physics_process(delta: float) -> void:
 
 	# --- Crouch / slide state -------------------------------------------------
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	var crouch_held := input_enabled and (Input.is_action_pressed(&"crouch") or Input.is_action_pressed(&"slide"))
 	var crouch_pressed := input_enabled and (Input.is_action_just_pressed(&"crouch") or Input.is_action_just_pressed(&"slide"))
+	if SettingsManager.crouch_toggle:
+		# Toggle mode: press crouch to switch; sprint or jump stands you up.
+		if input_enabled and Input.is_action_just_pressed(&"crouch"):
+			_crouch_toggled = not _crouch_toggled
+		if input_enabled and (Input.is_action_pressed(&"sprint") or Input.is_action_just_pressed(&"jump")):
+			_crouch_toggled = false
+	else:
+		_crouch_toggled = false
+	var crouch_held := input_enabled and (_crouch_toggled or Input.is_action_pressed(&"slide") \
+		or (not SettingsManager.crouch_toggle and Input.is_action_pressed(&"crouch")))
 
 	if crouch_pressed and on_floor and not is_sliding and _slide_cooldown_timer <= 0.0 \
 			and horizontal.length() >= slide_min_speed:
