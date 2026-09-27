@@ -27,6 +27,8 @@ const MATERIALS := {
 	&"glove": [Color(0.1, 0.1, 0.09), 0.0],
 	&"glove_pad": [Color(0.2, 0.19, 0.16), 0.0],
 	&"sleeve": [Color(0.42, 0.41, 0.32), 0.0],
+	&"shell": [Color(0.72, 0.12, 0.08), 0.0],
+	&"brass": [Color(0.78, 0.6, 0.25), 0.8],
 }
 const TINTED := &"armor"
 

@@ -17,7 +17,7 @@ const MAX_RISE_SPEED := 12.0
 ## Seconds of invulnerability after (re)spawning.
 const SPAWN_PROTECTION := 1.5
 
-enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8 }
+enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8, RELOADING = 16 }
 
 @onready var player: PlayerController = get_parent()
 
@@ -248,4 +248,5 @@ func _flags() -> int:
 	if player.is_crouching: f |= Flags.CROUCHING
 	if player.is_sliding: f |= Flags.SLIDING
 	if player.current_weapon and player.current_weapon.is_aiming: f |= Flags.AIMING
+	if player.current_weapon and player.current_weapon.is_reloading: f |= Flags.RELOADING
 	return f

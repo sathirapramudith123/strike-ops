@@ -66,6 +66,9 @@ func _run_host() -> void:
 			n += int(Audio.stats.get("3d:step%d" % i, 0))
 		return n if n > 0 else null)
 	_check(steps != null, "host hears the client's footsteps in 3D (%s)" % steps)
+	var reload_seen: Variant = await _wait_for(func() -> Variant:
+		return true if int(Audio.stats.get("3d:mag_out", 0)) > 0 else null)
+	_check(reload_seen == true, "host sees and hears the client reload (third-person animation)")
 
 	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_OPUS)
 
@@ -125,6 +128,9 @@ func _run_client() -> void:
 	Input.action_release(&"move_forward")
 	await _frames(30)
 	_check(me.global_position.distance_to(start) > 1.5, "client moves (not corrected by server)")
+	# Reload once so the host can see the third-person reload.
+	me.current_weapon.ammo_in_magazine = 5
+	me.current_weapon.reload()
 
 	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_OPUS)
 

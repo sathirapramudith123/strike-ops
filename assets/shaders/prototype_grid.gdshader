@@ -6,6 +6,7 @@ shader_type spatial;
 //   4 painted plaster         5 stone paving 6 foliage
 //   7 sandstone blocks        8 weathered plaster (bricks show through)
 //   9 flagstones (irregular)  10 cloth (awnings)
+//   11 lamp (emissive light fixture — lights rooms even on Low)
 // The global `surface_detail` (0 on the Low preset) turns the noise off:
 // flat colour + seams, as cheap as the old grid shader.
 
@@ -171,4 +172,7 @@ void fragment() {
 	ALBEDO = col;
 	ROUGHNESS = rough;
 	METALLIC = metal;
+	if (kind == 11) {
+		EMISSION = base_color.rgb * 2.5;
+	}
 }

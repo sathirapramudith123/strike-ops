@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased — desert town map, CS-style HUD, hands
+## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
+
+**Four more maps:** **Factory** (a machine hall with a catwalk and a
+storage hall around a yard of trucks, pipes and tanks), **Office** (lobby,
+open-plan office, server room, a mezzanine with two stairs), **Subway** (an
+underground station: platforms, track beds you can drop into, a parked
+train to walk through) and **Train Yard** (rows of freight cars, a
+maintenance shed, a signal tower with a balcony). All support FFA, TDM and
+Bomb Defusal.
+
+**Reload animations:** in first person the gun rolls over, the left hand
+pulls the magazine out, fetches a new one and pushes it in (the shotgun
+loads shells one by one); other players now visibly reload too — the
+soldier tips the gun and swings the left arm down — and you hear it.
 
 **New map — Kasbah:** a sun-baked desert town made for Bomb Defusal (also
 FFA and TDM): A Long, Mid with its doors, and the covered B Apartments;

@@ -1,7 +1,9 @@
 class_name WeaponModel
 extends RefCounted
 ## Low-poly gun models built from code (one mesh per weapon, cached): used as
-## the first-person viewmodel and in the third-person player's hands.
+## the first-person viewmodel and in the third-person player's hands. The
+## viewmodel is split so the reload can be animated: gun without magazine,
+## magazine (or shotgun shell), right arm, left arm.
 ## Units are metres, -Z = muzzle. The iron sights keep the exact positions the
 ## weapons' ADS offsets were tuned for (sight top ≈ -ads_position.y).
 
@@ -14,11 +16,16 @@ static var _arms_cache: Dictionary = {}
 ## "vertical" (fist round a front grip) or "support" (pistol: cupping the
 ## right hand).
 const HANDS := {
-	"rifle": { "grip": Vector3(0, -0.085, 0.1), "grip_tilt": -15.0, "left": Vector3(0, 0.004, -0.29), "left_kind": "under" },
-	"smg": { "grip": Vector3(0, -0.08, 0.08), "grip_tilt": -12.0, "left": Vector3(0, -0.075, -0.14), "left_kind": "vertical" },
-	"shotgun": { "grip": Vector3(0, -0.06, 0.14), "grip_tilt": -20.0, "left": Vector3(0, -0.035, -0.3), "left_kind": "under" },
-	"sniper": { "grip": Vector3(0, -0.08, 0.14), "grip_tilt": -15.0, "left": Vector3(0, -0.02, -0.24), "left_kind": "under" },
-	"pistol": { "grip": Vector3(0, -0.07, 0.07), "grip_tilt": -15.0, "left": Vector3(-0.03, -0.075, 0.075), "left_kind": "support" },
+	"rifle": { "grip": Vector3(0, -0.085, 0.1), "grip_tilt": -15.0, "left": Vector3(0, 0.004, -0.29), "left_kind": "under",
+		"mag": Vector3(0, -0.2, -0.03) },
+	"smg": { "grip": Vector3(0, -0.08, 0.08), "grip_tilt": -12.0, "left": Vector3(0, -0.075, -0.14), "left_kind": "vertical",
+		"mag": Vector3(0, -0.25, -0.05) },
+	"shotgun": { "grip": Vector3(0, -0.06, 0.14), "grip_tilt": -20.0, "left": Vector3(0, -0.035, -0.3), "left_kind": "under",
+		"mag": Vector3(0, -0.07, -0.02) },
+	"sniper": { "grip": Vector3(0, -0.08, 0.14), "grip_tilt": -15.0, "left": Vector3(0, -0.02, -0.24), "left_kind": "under",
+		"mag": Vector3(0, -0.14, -0.02) },
+	"pistol": { "grip": Vector3(0, -0.07, 0.07), "grip_tilt": -15.0, "left": Vector3(-0.03, -0.075, 0.075), "left_kind": "support",
+		"mag": Vector3(0, -0.15, 0.1) },
 }
 
 
@@ -26,8 +33,11 @@ static func has_model(weapon_id: String) -> bool:
 	return weapon_id in ["rifle", "smg", "shotgun", "sniper", "pistol"]
 
 
-static func get_mesh(weapon_id: String) -> ArrayMesh:
-	if not _cache.has(weapon_id):
+## The whole gun (third person). `with_magazine = false`: the viewmodel's
+## gun, whose magazine is a separate node (see get_magazine_mesh).
+static func get_mesh(weapon_id: String, with_magazine: bool = true) -> ArrayMesh:
+	var key := weapon_id if with_magazine else weapon_id + ":nomag"
+	if not _cache.has(key):
 		var b := MeshBuilder.new()
 		match weapon_id:
 			"rifle": _rifle(b)
@@ -35,23 +45,59 @@ static func get_mesh(weapon_id: String) -> ArrayMesh:
 			"shotgun": _shotgun(b)
 			"sniper": _sniper(b)
 			"pistol": _pistol(b)
-		_cache[weapon_id] = b.build()
-	return _cache[weapon_id]
+		if with_magazine and weapon_id != "shotgun":
+			_magazine(b, weapon_id)
+		_cache[key] = b.build()
+	return _cache[key]
 
 
-## First-person arms for a weapon: gloved hands on the gun, sleeved
-## forearms running back out of view (one mesh, cached per weapon).
-static func get_arms_mesh(weapon_id: String) -> ArrayMesh:
-	if not _arms_cache.has(weapon_id) and HANDS.has(weapon_id):
+## The magazine (shotgun: one shell), in weapon space where it sits in the gun.
+static func get_magazine_mesh(weapon_id: String) -> ArrayMesh:
+	var key := weapon_id + ":mag"
+	if not _cache.has(key) and has_model(weapon_id):
+		var b := MeshBuilder.new()
+		_magazine(b, weapon_id)
+		_cache[key] = b.build()
+	return _cache.get(key)
+
+
+static func _magazine(b: MeshBuilder, weapon_id: String) -> void:
+	match weapon_id:
+		"rifle":
+			b.box(&"polymer", Vector3(0.035, 0.14, 0.06), Vector3(0, -0.1, -0.06), Vector3(15, 0, 0))
+			b.box(&"polymer", Vector3(0.037, 0.02, 0.064), Vector3(0, -0.168, -0.042), Vector3(15, 0, 0))
+		"smg":
+			b.box(&"polymer", Vector3(0.03, 0.2, 0.045), Vector3(0, -0.13, -0.05))
+			b.box(&"steel", Vector3(0.032, 0.012, 0.047), Vector3(0, -0.232, -0.05))
+		"sniper":
+			b.box(&"polymer", Vector3(0.045, 0.075, 0.1), Vector3(0, -0.075, -0.02))
+			b.box(&"steel", Vector3(0.047, 0.012, 0.102), Vector3(0, -0.113, -0.02))
+		"pistol":
+			b.box(&"polymer", Vector3(0.022, 0.1, 0.034), Vector3(0, -0.075, 0.072), Vector3(-15, 0, 0))
+			b.box(&"steel", Vector3(0.028, 0.012, 0.042), Vector3(0, -0.126, 0.086), Vector3(-15, 0, 0))
+		"shotgun":
+			b.cylinder_z(&"shell", 0.011, 0.06, Vector3(0, -0.07, -0.02))
+			b.cylinder_z(&"brass", 0.0115, 0.014, Vector3(0, -0.07, 0.012))
+
+
+## First-person arm for a weapon: a gloved hand on the gun and a sleeved
+## forearm running back out of view. Right = on the grip; left = on the
+## fore-end / pump / front grip (pistol: round the right hand). Separate
+## meshes so the left hand can fetch a new magazine while reloading.
+static func get_arm_mesh(weapon_id: String, left: bool) -> ArrayMesh:
+	var key := weapon_id + (":L" if left else ":R")
+	if not _arms_cache.has(key) and HANDS.has(weapon_id):
 		var h: Dictionary = HANDS[weapon_id]
 		var b := MeshBuilder.new()
-		_right_hand(b, h.grip, h.grip_tilt)
-		match h.left_kind:
-			"under": _left_hand_under(b, h.left)
-			"vertical": _left_hand_vertical(b, h.left)
-			_: _left_hand_support(b, h.left)
-		_arms_cache[weapon_id] = b.build()
-	return _arms_cache.get(weapon_id)
+		if not left:
+			_right_hand(b, h.grip, h.grip_tilt)
+		else:
+			match h.left_kind:
+				"under": _left_hand_under(b, h.left)
+				"vertical": _left_hand_vertical(b, h.left)
+				_: _left_hand_support(b, h.left)
+		_arms_cache[key] = b.build()
+	return _arms_cache.get(key)
 
 
 ## Fist round a pistol grip, thumb over the top, forearm back and down-right.
@@ -120,8 +166,6 @@ static func _rifle(b: MeshBuilder) -> void: # AR-7
 		b.box(&"polymer", Vector3(0.064, 0.012, 0.018), Vector3(0, 0.012, z)) # vents
 	b.cylinder_z(&"steel", 0.012, 0.28, Vector3(0, 0.015, -0.34))
 	b.cylinder_z(&"steel", 0.017, 0.05, Vector3(0, 0.015, -0.47)) # muzzle brake
-	b.box(&"polymer", Vector3(0.035, 0.14, 0.06), Vector3(0, -0.1, -0.06), Vector3(15, 0, 0)) # magazine
-	b.box(&"polymer", Vector3(0.037, 0.02, 0.064), Vector3(0, -0.168, -0.042), Vector3(15, 0, 0))
 	b.box(&"polymer", Vector3(0.035, 0.1, 0.045), Vector3(0, -0.085, 0.1), Vector3(-15, 0, 0)) # grip
 	b.box(&"steel", Vector3(0.008, 0.012, 0.06), Vector3(0, -0.055, 0.04)) # trigger guard
 	b.cylinder_z(&"steel", 0.012, 0.1, Vector3(0, 0.01, 0.23)) # buffer tube
@@ -136,7 +180,6 @@ static func _smg(b: MeshBuilder) -> void: # V-10
 	b.box(&"olive", Vector3(0.058, 0.05, 0.12), Vector3(0, -0.01, -0.08)) # side panels
 	b.cylinder_z(&"steel", 0.011, 0.12, Vector3(0, 0.012, -0.21))
 	b.cylinder_z(&"polymer", 0.02, 0.07, Vector3(0, 0.012, -0.17)) # barrel shroud
-	b.box(&"polymer", Vector3(0.03, 0.2, 0.045), Vector3(0, -0.13, -0.05)) # long magazine
 	b.box(&"polymer", Vector3(0.035, 0.1, 0.04), Vector3(0, -0.08, 0.08), Vector3(-12, 0, 0)) # grip
 	b.box(&"polymer", Vector3(0.03, 0.07, 0.03), Vector3(0, -0.075, -0.14)) # front grip
 	for sx in [-1.0, 1.0]:
@@ -192,8 +235,6 @@ static func _sniper(b: MeshBuilder) -> void: # LR-50 (big-scope bolt-action)
 	b.cylinder_x(&"steel", 0.007, 0.06, Vector3(0.055, 0.045, 0.13))
 	b.sphere(&"steel", 0.014, Vector3(0.088, 0.04, 0.13))
 	b.box(&"steel", Vector3(0.008, 0.012, 0.06), Vector3(0, -0.058, 0.09)) # trigger guard
-	b.box(&"polymer", Vector3(0.045, 0.075, 0.1), Vector3(0, -0.075, -0.02)) # magazine
-	b.box(&"steel", Vector3(0.047, 0.012, 0.102), Vector3(0, -0.113, -0.02))
 	# Thumbhole stock: grip, upper comb, lower butt, cheek piece and pad.
 	b.box(&"olive", Vector3(0.04, 0.1, 0.05), Vector3(0, -0.08, 0.14), Vector3(-15, 0, 0)) # grip
 	b.box(&"olive", Vector3(0.05, 0.04, 0.26), Vector3(0, 0.03, 0.33)) # comb
