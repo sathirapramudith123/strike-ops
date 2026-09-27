@@ -925,8 +925,10 @@ func _test_maps() -> void:
 
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
-			["factory", Vector3(0, 0.1, 30), 0.0, func(p: Vector3) -> bool: return p.z < 12.0, "yard is open"],
-			["factory", Vector3(6.8, 0.1, -30), 0.0, func(p: Vector3) -> bool: return p.y > 3.3, "catwalk ramp in Hall A"],
+			["factory", Vector3(-31, 0.1, 10), -PI / 2, func(p: Vector3) -> bool: return p.x > -7.0, "through the tunnels"],
+			["factory", Vector3(24, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the roof"],
+			["factory", Vector3(16.8, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the catwalk"],
+			["factory", Vector3(5, 0.1, 6), PI, func(p: Vector3) -> bool: return p.z > 20.0, "Lower Mid into B"],
 			["office", Vector3(0, 0.1, 40), 0.0, func(p: Vector3) -> bool: return p.z < 24.0, "front doors into the lobby"],
 			["office", Vector3(20, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.5, "stairs up to the mezzanine"],
 			["subway", Vector3(-15, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "west platform"],

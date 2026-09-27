@@ -13,6 +13,12 @@ balaclavas for Red), a big **map name banner** ("KASBAH — BOMB DEFUSAL")
 when a map loads and at each round start, and a warmer radar with boxed
 site letters, teammates' view direction and a ring on the planted bomb.
 
+**Factory rebuilt** to a 3-lane plan: A under a gantry crane by two silos
+(with a flat roof overlooking it), B in a walled yard, West Lane past the
+Warehouse, Mid with a catwalk under the **Lanka Steel** building, Tunnels
+to Lower Mid and a Rail Yard along the east. Painted T / CT at the
+spawns, coconut palms, red-and-white chimneys and a Sri Lankan flag.
+
 **Map dressing:** red **"A →" / "B →" signs painted on the walls** of all
 new maps, hanging rugs, fruit stalls (oranges, tomatoes), wooden barrels,
 more sandbags, fuller palm trees and castle towers over Kasbah.

@@ -571,7 +571,7 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Docks | Outdoor, lanes | Container stacks on a quay, a moored ship (Red spawns on its deck) with two gangways, a crane |
 | Bunker | Indoor, small (2–8 players) | Central atrium with four doors, four corner rooms, tight corridors — fast rounds |
 | Kasbah | Desert town, bomb defusal | Three lanes (A Long, Mid with doors, covered B Apartments), Connector and Short; A is a raised terrace, B a courtyard round a well |
-| Factory | Industrial, halls + yard | Machine hall with a catwalk (A), storage hall (B), CT offices between them, a yard of trucks, pipes and tanks, loading docks |
+| Factory | Industrial, 3 lanes | A under a gantry crane next to two silos with a flat roof overlooking it; B in a walled yard; West Lane past the Warehouse, Mid with a catwalk under the Lanka Steel building, Tunnels to Lower Mid, the Rail Yard along the east; painted T / CT spawns, coconut palms, a Sri Lankan flag |
 | Office | Indoor, two floors | Lobby with reception, open-plan office (A), conference + server room (B), break room and storage under a mezzanine reached by two stairs, side alleys |
 | Subway | Underground | Two side platforms and an island, track beds to drop into (climb out at the ends), a two-car train to walk through, ticket halls with turnstiles |
 | Train Yard | Outdoor, rail lanes | Six tracks of box, tank and hopper cars, a maintenance shed with a locomotive (A), a signal tower with a balcony and containers (B) |
