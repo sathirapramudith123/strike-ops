@@ -890,6 +890,10 @@ func _test_maps() -> void:
 	var radar: Minimap = _level.hud._minimap
 	_check(radar._polys.size() > 60, "radar outline built from the map (%d shapes)" % radar._polys.size())
 	_check((_level.hud._banner.get_node(^"Title") as Label).text == "KASBAH", "map name banner shows KASBAH")
+	var tex := load("res://assets/textures/surfaces_albedo.png") as TextureLayered
+	var nrm := load("res://assets/textures/surfaces_normal.png") as TextureLayered
+	_check(tex != null and nrm != null and tex.get_layers() == 7 and nrm.get_layers() == 7
+		and ProjectSettings.has_setting("shader_globals/surface_albedo"), "surface detail texture arrays (7 layers each)")
 	var signs := _level.get_node_or_null(^"Signs")
 	_check(signs != null and signs.get_child_count() >= 8, "painted A/B direction signs on the walls")
 	_check(is_zero_approx(_player.health.armor), "no armour outside Bomb Defusal")

@@ -170,6 +170,14 @@ surface_detail={
 "type": "float",
 "value": 1.0
 }
+surface_albedo={
+"type": "sampler2DArray",
+"value": "res://assets/textures/surfaces_albedo.png"
+}
+surface_normal={
+"type": "sampler2DArray",
+"value": "res://assets/textures/surfaces_normal.png"
+}
 
 [rendering]
 

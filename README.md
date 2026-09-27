@@ -467,6 +467,7 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 
 | **Armour** | `Health.uses_armor` (players): 100 at each Bomb Defusal round (and spawn), absorbs `ARMOR_ABSORB` = 40 % of weapon damage; synced with health; falls/bomb ignore it |
 | **HUD details** | Health + armour row with bars, ammo bullet marks, drawn faces on top-bar cards (`TopBar._draw_face`), map name banner (`Hud.show_banner`, 6 s), radar with boxed sites and teammate view ticks |
+| **Detail textures** | `tools/make_textures.py` (numpy + Pillow) writes two tileable 512² texture arrays, 7 layers each: `assets/textures/surfaces_albedo.png` (colour around mid-grey + roughness) and `surfaces_normal.png`. They are global shader uniforms (`surface_albedo`, `surface_normal`); `prototype_grid.gdshader` picks a layer by surface kind and projects it in world space, only when *Surface detail* is on (Medium+). To use photo textures instead, replace a layer keeping size and order |
 | **Wall signs** | `m.sign(pos, face, "A", toward=(x, z))` in `tools/greybox.py`: a painted Label3D letter + arrow boxes pointing towards a place; plus `_rug()`, `_tower()`, fruit crates on stalls |
 
 Draw calls at the worst view on Low (after batching): Courtyard ~120, Kasbah ~185, Factory ~190, Office / Train Yard ~205, Subway ~235 — still well within what the minimum-spec GPUs handle.
