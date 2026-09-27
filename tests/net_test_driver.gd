@@ -29,6 +29,8 @@ func _ready() -> void:
 		"observer": _run_observer()
 		"bomb_host": _run_bomb_host()
 		"bomb_client": _run_bomb_client()
+		"cheat_host": _run_cheat_host()
+		"cheat_client": _run_cheat_client()
 		_: _run_client()
 
 
@@ -290,6 +292,67 @@ func _press(action: StringName, pressed: bool) -> void:
 func _release_inputs() -> void:
 	for a in InputMap.get_actions():
 		Input.action_release(a)
+
+
+# -----------------------------------------------------------------------------
+# Anti-cheat: a modified client fires far more bullets than its magazine
+# holds, far faster than the gun allows. The server must refuse the extra
+# shots (server-side ammo) and kick the client.
+# -----------------------------------------------------------------------------
+
+func _run_cheat_host() -> void:
+	NetworkManager.local_name = "Host"
+	Match.configure(GameConfig.Mode.FFA, 0)
+	_check(NetworkManager.host(_port, 4, false, GameConfig.map_path("test_map"), -1) == OK, "anti-cheat host starts")
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	var me: PlayerController = await _wait_for(func() -> Variant: return level.get_player(1))
+	me.health.max_health = 100000.0 # survive every shot so we can count them
+	me.health.revive()
+	var hits := [0]
+	me.health.damaged.connect(func(_a: float, _s: Node, _h: bool) -> void: hits[0] += 1)
+	var cheater: PlayerController = await _wait_for(func() -> Variant:
+		var ps := level.get_players().filter(func(p: PlayerController) -> bool: return p.peer_id != 1)
+		return ps[0] if not ps.is_empty() else null)
+	if cheater == null:
+		return _finish()
+	var cheater_id := cheater.peer_id
+	var kicked: Variant = await _wait_for(func() -> Variant:
+		return true if not multiplayer.get_peers().has(cheater_id) else null)
+	_check(kicked == true, "cheater is kicked by the anti-cheat")
+	var mag: int = cheater.weapons["rifle"].data.magazine_size if is_instance_valid(cheater) else 30
+	_check(hits[0] > 10 and hits[0] <= mag, "server accepted exactly one magazine at most (%d hits ≤ %d)" % [hits[0], mag])
+	_finish()
+
+
+func _run_cheat_client() -> void:
+	await get_tree().create_timer(1.0).timeout
+	NetworkManager.local_name = "Cheater"
+	NetworkManager.join("127.0.0.1", _port)
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	var me: PlayerController = await _wait_for(func() -> Variant: return level.player if level else null)
+	var host: PlayerController = await _wait_for(func() -> Variant: return level.get_player(1))
+	if me == null or host == null:
+		return _finish()
+	await _frames(30)
+	var rifle: Weapon = me.current_weapon
+	var sent := 0
+	# Fire at the rifle's real rate (so the fire-rate check passes) but never
+	# reload: only the server-side ammo count can stop this.
+	var interval := 60.0 / rifle.data.fire_rate + 0.01
+	while sent < 80 and NetworkManager.is_online():
+		var eye := me.camera.global_position
+		var dir := (host.global_position + Vector3.UP - eye).normalized()
+		rifle._server_fire.rpc_id(1, NetworkManager.server_time() - 0.1, eye, PackedVector3Array([dir]))
+		sent += 1
+		await get_tree().create_timer(interval).timeout
+	var back_in_menu: Variant = await _wait_for(func() -> Variant:
+		return true if not NetworkManager.is_online() else null)
+	_check(back_in_menu == true, "cheater was disconnected after %d fake shots" % sent)
+	var status: Variant = await _wait_for(func() -> Variant:
+		var menu := get_tree().current_scene
+		return menu.get_node("%StatusLabel").text if menu and menu.name == "MainMenu" else null)
+	_check(status != null and "anti-cheat" in String(status), "main menu shows the kick reason (%s)" % status)
+	_finish()
 
 
 ## Joins a dedicated server (started with `-- --server`) and checks the basics.

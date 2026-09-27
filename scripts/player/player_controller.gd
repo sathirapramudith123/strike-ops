@@ -113,8 +113,11 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	_default_regen = health.regen_per_second
 	_name_tag.text = player_name
-	_torso_material = ($ThirdPerson/Torso as MeshInstance3D).mesh.surface_get_material(0).duplicate()
-	($ThirdPerson/Torso as MeshInstance3D).material_override = _torso_material
+	# Dedicated-server exports strip meshes (0 surfaces) — skip visuals there.
+	var torso := $ThirdPerson/Torso as MeshInstance3D
+	if torso.mesh and torso.mesh.get_surface_count() > 0 and torso.mesh.surface_get_material(0):
+		_torso_material = torso.mesh.surface_get_material(0).duplicate()
+		torso.material_override = _torso_material
 	NetworkManager.roster_changed.connect(_update_team_visuals)
 	_update_team_visuals()
 
@@ -344,7 +347,8 @@ func _update_team_visuals() -> void:
 	var team := Match.get_team(peer_id)
 	var local_id := multiplayer.get_unique_id()
 	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, local_id)
-	_torso_material.albedo_color = GameConfig.team_color(team)
+	if _torso_material:
+		_torso_material.albedo_color = GameConfig.team_color(team)
 	_name_tag.no_depth_test = friendly
 	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
 

@@ -20,6 +20,7 @@ func _ready() -> void:
 		%SettingsButton.grab_focus())
 	%MainMenuButton.text = "Disconnect" if NetworkManager.is_online() else "Main menu"
 	%ResumeButton.pressed.connect(close)
+	%BugButton.pressed.connect(BugReport.open)
 	%MainMenuButton.pressed.connect(_go_to_main_menu)
 	%QuitButton.pressed.connect(get_tree().quit)
 	%MuteAllCheck.toggled.connect(func(on: bool) -> void: VoiceChat.mute_all = on)

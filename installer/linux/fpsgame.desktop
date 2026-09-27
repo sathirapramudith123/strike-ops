@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=FPS Game
+Comment=Low-spec multiplayer first-person shooter
+Exec=sh -c 'cd "$(dirname "%k")" && ./FPSGame.x86_64'
+Icon=icon
+Terminal=false
+Categories=Game;ActionGame;

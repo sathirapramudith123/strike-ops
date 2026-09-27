@@ -12,13 +12,15 @@ config_version=5
 
 config/name="FPS Game"
 config/description="Low-spec friendly multiplayer first-person shooter with scalable graphics and voice chat."
-config/version="0.1.0"
+config/version="0.8.0"
+config/release_channel="beta"
 run/main_scene="res://scenes/main/main_menu.tscn"
 config/use_custom_user_dir=true
 config/custom_user_dir_name="FPSGame"
 config/features=PackedStringArray("4.4", "Forward Plus")
 boot_splash/bg_color=Color(0.07, 0.07, 0.08, 1)
 config/icon="res://icon.svg"
+run/flush_stdout_on_print=true
 
 [audio]
 
@@ -164,6 +166,6 @@ common/physics_ticks_per_second=60
 
 renderer/rendering_method="forward_plus"
 rendering_device/fallback_to_opengl3=true
-textures/vram_compression/import_etc2_astc=false
+textures/vram_compression/import_etc2_astc=true
 occlusion_culling/use_occlusion_culling=true
 anti_aliasing/quality/use_debanding=false

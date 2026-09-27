@@ -12,6 +12,8 @@ const SEND_RATE := 30.0
 const HISTORY_SECONDS := 1.0
 ## Max horizontal speed accepted by the server (sprint + slide boost + margin).
 const MAX_SPEED := 14.0
+## Max upward speed accepted (jump is 5 m/s; margin for ramps + jitter).
+const MAX_RISE_SPEED := 12.0
 ## Seconds of invulnerability after (re)spawning.
 const SPAWN_PROTECTION := 1.5
 
@@ -86,8 +88,15 @@ func _server_state(pos: Vector3, yaw: float, pitch: float, height: float, flags:
 	if _last_valid_time >= 0.0:
 		var dt := maxf(now - _last_valid_time, 1.0 / SEND_RATE)
 		var moved := Vector2(pos.x - _last_valid_pos.x, pos.z - _last_valid_pos.z).length()
+		var rise := pos.y - _last_valid_pos.y
 		if moved > 1.0 and moved / dt > MAX_SPEED * 1.5:
 			# Too fast — reject and snap the owner back.
+			NetworkManager.report_violation(player.peer_id, "speed")
+			_correct.rpc_id(player.peer_id, _last_valid_pos)
+			return
+		if rise > 1.0 and rise / dt > MAX_RISE_SPEED:
+			# Flying up faster than any jump or ramp allows.
+			NetworkManager.report_violation(player.peer_id, "fly")
 			_correct.rpc_id(player.peer_id, _last_valid_pos)
 			return
 	_last_valid_pos = pos

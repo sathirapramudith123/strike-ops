@@ -24,6 +24,8 @@ var _time: float = 0.0
 func _ready() -> void:
 	_origin = position
 	for mesh: MeshInstance3D in _visual.find_children("*", "MeshInstance3D", true, false):
+		if mesh.mesh == null or mesh.mesh.get_surface_count() == 0:
+			continue # stripped on dedicated-server exports
 		var mat := mesh.get_active_material(0) as StandardMaterial3D
 		if mat:
 			mat = mat.duplicate() as StandardMaterial3D

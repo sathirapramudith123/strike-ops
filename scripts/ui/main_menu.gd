@@ -6,10 +6,13 @@ extends Control
 
 
 func _ready() -> void:
-	%Version.text = "v%s" % ProjectSettings.get_setting("application/config/version", "0.0.0")
+	%Version.text = NetworkManager.version_string()
 	%SettingsButton.pressed.connect(_show_settings)
 	_settings.closed.connect(_on_settings_closed)
 	%QuitButton.pressed.connect(get_tree().quit)
+	%BugButton.pressed.connect(func() -> void:
+		BugReport.open()
+		%StatusLabel.text = "Bug report opened in your browser (system details copied to the clipboard).")
 	%PlayButton.pressed.connect(_on_play_pressed)
 	%HostButton.pressed.connect(_on_host_pressed)
 	%JoinButton.pressed.connect(_on_join_pressed)

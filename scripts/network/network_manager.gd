@@ -31,6 +31,12 @@ const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
 const MAIN_MENU := "res://scenes/main/main_menu.tscn"
 const CONNECT_TIMEOUT := 10.0
 
+## Anti-cheat: a player who sends more than this many invalid actions
+## (impossible fire rate, shooting an empty gun, speed/fly hacks) within
+## VIOLATION_WINDOW seconds is kicked. Generous, so bad connections never trip it.
+const VIOLATION_LIMIT := 25
+const VIOLATION_WINDOW := 10.0
+
 ## ENet channels: 0 = reliable game events, 1 = player state, 2 = voice (Phase 5).
 const CHANNEL_STATE := 1
 const CHANNEL_VOICE := 2
@@ -58,6 +64,7 @@ var _clock_synced: bool = false
 var _ping_timer: float = 0.0
 var _roster_timer: float = 0.0
 var _connect_timer: float = -1.0
+var _violations: Dictionary = {} # server: peer_id -> Array[float] timestamps
 
 
 func _ready() -> void:
@@ -166,9 +173,44 @@ func get_player_name(peer_id: int) -> String:
 	return roster.get(peer_id, {}).get("name", "Player %d" % peer_id)
 
 
+## "v0.8.0 beta" — shown in menus, bug reports and the server log.
+static func version_string() -> String:
+	var v: String = ProjectSettings.get_setting("application/config/version", "0.0.0")
+	var channel: String = ProjectSettings.get_setting("application/config/release_channel", "")
+	return "v%s%s" % [v, (" " + channel) if channel != "" else ""]
+
+
 ## The level currently loaded on this peer (null in menus).
 func current_level() -> Level:
 	return _level if is_instance_valid(_level) else null
+
+
+## Server: count an invalid action from `peer_id`; kicks when over the limit.
+func report_violation(peer_id: int, reason: String) -> void:
+	if not multiplayer.is_server() or peer_id == 1 or not is_online():
+		return
+	var now := _local_time()
+	var list: Array = _violations.get(peer_id, [])
+	list = list.filter(func(t: float) -> bool: return now - t < VIOLATION_WINDOW)
+	list.append(now)
+	_violations[peer_id] = list
+	if list.size() == 1 or list.size() % 10 == 0:
+		print("[anticheat] %s (%d): %s (%d in %ds)" % [get_player_name(peer_id), peer_id, reason, list.size(), VIOLATION_WINDOW])
+	if list.size() > VIOLATION_LIMIT:
+		kick(peer_id, "Kicked by anti-cheat (%s)." % reason)
+
+
+## Server: disconnect a player with a message.
+func kick(peer_id: int, reason: String) -> void:
+	if not multiplayer.is_server() or not multiplayer.get_peers().has(peer_id):
+		return
+	print("[net] Kicking %s (%d): %s" % [get_player_name(peer_id), peer_id, reason])
+	_kicked.rpc_id(peer_id, reason)
+	_violations.erase(peer_id)
+	# Give the message a moment to arrive before dropping the connection.
+	get_tree().create_timer(0.3).timeout.connect(func() -> void:
+		if multiplayer.multiplayer_peer is ENetMultiplayerPeer and multiplayer.get_peers().has(peer_id):
+			(multiplayer.multiplayer_peer as ENetMultiplayerPeer).disconnect_peer(peer_id))
 
 
 ## Server: push the roster to everyone now (and to local listeners).
@@ -437,10 +479,31 @@ func _local_time() -> float:
 
 
 ## `godot --headless -- --server [--port 7777] [--max-players 16] [--map warehouse] [--mode tdm]`
+## `godot -- --connect 1.2.3.4:7777 [--name Bob]`
 func _start_dedicated_from_args() -> void:
 	var args := OS.get_cmdline_user_args()
-	if not "--server" in args:
+	# The server export also accepts options without the "--" separator
+	# (./FPSGame-server.x86_64 --port 7777), which is what admins type.
+	if OS.has_feature("dedicated_server"):
+		args = OS.get_cmdline_args() + args
+	# `-- --connect 1.2.3.4:7777 [--name Bob]` joins a server straight away.
+	var connect_i := args.find("--connect")
+	if connect_i >= 0 and connect_i + 1 < args.size() and not "--server" in args:
+		var name_i := args.find("--name")
+		if name_i >= 0 and name_i + 1 < args.size():
+			local_name = args[name_i + 1]
+			SettingsManager.player_name = local_name
+		var target := args[connect_i + 1]
+		var port := DEFAULT_PORT
+		if target.count(":") == 1:
+			port = target.get_slice(":", 1).to_int()
+			target = target.get_slice(":", 0)
+		join(target, port)
 		return
+	# The "Linux Server" export has the dedicated_server feature: always a server.
+	if not "--server" in args and not OS.has_feature("dedicated_server"):
+		return
+	print("[net] FPS Game %s dedicated server" % version_string())
 	var port := DEFAULT_PORT
 	var max_players := DEFAULT_MAX_PLAYERS
 	var map_path := DEFAULT_MAP

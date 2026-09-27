@@ -76,6 +76,11 @@ unique_name_in_owner = true
 layout_mode = 2
 text = "Resume"
 
+[node name="BugButton" type="Button" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Report a bug"
+
 [node name="MainMenuButton" type="Button" parent="Panel/Center/Box"]
 unique_name_in_owner = true
 layout_mode = 2

@@ -1,0 +1,108 @@
+name: Release
+
+# Push a tag like v0.8.0-beta (or run manually) to build every package and
+# publish a GitHub Release. Tags with a "-" (beta, rc…) become pre-releases.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: "4.4.1"
+
+jobs:
+  build:
+    name: Export builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Godot + export templates
+        id: cache-godot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/godot
+            ~/.local/share/godot/export_templates
+          key: godot-export-${{ env.GODOT_VERSION }}
+
+      - name: Install Godot + export templates
+        if: steps.cache-godot.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -sSL -o godot.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+          unzip -q godot.zip && mv "Godot_v${GODOT_VERSION}-stable_linux.x86_64" godot && rm godot.zip
+          T=~/.local/share/godot/export_templates/${GODOT_VERSION}.stable
+          mkdir -p "$T"
+          curl -sSL -o templates.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+          unzip -o -j -q templates.tpz templates/linux_release.x86_64 templates/linux_debug.x86_64 \
+            templates/windows_release_x86_64.exe templates/windows_debug_x86_64.exe templates/macos.zip \
+            templates/version.txt -d "$T"
+          rm templates.tpz
+
+      - name: Tests
+        run: |
+          ~/godot/godot --headless --path . --editor --quit || true
+          ~/godot/godot --headless --path . res://tests/smoke_test.tscn
+          tools/run_net_test.sh ~/godot/godot
+
+      - name: Build + verify packages
+        run: tools/build_release.sh ~/godot/godot --verify
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: builds/windows/
+
+  installer:
+    name: Windows installer
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: builds/windows
+      - name: Build installer (Inno Setup 6)
+        shell: pwsh
+        run: |
+          $v = (Select-String -Path project.godot -Pattern '^config/version="(.*)"').Matches[0].Groups[1].Value
+          $c = (Select-String -Path project.godot -Pattern '^config/release_channel="(.*)"').Matches[0].Groups[1].Value
+          if ($c) { $v = "$v-$c" }
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" "/DAppVersion=$v" "/DSourceDir=..\..\builds\windows" installer\windows\FPSGame.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: dist/*.exe
+
+  publish:
+    name: GitHub Release
+    needs: [build, installer]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: dist
+      - name: Checksums (incl. installer)
+        run: cd dist && sha256sum ./*.zip ./*.tar.gz ./*.exe > SHA256SUMS
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          body_path: CHANGELOG.md

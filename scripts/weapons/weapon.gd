@@ -48,6 +48,7 @@ var _audio: AudioStreamPlayer3D
 var _rng := RandomNumberGenerator.new()
 var _viewmodel_meshes: Array[Node] = []
 var _server_last_shot: float = -1.0
+var _server_reload_done_at: float = 0.0
 var _aim_toggled: bool = false
 
 
@@ -160,6 +161,21 @@ func reload() -> void:
 	_reload_timer = data.reload_time
 	_play(reload_sound)
 	reload_started.emit(data.reload_time)
+	if not multiplayer.is_server() and NetworkManager.is_online():
+		_server_reload.rpc_id(1)
+
+
+## Server: a client started reloading. The server keeps its own copy of the
+## ammo and only refills it after the reload time has really passed.
+@rpc("any_peer", "call_remote", "reliable")
+func _server_reload() -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _player.peer_id:
+		return
+	if is_reloading or ammo_in_magazine >= data.magazine_size or ammo_reserve <= 0:
+		return
+	is_reloading = true
+	# 10% tolerance for network jitter.
+	_server_reload_done_at = NetworkManager.server_time() + data.reload_time * 0.9
 
 
 ## Reload progress 0..1 (0 when not reloading).
@@ -252,7 +268,18 @@ func _server_fire(render_time: float, origin: Vector3, dirs: PackedVector3Array)
 	var now := NetworkManager.server_time()
 	# Fire-rate check (20% tolerance for network jitter).
 	if _server_last_shot >= 0.0 and now - _server_last_shot < 60.0 / data.fire_rate * 0.8:
+		NetworkManager.report_violation(_player.peer_id, "fire rate")
 		return
+	# Server-side ammo: the server's copy of this weapon counts every shot.
+	if is_reloading:
+		if now < _server_reload_done_at:
+			NetworkManager.report_violation(_player.peer_id, "fired while reloading")
+			return
+		_finish_reload()
+	if ammo_in_magazine <= 0:
+		NetworkManager.report_violation(_player.peer_id, "fired with an empty magazine")
+		return
+	ammo_in_magazine -= 1
 	_server_last_shot = now
 	# The shot must come from roughly where the server thinks the head is.
 	var eye := _player.global_position + Vector3.UP * (_player.current_height() - _player.eye_offset)

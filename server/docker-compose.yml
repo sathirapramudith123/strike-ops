@@ -1,0 +1,10 @@
+# docker compose -f server/docker-compose.yml up -d   (after tools/build_release.sh)
+services:
+  fpsgame:
+    build:
+      context: ../builds/server
+      dockerfile: ../../server/Dockerfile
+    command: ["--port", "7777", "--max-players", "16", "--mode", "tdm", "--map", "warehouse"]
+    ports:
+      - "7777:7777/udp"
+    restart: unless-stopped
