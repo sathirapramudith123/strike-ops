@@ -4,7 +4,8 @@ extends Node
 ## Capture:  AudioStreamMicrophone → "MicCapture" bus (muted, AudioEffectCapture)
 ##           → VoiceProcessor (resample 16 kHz, high-pass, gate, AGC) → 20 ms frames
 ## Send:     push-to-talk (V = team, B = proximity) or voice activation;
-##           2 frames per packet, VoiceCodec (ADPCM), ENet channel 2, via the server
+##           2 frames per packet, Opus (24 kbps) when every player has the
+##           Opus extension, else ADPCM (64 kbps); ENet channel 2, via the server
 ## Relay:    the server forwards each packet only to eligible listeners
 ##           (team / all / players within PROXIMITY_RANGE)
 ## Receive:  one VoicePlayback per speaker (jitter buffer, 2D or 3D positional)
@@ -44,6 +45,9 @@ var mute_all: bool = false
 
 var processor := VoiceProcessor.new()
 var packets_sent: int = 0
+var bytes_sent: int = 0
+## Codec of the last packet sent (VoiceCodec.CODEC_*), -1 = none yet.
+var last_codec_sent: int = -1
 
 var _mic_player: AudioStreamPlayer
 var _capture: AudioEffectCapture
@@ -56,6 +60,7 @@ var _playbacks: Dictionary = {} # peer_id -> VoicePlayback
 var _speaking: Dictionary = {} # peer_id -> bool (last emitted state)
 var _rate_counters: Dictionary = {} # server: peer_id -> [window_start, count]
 var _state_timer: float = 0.0
+var _encoder := VoiceEncoder.new()
 
 
 func _ready() -> void:
@@ -68,6 +73,8 @@ func _ready() -> void:
 	add_child(_mic_player)
 	SettingsManager.voice_changed.connect(_update_capture_state)
 	_update_capture_state()
+	print("[voice] codec: %s" % ("Opus (%s)" % VoiceCodec.opus_version() if VoiceCodec.opus_available()
+		else "ADPCM (Opus extension not loaded)"))
 
 
 func _process(delta: float) -> void:
@@ -109,6 +116,20 @@ func inject_test_audio(samples: PackedFloat32Array) -> void:
 
 
 ## Server-side relay rules. Returns the peer ids that should hear `sender_id`.
+## Opus only if this peer has it and (online) every player in the roster can
+## decode it — one old client or source build without the extension switches
+## everyone's voice to ADPCM. (A dedicated server only relays, so it doesn't count.)
+static func use_opus_for(roster: Dictionary, online: bool) -> bool:
+	if not VoiceCodec.opus_available():
+		return false
+	if not online:
+		return true
+	for entry: Dictionary in roster.values():
+		if not entry.get("opus", false):
+			return false
+	return true
+
+
 static func recipients_for(sender_id: int, channel: Channel, players: Array, teams: Dictionary = {}) -> Array[int]:
 	var result: Array[int] = []
 	var sender: PlayerController = null
@@ -209,13 +230,16 @@ func _update_transmit_state(delta: float) -> void:
 func _flush_packet() -> void:
 	var samples := _pending
 	_pending = PackedFloat32Array()
-	var packet := VoiceCodec.encode(samples)
+	_encoder.use_opus = SettingsManager.voice_opus and use_opus_for(NetworkManager.roster, NetworkManager.is_online())
+	var packet := _encoder.encode(samples)
+	last_codec_sent = packet[0]
 	_seq = (_seq + 1) & 0xFFFF
 	if loopback:
 		_receive(multiplayer.get_unique_id(), _seq, Channel.ALL, packet, samples.size())
 	if not is_transmitting or not NetworkManager.is_online():
 		return
 	packets_sent += 1
+	bytes_sent += packet.size()
 	if multiplayer.is_server():
 		_relay(multiplayer.get_unique_id(), _seq, transmit_channel, packet, samples.size())
 	else:
@@ -231,9 +255,10 @@ func _voice_up(seq: int, channel: int, packet: PackedByteArray, sample_count: in
 	if not multiplayer.is_server():
 		return
 	var sender := multiplayer.get_remote_sender_id()
-	if packet.size() > MAX_PACKET_BYTES or channel < 0 or channel > Channel.ALL or not _rate_ok(sender):
+	if packet.size() < 2 or packet.size() > MAX_PACKET_BYTES or packet[0] > VoiceCodec.CODEC_OPUS \
+			or channel < 0 or channel > Channel.ALL or not _rate_ok(sender):
 		return
-	_relay(sender, seq, channel, packet, clampi(sample_count, 0, packet.size() * 2))
+	_relay(sender, seq, channel, packet, clampi(sample_count, 0, VoiceEncoder.PACKET_SAMPLES))
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", 2)

@@ -236,6 +236,8 @@ func _test_voice_codec() -> void:
 	var snr := 10.0 * log(sig / maxf(err, 1e-12)) / log(10.0)
 	_check(snr > 25.0, "ADPCM round-trip SNR %.1f dB" % snr)
 
+	_test_opus()
+
 	var proc := VoiceProcessor.new()
 	proc.set_input_rate(48000.0)
 	var in48 := PackedFloat32Array()
@@ -255,6 +257,93 @@ func _test_voice_codec() -> void:
 	_level.despawn_player(202)
 
 
+## Phase 5b: Opus codec (GDExtension), FEC, concealment, negotiation.
+func _test_opus() -> void:
+	_check(VoiceCodec.opus_available(), "Opus extension loaded (%s)" % VoiceCodec.opus_version())
+	_check(VoiceChat.use_opus_for({1: {"opus": true}, 2: {"opus": true}}, true) == VoiceCodec.opus_available()
+		and not VoiceChat.use_opus_for({1: {"opus": true}, 2: {"opus": false}}, true)
+		and not VoiceChat.use_opus_for({1: {"opus": true}, 2: {}}, true),
+		"Opus only when every player has it (else ADPCM)")
+	if not VoiceCodec.opus_available():
+		return
+	# One second of a 440 Hz tone, packet by packet.
+	var enc := VoiceEncoder.new()
+	enc.use_opus = true
+	var packets: Array[PackedByteArray] = []
+	var bytes := 0
+	var frame := PackedFloat32Array()
+	frame.resize(VoiceEncoder.PACKET_SAMPLES)
+	for k in 25:
+		for i in frame.size():
+			frame[i] = 0.5 * sin(TAU * 440.0 * (k * frame.size() + i) / 16000.0)
+		var p := enc.encode(frame)
+		packets.append(p)
+		bytes += p.size()
+	var kbps := bytes * 8.0 / 1000.0
+	_check(packets[0][0] == VoiceCodec.CODEC_OPUS and kbps < 40.0,
+		"Opus: %.0f kbps (ADPCM: 64 kbps)" % kbps)
+
+	# Lose packet 12: the decoder rebuilds it from packet 13's FEC data.
+	var dec := VoiceDecoder.new()
+	var out := PackedFloat32Array()
+	for k in 25:
+		if k == 12:
+			continue
+		out.append_array(dec.decode(packets[k], VoiceEncoder.PACKET_SAMPLES, 1 if k == 13 else 0))
+	_check(out.size() == 25 * VoiceEncoder.PACKET_SAMPLES and dec.concealed == 1,
+		"a lost packet is rebuilt (FEC): %d samples" % out.size())
+	var lost_part := out.slice(12 * 640, 13 * 640)
+	_check(_rms(lost_part) > 0.15, "rebuilt audio isn't silence (RMS %.2f)" % _rms(lost_part))
+	var tail := out.slice(20 * 640)
+	var f := _zero_cross_hz(tail)
+	_check(absf(f - 440.0) < 10.0 and absf(_rms(tail) - 0.354) < 0.1,
+		"Opus round trip: %.0f Hz, RMS %.2f (sent 440 Hz, 0.35)" % [f, _rms(tail)])
+
+	# Two lost in a row: concealment + FEC.
+	var dec2 := VoiceDecoder.new()
+	var n := 0
+	for k in 10:
+		if k == 4 or k == 5:
+			continue
+		n += dec2.decode(packets[k], 640, 2 if k == 6 else 0).size()
+	_check(n == 10 * 640 and dec2.concealed == 2, "two lost packets are concealed (%d samples)" % n)
+
+	# End of a sentence: a short tail is padded for Opus and trimmed again.
+	var short := enc.encode(frame.slice(0, 300))
+	_check(dec.decode(short, 300).size() == 300, "short last packet keeps its length")
+	# Garbage never crashes and never returns more than one packet.
+	var junk := PackedByteArray([VoiceCodec.CODEC_OPUS, 0xFF, 0xFE, 0x03, 0x99, 0x00, 0x42])
+	_check(dec.decode(junk, 640).size() <= 640 and dec.decode(PackedByteArray([7, 1, 2]), 640).is_empty(),
+		"corrupt / unknown packets are dropped safely")
+	# Same decoder also plays ADPCM packets (codec byte).
+	enc.use_opus = false
+	var adpcm := enc.encode(frame)
+	_check(adpcm[0] == VoiceCodec.CODEC_ADPCM and adpcm.size() == 1 + 3 + 320
+		and dec.decode(adpcm, 640).size() == 640, "ADPCM fallback packets decode too")
+
+
+func _rms(samples: PackedFloat32Array) -> float:
+	var s := 0.0
+	for v in samples:
+		s += v * v
+	return sqrt(s / maxf(samples.size(), 1))
+
+
+func _zero_cross_hz(samples: PackedFloat32Array) -> float:
+	var first := -1.0
+	var last := -1.0
+	var count := 0
+	for i in range(1, samples.size()):
+		if samples[i - 1] < 0.0 and samples[i] >= 0.0:
+			var t := i - 1 + samples[i - 1] / (samples[i - 1] - samples[i])
+			if first < 0.0:
+				first = t
+			else:
+				count += 1
+			last = t
+	return count * 16000.0 / (last - first) if count > 0 else 0.0
+
+
 func _test_voice_loopback() -> void:
 	VoiceChat.loopback = true
 	var tone := PackedFloat32Array()
@@ -265,6 +354,8 @@ func _test_voice_loopback() -> void:
 	await _frames(20)
 	var pb := VoiceChat.get_playback(multiplayer.get_unique_id())
 	_check(pb != null and pb.samples_decoded >= 15000, "mic test loopback decodes the injected audio")
+	_check(VoiceChat.last_codec_sent == (VoiceCodec.CODEC_OPUS if VoiceCodec.opus_available() else VoiceCodec.CODEC_ADPCM),
+		"mic test uses %s" % VoiceCodec.codec_name(VoiceChat.last_codec_sent))
 	_check(VoiceChat.input_level > 0.05, "mic level meter reacts (%.2f)" % VoiceChat.input_level)
 	VoiceChat.loopback = false
 

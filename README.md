@@ -58,7 +58,7 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 | Game engine | **[Godot 4.x](https://godotengine.org/)** | Free & open-source, tiny editor, excellent low-end support via the *Compatibility* (OpenGL 3.3) renderer, and *Forward+* (Vulkan) for High/Ultra. |
 | Language | **GDScript** (gameplay) / **C#** (performance-critical systems) | Fast iteration + speed where needed. |
 | Networking | Godot High-Level Multiplayer (**ENet**) | Reliable/unreliable UDP channels, built-in. |
-| Voice codec | **IMA-ADPCM** in pure GDScript (Opus GDExtension planned) | No native dependencies — runs everywhere Godot does; 16 kHz, 64 kbps only while talking. |
+| Voice codec | **Opus** (libopus 1.5, C++ GDExtension) with **IMA-ADPCM** fallback in pure GDScript | Opus: ~24 kbps with packet-loss recovery; ADPCM (64 kbps) keeps voice working for anyone without the extension. |
 | Audio | Godot `AudioStreamPlayer3D` + Audio Buses | 3D positional audio, effects, per-bus volume. |
 | 3D assets | **Blender** → `.glb` (glTF 2.0) | Open standard, imports natively. |
 | Version control | **Git** + **Git LFS** | LFS for large binary assets. |
@@ -142,7 +142,7 @@ Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so th
 
 | Feature | Details |
 |---------|---------|
-| Codec | **IMA-ADPCM** 4-bit, 16 kHz mono, 20 ms frames, 40 ms packets (≈64 kbps **only while talking**). Pure GDScript — an Opus GDExtension can replace `VoiceCodec` later to drop to ~24 kbps |
+| Codec | **Opus** 16 kHz mono, 40 ms packets, **≈24 kbps only while talking** (was 64 kbps), with forward error correction + loss concealment. Falls back to **IMA-ADPCM** (pure GDScript, 64 kbps) automatically when any player lacks Opus — see *Phase 5b* |
 | Channels | **Team** (all teammates), **Proximity** (3D — nearby players hear you, with distance falloff), **All** (lobby/post-match) |
 | Activation | **Push-to-Talk** (default key: `V`) or **Voice Activation** with adjustable threshold |
 | Processing | High-pass filter, noise gate, automatic gain control (toggle in Settings). **No echo cancellation — use headphones** |
@@ -153,7 +153,49 @@ Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so th
 | UI | "MIC" indicator while you transmit, list of who is talking, green name tag and `»` in the scoreboard for speakers |
 | Teams | The game is free-for-all until Phase 6, so *team* voice currently reaches everyone |
 
-**Key scripts:** `scripts/voice/voice_chat.gd` (autoload `VoiceChat`), `voice_codec.gd`, `voice_processor.gd`, `voice_playback.gd`.
+**Key scripts:** `scripts/voice/voice_chat.gd` (autoload `VoiceChat`), `voice_codec.gd`, `voice_encoder.gd`, `voice_decoder.gd`, `voice_processor.gd`, `voice_playback.gd`.
+
+### Phase 5b — Opus voice codec
+
+Voice uses **[Opus](https://opus-codec.org/)**, the codec used by Discord, WebRTC and most games, through a small C++ **GDExtension** (`addons/opus_voice`, source in `native/opus_voice`).
+
+| | ADPCM (before) | **Opus (now)** |
+|---|---|---|
+| Bandwidth while talking | 64 kbps (324 B / 40 ms) | **≈24 kbps** (~120 B / 40 ms) — about **⅓** |
+| Lost packets | a 40 ms gap | rebuilt from the next packet (**in-band FEC**); longer gaps are smoothly **concealed** |
+| Sound | 4-bit, slightly hissy | clear, made for speech |
+| Needs | nothing | the extension (included for Windows, Linux, macOS) |
+
+**Compatibility is automatic.** Every packet starts with a codec byte. When a player joins they tell the server whether they have Opus; if **everyone** in the match has it, voice is sent as Opus, otherwise everyone sends ADPCM, so one player without Opus (e.g. a source build for a platform without the library) never goes unheard. A dedicated server only relays packets, so it doesn't need Opus. The log shows the active codec at startup (`[voice] codec: Opus (libopus 1.5.2)`), and **Settings → Voice → Opus codec** can switch it off.
+
+**Included libraries** (`addons/opus_voice/bin/`, committed so a fresh clone just works):
+
+| Platform | File | Notes |
+|----------|------|-------|
+| Windows x86-64 | `libopus_voice.windows.x86_64.dll` | Only needs system DLLs |
+| Linux x86-64 | `libopus_voice.linux.x86_64.so` | Runs on glibc 2.16+ (any distro Godot supports) |
+| macOS Apple Silicon | `libopus_voice.macos.arm64.dylib` | Ad-hoc signed |
+| macOS Intel | `libopus_voice.macos.x86_64.dylib` | |
+
+libopus 1.5.2 and godot-cpp are linked in statically; their licenses (BSD-3 / MIT) ship in every package as `THIRD_PARTY_LICENSES.txt`.
+
+**Rebuilding the libraries** (only needed if you change `native/opus_voice/src/`):
+
+```bash
+pip install ziglang            # Linux + macOS builds (portable glibc, cross-compiles macOS)
+sudo apt install mingw-w64 cmake
+tools/build_opus.sh            # all three platforms from Linux → addons/opus_voice/bin/
+tools/build_opus.sh linux      # or one platform (on a Mac: macos; on Windows with CMake + VS: windows)
+godot --headless --path . --import   # let Godot register the extension
+```
+
+The script downloads pinned sources (godot-cpp 4.4, libopus 1.5.2 with SHA-256 check). CI rebuilds all four libraries whenever `native/` changes (workflow *Opus extension*) and checks that Opus loads on real Windows and macOS runners (`tests/opus_check.gd`).
+
+| Script / file | Role |
+|---------------|------|
+| `native/opus_voice/src/opus_voice.cpp` | `OpusVoiceEncoder` (VOIP mode, 24 kbps, FEC, complexity 5) and `OpusVoiceDecoder` (decode, FEC, concealment) |
+| `scripts/voice/voice_encoder.gd` / `voice_decoder.gd` | Pick the codec per packet, pad/trim the last packet of a sentence, rebuild lost packets |
+| `VoiceChat.use_opus_for()` | The "everyone has Opus?" rule |
 
 > **macOS:** exported builds need the microphone permission (`Export → macOS → Privacy → Microphone Usage Description`).
 
@@ -163,7 +205,8 @@ Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so th
 
 ```
 game-develop/
-├── addons/                  # Godot plugins / GDExtensions (e.g. Opus voice)
+├── addons/opus_voice/       # Opus voice codec GDExtension (+ prebuilt libraries in bin/)
+├── native/opus_voice/       # its C++ source + CMake build (tools/build_opus.sh)
 ├── assets/
 │   ├── shaders/             # prototype grid shader, etc.
 │   ├── audio/
@@ -200,7 +243,7 @@ game-develop/
 │   ├── ui/                  # menus, HUD, crosshair
 │   └── voice/               # voice capture, encode/decode, playback
 ├── tests/                   # smoke test + two-process multiplayer test
-├── tools/                   # build_release.sh, run_net_test.sh, run_benchmark.sh, greybox.py
+├── tools/                   # build_release.sh, run_net_test.sh, run_benchmark.sh, greybox.py, build_opus.sh
 ├── installer/               # Windows (Inno Setup) + Linux (.desktop) + player README
 ├── server/                  # dedicated server: run script, README, Dockerfile, compose
 ├── .github/                 # CI + release workflows, issue templates
@@ -550,7 +593,7 @@ Rules every contributor follows so the game stays playable on low-end PCs:
 - **Lighting:** prefer **baked lightmaps**; limit real-time shadow-casting lights.
 - **Occlusion culling:** enable `OccluderInstance3D` in all maps.
 - **Scripts:** avoid heavy work in `_process()`; use object pooling for bullets, decals and particles.
-- **Network:** 30 Hz player state, target < 64 kbps per client excluding voice; voice adds ~64 kbps per active speaker (ADPCM) until Opus lands.
+- **Network:** 30 Hz player state, target < 64 kbps per client excluding voice; voice adds ~24 kbps per active speaker (Opus; 64 kbps if someone lacks Opus and ADPCM is used).
 - **Test every feature on the Low preset** before merging, and run `tools/run_benchmark.sh --preset low` before/after anything that could affect performance.
 - **Never leave invisible full-screen UI visible** (alpha 0 still costs fill rate) — hide it.
 - **No per-object node pools** — share one per level (see `ImpactDecals`).
@@ -593,7 +636,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Phase 3 — Audio:** 3D SFX for guns/footsteps/impacts, audio buses + limiter, occlusion, reverb zones, music + stings, audio quality setting (generated placeholders, replaceable by files)
 - [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
 - [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute
-- [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)
+- [x] **Phase 5b — Opus codec:** C++ GDExtension (libopus 1.5.2) for Windows/Linux/macOS, ~24 kbps instead of 64, FEC + loss concealment, automatic ADPCM fallback
 - [x] **Phase 6 — Content:** 5 weapons + loadouts, 6 maps + map selection screen + map vote, FFA & TDM with teams, match flow & map rotation, HUD & menus
 - [x] **Phase 6b — Bomb Defusal:** rounds, freeze time, bomb carry/drop/plant/defuse/explode, no respawns + spectating, halftime side swap
 - [x] **Phase 7 — Optimization:** built-in benchmark, dynamic resolution, performance advisor, static batching + occluders + detail distance, shared decals, shader warm-up, Low-preset light cuts, better auto-detect

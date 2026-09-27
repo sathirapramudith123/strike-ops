@@ -22,6 +22,13 @@
   *Hit & kill sounds*.
 - Sounds are generated placeholders; drop files into `assets/audio/` to
   replace them (see README → Phase 3).
+- **Opus voice codec (Phase 5b):** voice chat now uses Opus — about a third
+  of the bandwidth (≈24 kbps instead of 64), clearer speech, and lost packets
+  are rebuilt instead of leaving gaps. Players without Opus are handled
+  automatically (everyone falls back to the old codec). Can be switched off in
+  Settings → Voice. Network protocol version 4.
+- Fixed: hosting a game briefly "ended" the match before the map loaded
+  (spurious "Time's up — Draw!" and lose sound).
 
 ## v0.8.0 beta — first public beta
 

@@ -259,6 +259,13 @@ func _build_voice() -> void:
 	_add_check(t, "Noise suppression + auto gain", SettingsManager.voice_processing, func(on: bool) -> void:
 		SettingsManager.voice_processing = on
 		_apply_voice())
+	var opus := _add_check(t, "Opus codec (24 kbps instead of 64)" if VoiceCodec.opus_available()
+			else "Opus codec (not available — using ADPCM)", SettingsManager.voice_opus, func(on: bool) -> void:
+		SettingsManager.voice_opus = on
+		_apply_voice())
+	opus.disabled = not VoiceCodec.opus_available()
+	opus.tooltip_text = "%s. Used when every player in the match has Opus; otherwise voice falls back to ADPCM." \
+		% (VoiceCodec.opus_version() if VoiceCodec.opus_available() else "The Opus library isn't installed")
 	_add_check(t, "Proximity chat (B)", SettingsManager.proximity_chat_enabled, func(on: bool) -> void:
 		SettingsManager.proximity_chat_enabled = on
 		_apply_voice())
@@ -453,7 +460,7 @@ func _reset_current_tab() -> void:
 			SettingsManager.apply_audio()
 		"Voice":
 			for p in ["voice_enabled", "voice_mode", "voice_activation_threshold", "voice_input_device",
-					"mic_volume", "proximity_chat_enabled", "voice_processing"]:
+					"mic_volume", "proximity_chat_enabled", "voice_processing", "voice_opus"]:
 				SettingsManager.set(p, defaults.get(p))
 			SettingsManager.apply_voice()
 		"Controls":

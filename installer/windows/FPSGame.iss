@@ -33,6 +33,8 @@ Name: "firewall"; Description: "Allow hosting games through Windows Firewall (UD
 
 [Files]
 Source: "{#SourceDir}\FPSGame.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\libopus_voice.windows.x86_64.dll"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceDir}\THIRD_PARTY_LICENSES.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#SourceDir}\README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
 
 [Icons]

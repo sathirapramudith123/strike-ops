@@ -47,6 +47,11 @@ cp installer/PLAYERS.txt builds/linux/README.txt
 cp installer/linux/fpsgame.desktop icon.svg builds/linux/
 cp server/README.md builds/server/README.md
 cp server/run_server.sh builds/server/
+# Licenses of the bundled Opus codec (BSD / MIT require shipping them).
+for d in windows linux server macos; do
+  cp addons/opus_voice/THIRD_PARTY_LICENSES.txt builds/$d/
+done
+(cd builds/macos && zip -q FPSGame.zip THIRD_PARTY_LICENSES.txt)
 
 echo "-- packaging"
 (cd builds/windows && zip -qr "../../dist/FPSGame-$VERSION-windows-x86_64.zip" .)

@@ -29,6 +29,8 @@ mono_crash.*.json
 # .NET / C# (if C# scripting is used)
 # -----------------------------------------------------------------------------
 [Bb]in/
+# …except prebuilt GDExtension libraries (e.g. addons/opus_voice/bin/)
+!addons/**/bin/
 [Oo]bj/
 [Dd]ebug/
 [Rr]elease/

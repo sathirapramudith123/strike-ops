@@ -1,0 +1,15 @@
+; Opus voice codec (Phase 5b). Built by tools/build_opus.sh from native/opus_voice.
+; Without a library for the running platform the game falls back to ADPCM voice.
+
+[configuration]
+
+entry_symbol = "opus_voice_library_init"
+compatibility_minimum = "4.4"
+reloadable = false
+
+[libraries]
+
+linux.x86_64 = "res://addons/opus_voice/bin/libopus_voice.linux.x86_64.so"
+windows.x86_64 = "res://addons/opus_voice/bin/libopus_voice.windows.x86_64.dll"
+macos.arm64 = "res://addons/opus_voice/bin/libopus_voice.macos.arm64.dylib"
+macos.x86_64 = "res://addons/opus_voice/bin/libopus_voice.macos.x86_64.dylib"

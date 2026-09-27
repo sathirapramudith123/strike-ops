@@ -24,7 +24,7 @@ signal kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: 
 
 enum Mode { OFFLINE, HOST, DEDICATED, CLIENT }
 
-const PROTOCOL_VERSION := 3
+const PROTOCOL_VERSION := 4
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
@@ -308,7 +308,8 @@ func _on_peer_disconnected(id: int) -> void:
 func _on_connected_to_server() -> void:
 	_connect_timer = -1.0
 	print("[net] Connected as peer %d" % multiplayer.get_unique_id())
-	_register_player.rpc_id(1, local_name, PROTOCOL_VERSION, SettingsManager.preferred_primary)
+	_register_player.rpc_id(1, local_name, PROTOCOL_VERSION, SettingsManager.preferred_primary,
+		VoiceCodec.opus_available())
 
 
 func _on_connection_failed() -> void:
@@ -331,14 +332,14 @@ func _fail(reason: String) -> void:
 # -----------------------------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register_player(player_name: String, protocol: int, primary: String) -> void:
+func _register_player(player_name: String, protocol: int, primary: String, opus: bool) -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
 	if protocol != PROTOCOL_VERSION:
 		_kicked.rpc_id(id, "Version mismatch (server %d, client %d)." % [PROTOCOL_VERSION, protocol])
 		return
-	roster[id] = _new_entry(_sanitize_name(player_name, id), primary)
+	roster[id] = _new_entry(_sanitize_name(player_name, id), primary, opus)
 	roster[id].team = Match.assign_team(id)
 	print("[net] %s (%d) joined" % [roster[id].name, id])
 	_client_load_map.rpc_id(id, current_map)
@@ -443,7 +444,7 @@ func _server_spawn(peer_id: int) -> void:
 
 
 func _add_local_entry() -> void:
-	roster[1] = _new_entry(local_name, SettingsManager.preferred_primary)
+	roster[1] = _new_entry(local_name, SettingsManager.preferred_primary, VoiceCodec.opus_available())
 	roster[1].team = Match.assign_team(1)
 
 
@@ -460,12 +461,13 @@ func _reset_peer() -> void:
 	ping_ms = 0
 
 
-func _new_entry(player_name: String, primary: String = GameConfig.DEFAULT_PRIMARY) -> Dictionary:
+## `opus`: the player can decode Opus voice (see VoiceChat.use_opus_for).
+func _new_entry(player_name: String, primary: String = GameConfig.DEFAULT_PRIMARY, opus: bool = false) -> Dictionary:
 	if not primary in GameConfig.PRIMARY_WEAPONS:
 		primary = GameConfig.DEFAULT_PRIMARY
 	return {
 		"name": player_name, "kills": 0, "deaths": 0, "ping": 0,
-		"team": GameConfig.TEAM_NONE, "primary": primary,
+		"team": GameConfig.TEAM_NONE, "primary": primary, "opus": opus,
 	}
 
 

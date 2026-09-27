@@ -76,6 +76,11 @@ func configure(new_mode: GameConfig.Mode, new_score_limit: int = -1, new_time_li
 	var limits: Dictionary = GameConfig.MODE_LIMITS[new_mode]
 	score_limit = new_score_limit if new_score_limit >= 0 else limits.score_limit
 	time_limit = new_time_limit if new_time_limit >= 0.0 else limits.time_limit
+	# A fresh clock: until the level loads and start_match() runs, the old
+	# (possibly expired) clock must not end the new match — or a leftover
+	# results timer change its map.
+	time_left = time_limit
+	_results_timer = -1.0
 
 
 ## Server: called by NetworkManager whenever a level finishes loading.

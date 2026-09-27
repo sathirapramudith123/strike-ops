@@ -1,19 +1,51 @@
 class_name VoiceCodec
 extends RefCounted
-## IMA-ADPCM voice codec (4 bits/sample) in pure GDScript — no native
-## dependencies, works on every platform Godot exports to.
+## Voice codecs. Every voice packet starts with a codec byte:
 ##
-## 16 kHz mono → 64 kbps while talking (only while talking — nothing is sent
-## when silent). Each packet carries its own predictor state, so a lost
-## packet never corrupts the following ones.
+##   CODEC_OPUS  — Opus (GDExtension in addons/opus_voice, libopus 1.5):
+##                 24 kbps, in-band FEC + loss concealment. Used when every
+##                 player in the match has the extension.
+##   CODEC_ADPCM — IMA-ADPCM (4 bits/sample) in pure GDScript: 64 kbps, works
+##                 everywhere; the fallback when someone lacks Opus.
 ##
-## Packet layout: [int16 predictor][u8 step index][4-bit samples, low nibble first]
+## Both run at 16 kHz mono, and only while talking. VoiceEncoder / VoiceDecoder
+## pick the codec; this class holds the shared constants and the ADPCM code.
 ##
-## An Opus GDExtension can replace this class later (same encode/decode API)
-## to cut bandwidth to ~16–24 kbps.
+## ADPCM packet: [int16 predictor][u8 step index][4-bit samples, low nibble first]
+## Each ADPCM packet carries its own state, so a lost packet never corrupts
+## the following ones.
 
 const SAMPLE_RATE := 16000
 const HEADER_SIZE := 3
+
+const CODEC_ADPCM := 0
+const CODEC_OPUS := 1
+const OPUS_BITRATE := 24000
+## Expected packet loss the Opus encoder protects against with FEC.
+const OPUS_EXPECTED_LOSS := 10
+
+static var _opus_checked: bool = false
+static var _opus_ok: bool = false
+
+
+## True when the Opus extension is loaded (and not disabled with `-- --no-opus`).
+static func opus_available() -> bool:
+	if not _opus_checked:
+		_opus_checked = true
+		_opus_ok = ClassDB.class_exists(&"OpusVoiceEncoder") \
+			and not "--no-opus" in OS.get_cmdline_user_args()
+	return _opus_ok
+
+
+## "libopus 1.5.2" or "" when Opus isn't available.
+static func opus_version() -> String:
+	if not opus_available():
+		return ""
+	return ClassDB.class_call_static(&"OpusVoiceEncoder", &"get_opus_version")
+
+
+static func codec_name(codec: int) -> String:
+	return "Opus" if codec == CODEC_OPUS else "ADPCM"
 
 const _INDEX_TABLE: PackedInt32Array = [-1, -1, -1, -1, 2, 4, 6, 8, -1, -1, -1, -1, 2, 4, 6, 8]
 const _STEP_TABLE: PackedInt32Array = [

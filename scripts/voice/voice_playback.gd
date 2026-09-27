@@ -20,6 +20,13 @@ var samples_decoded: int = 0
 var last_packet_time: float = -100.0
 ## Last decoded samples (kept small; used by tests to verify the signal).
 var last_decoded := PackedFloat32Array()
+var bytes_received: int = 0
+## Codec of the last packet (VoiceCodec.CODEC_*), -1 = none yet.
+var last_codec: int:
+	get: return _decoder.last_codec
+## Lost packets rebuilt by Opus FEC / concealment.
+var concealed: int:
+	get: return _decoder.concealed
 
 var _queue := PackedFloat32Array()
 var _started: bool = false
@@ -27,6 +34,7 @@ var _player_2d: AudioStreamPlayer
 var _player_3d: AudioStreamPlayer3D
 var _proximity: bool = false
 var _last_seq: int = -1
+var _decoder := VoiceDecoder.new()
 
 
 func _ready() -> void:
@@ -40,14 +48,23 @@ func is_speaking() -> bool:
 
 func push_packet(seq: int, channel: int, packet: PackedByteArray, sample_count: int) -> void:
 	# Drop duplicates / late packets (unreliable_ordered can still skip).
-	if _last_seq >= 0 and _seq_delta(seq, _last_seq) <= 0:
-		return
+	var now := Time.get_ticks_msec() / 1000.0
+	var lost := 0
+	if _last_seq >= 0:
+		var delta := _seq_delta(seq, _last_seq)
+		if delta <= 0:
+			return
+		# A gap while talking = lost packets (a gap between sentences is silence).
+		if now - last_packet_time < 0.25:
+			lost = delta - 1
 	_last_seq = seq
-	var samples := VoiceCodec.decode(packet, sample_count)
+	var samples := _decoder.decode(packet, sample_count, lost)
 	packets_received += 1
+	bytes_received += packet.size()
 	samples_decoded += samples.size()
 	last_packet_time = Time.get_ticks_msec() / 1000.0
-	last_decoded = samples
+	# The packet's own audio (without any concealed audio before it).
+	last_decoded = samples.slice(maxi(samples.size() - sample_count, 0))
 	_set_proximity(channel == VoiceChat.Channel.PROXIMITY)
 	_queue.append_array(samples)
 	var max_samples := int(MAX_BUFFER * VoiceCodec.SAMPLE_RATE)

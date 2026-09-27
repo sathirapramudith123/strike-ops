@@ -31,6 +31,8 @@ func _ready() -> void:
 		"bomb_client": _run_bomb_client()
 		"cheat_host": _run_cheat_host()
 		"cheat_client": _run_cheat_client()
+		"mixed_host": _run_mixed_host()
+		"mixed_client": _run_mixed_client()
 		_: _run_client()
 
 
@@ -65,7 +67,7 @@ func _run_host() -> void:
 		return n if n > 0 else null)
 	_check(steps != null, "host hears the client's footsteps in 3D (%s)" % steps)
 
-	await _voice_exchange(client_id, 500.0, 440.0)
+	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_OPUS)
 
 	var hurt: Variant = await _wait_for(func() -> Variant:
 		return true if me.health.current < me.health.max_health or me.health.is_dead else null)
@@ -124,7 +126,7 @@ func _run_client() -> void:
 	await _frames(30)
 	_check(me.global_position.distance_to(start) > 1.5, "client moves (not corrected by server)")
 
-	await _voice_exchange(1, 440.0, 500.0)
+	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_OPUS)
 
 	# Shoot the host until the server says it is dead.
 	Input.action_press(&"aim")
@@ -396,7 +398,7 @@ func _run_observer() -> void:
 
 ## Both sides talk at once (push-to-talk, team channel) with a test tone and
 ## check that the other side's tone arrives intact.
-func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> void:
+func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> VoicePlayback:
 	# The other side may already be talking when we get here.
 	var started := [VoiceChat.is_speaking(other_id)]
 	var stopped := [false]
@@ -406,32 +408,33 @@ func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> void:
 			else: stopped[0] = true)
 	# Different teams → proximity chat (team chat would not cross teams).
 	Input.action_press(&"push_to_talk_proximity")
-	var phase := 0.0
+	var phase := [0.0]
 	var t := 0.0
 	var got: Variant = null
-	while t < 15.0:
-		# Feed ~one frame of "microphone" audio, like a real mic would.
+	# Feed "microphone" audio at real-time speed (headless runs faster than
+	# 60 FPS; faster-than-real-time voice would hit the server's flood limit).
+	var speak := func(delta: float) -> void:
 		var chunk := PackedFloat32Array()
-		chunk.resize(16000 / 60)
+		chunk.resize(int(round(delta * 16000.0)))
 		for i in chunk.size():
-			chunk[i] = 0.3 * sin(phase)
-			phase += TAU * my_freq / 16000.0
+			chunk[i] = 0.3 * sin(phase[0])
+			phase[0] += TAU * my_freq / 16000.0
 		VoiceChat.inject_test_audio(chunk)
+	while t < 15.0:
 		await get_tree().process_frame
-		t += get_process_delta_time()
+		var dt := get_process_delta_time()
+		t += dt
+		speak.call(dt)
 		var pb := VoiceChat.get_playback(other_id)
 		if t > 2.0 and pb and pb.packets_received > 20:
 			got = pb
 			break
 	# Keep talking a little so the other side also finishes its check.
-	for i in 60:
-		var chunk := PackedFloat32Array()
-		chunk.resize(16000 / 60)
-		for j in chunk.size():
-			chunk[j] = 0.3 * sin(phase)
-			phase += TAU * my_freq / 16000.0
-		VoiceChat.inject_test_audio(chunk)
+	var extra := 0.0
+	while extra < 1.0:
 		await get_tree().process_frame
+		extra += get_process_delta_time()
+		speak.call(get_process_delta_time())
 	Input.action_release(&"push_to_talk_proximity")
 	_check(VoiceChat.packets_sent > 20, "voice packets sent (%d)" % VoiceChat.packets_sent)
 	var pb: VoicePlayback = got
@@ -442,6 +445,59 @@ func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> void:
 	_check(started[0], "speaking indicator turned on")
 	await get_tree().create_timer(1.0).timeout
 	_check(stopped[0], "speaking indicator turned off after release")
+	return pb
+
+
+## Voice in both directions used `codec`, and Opus is really smaller.
+func _check_codec(pb: VoicePlayback, codec: int) -> void:
+	var name := VoiceCodec.codec_name(codec)
+	_check(VoiceChat.last_codec_sent == codec, "voice sent with %s" % name)
+	_check(pb != null and pb.last_codec == codec, "voice received as %s" % name)
+	if pb and pb.packets_received > 0:
+		var avg := float(pb.bytes_received) / pb.packets_received
+		var kbps := avg * 8.0 / 40.0
+		var ok := kbps < 40.0 if codec == VoiceCodec.CODEC_OPUS else kbps > 60.0
+		_check(ok, "%s voice ≈ %.0f kbps (%.0f bytes / 40 ms packet)" % [name, kbps, avg])
+		# Real-time voice on localhost: nothing should need concealing.
+		_check(pb.concealed <= 2, "no packet loss on localhost (%d concealed)" % pb.concealed)
+
+
+# -----------------------------------------------------------------------------
+# Mixed codecs: the client runs without Opus (`--no-opus`, like a build
+# without the extension) → everyone falls back to ADPCM and still hears.
+# -----------------------------------------------------------------------------
+
+func _run_mixed_host() -> void:
+	NetworkManager.local_name = "Host"
+	Match.configure(GameConfig.Mode.TDM, 50)
+	_check(NetworkManager.host(_port, 4, false, GameConfig.map_path("test_map"), -1) == OK, "mixed host starts")
+	_check(VoiceCodec.opus_available(), "host has Opus (%s)" % VoiceCodec.opus_version())
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	var client: PlayerController = await _wait_for(func() -> Variant:
+		var ps := level.get_players().filter(func(p: PlayerController) -> bool: return p.peer_id != 1)
+		return ps[0] if not ps.is_empty() else null)
+	if client == null:
+		return _finish()
+	var client_id := client.peer_id
+	_check(NetworkManager.roster[client_id].opus == false and NetworkManager.roster[1].opus == true,
+		"roster knows who has Opus")
+	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_ADPCM)
+	await _wait_for(func() -> Variant: return true if level.get_player(client_id) == null else null)
+	_finish()
+
+
+func _run_mixed_client() -> void:
+	await get_tree().create_timer(1.0).timeout
+	NetworkManager.local_name = "Client"
+	_check(not VoiceCodec.opus_available(), "client runs without Opus")
+	_check(NetworkManager.join("127.0.0.1", _port) == OK, "mixed client connects")
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	await _wait_for(func() -> Variant: return level.get_player(1) if level and level.player else null)
+	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_ADPCM)
+	await get_tree().create_timer(2.0).timeout # let the host finish its checks
+	NetworkManager.leave()
+	await _frames(30)
+	_finish()
 
 
 ## Frequency from the time between the first and last zero crossing

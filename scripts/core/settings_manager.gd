@@ -89,6 +89,8 @@ var mic_volume: float = 1.0
 var proximity_chat_enabled: bool = true
 ## Noise gate + automatic gain control on the microphone.
 var voice_processing: bool = true
+## Send voice with Opus when everyone in the match supports it (else ADPCM).
+var voice_opus: bool = true
 
 # Controls
 var mouse_sensitivity: float = 0.15
@@ -345,6 +347,7 @@ func save() -> void:
 	_config.set_value("voice", "mic_volume", mic_volume)
 	_config.set_value("voice", "proximity_chat", proximity_chat_enabled)
 	_config.set_value("voice", "processing", voice_processing)
+	_config.set_value("voice", "opus", voice_opus)
 
 	_config.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	_config.set_value("controls", "invert_y", invert_y)
@@ -406,6 +409,7 @@ func _load_all(first_launch: bool) -> void:
 	mic_volume = _config.get_value("voice", "mic_volume", mic_volume)
 	proximity_chat_enabled = _config.get_value("voice", "proximity_chat", proximity_chat_enabled)
 	voice_processing = _config.get_value("voice", "processing", voice_processing)
+	voice_opus = _config.get_value("voice", "opus", voice_opus)
 
 	mouse_sensitivity = _config.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	invert_y = _config.get_value("controls", "invert_y", invert_y)
