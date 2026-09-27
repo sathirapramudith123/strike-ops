@@ -50,6 +50,8 @@ var voice_activation_threshold: float = 0.05 # linear peak 0..1
 var voice_input_device: String = "Default"
 var mic_volume: float = 1.0
 var proximity_chat_enabled: bool = true
+## Noise gate + automatic gain control on the microphone.
+var voice_processing: bool = true
 
 # Controls
 var mouse_sensitivity: float = 0.15
@@ -215,8 +217,8 @@ func apply_voice() -> void:
 	if voice_input_device in AudioServer.get_input_device_list():
 		AudioServer.input_device = voice_input_device
 	var voice_bus := AudioServer.get_bus_index(&"Voice")
-	if voice_bus >= 0 and not voice_enabled:
-		AudioServer.set_bus_mute(voice_bus, true)
+	if voice_bus >= 0:
+		AudioServer.set_bus_mute(voice_bus, not voice_enabled or bus_volumes[&"Voice"] <= 0.0)
 	voice_changed.emit()
 
 
@@ -243,6 +245,7 @@ func save() -> void:
 	_config.set_value("voice", "input_device", voice_input_device)
 	_config.set_value("voice", "mic_volume", mic_volume)
 	_config.set_value("voice", "proximity_chat", proximity_chat_enabled)
+	_config.set_value("voice", "processing", voice_processing)
 
 	_config.set_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	_config.set_value("controls", "invert_y", invert_y)
@@ -288,6 +291,7 @@ func _load_all(first_launch: bool) -> void:
 	voice_input_device = _config.get_value("voice", "input_device", voice_input_device)
 	mic_volume = _config.get_value("voice", "mic_volume", mic_volume)
 	proximity_chat_enabled = _config.get_value("voice", "proximity_chat", proximity_chat_enabled)
+	voice_processing = _config.get_value("voice", "processing", voice_processing)
 
 	mouse_sensitivity = _config.get_value("controls", "mouse_sensitivity", mouse_sensitivity)
 	invert_y = _config.get_value("controls", "invert_y", invert_y)

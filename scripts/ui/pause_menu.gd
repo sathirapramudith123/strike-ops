@@ -23,6 +23,7 @@ func _ready() -> void:
 	%QuitButton.pressed.connect(get_tree().quit)
 	_sensitivity.value_changed.connect(_on_sensitivity_changed)
 	_fov.value_changed.connect(_on_fov_changed)
+	%MuteAllCheck.toggled.connect(func(on: bool) -> void: VoiceChat.mute_all = on)
 	_quality.item_selected.connect(func(i: int) -> void:
 		SettingsManager.set_graphics_quality(_quality.get_item_id(i) as GraphicsPreset.Quality))
 
@@ -46,7 +47,30 @@ func open() -> void:
 	_fov.set_value_no_signal(SettingsManager.field_of_view)
 	_fov_value.text = str(int(SettingsManager.field_of_view))
 	_quality.select(_quality.get_item_index(SettingsManager.graphics.quality))
+	_build_mute_list()
 	%ResumeButton.grab_focus()
+
+
+## One "Mute <name>" checkbox per other player in the match.
+func _build_mute_list() -> void:
+	%MuteAllCheck.set_pressed_no_signal(VoiceChat.mute_all)
+	var list: VBoxContainer = %MuteList
+	for child in list.get_children():
+		child.queue_free()
+	var level := get_parent() as Level
+	if level == null:
+		return
+	for p: PlayerController in level.get_players():
+		if p.is_local:
+			continue
+		var cb := CheckBox.new()
+		cb.text = "Mute %s" % p.player_name
+		cb.button_pressed = VoiceChat.muted.has(p.peer_id)
+		var id := p.peer_id
+		cb.toggled.connect(func(on: bool) -> void: VoiceChat.set_muted(id, on))
+		list.add_child(cb)
+	%MuteAllCheck.visible = NetworkManager.is_online()
+	$Panel/Center/Box/VoiceTitle.visible = NetworkManager.is_online()
 
 
 func close() -> void:

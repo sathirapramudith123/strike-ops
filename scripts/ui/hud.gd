@@ -20,6 +20,8 @@ const KILL_FEED_MAX := 5
 @onready var _scoreboard: Control = %Scoreboard
 @onready var _score_grid: GridContainer = %ScoreGrid
 @onready var _server_label: Label = %ServerLabel
+@onready var _mic_indicator: Label = %MicIndicator
+@onready var _speakers: VBoxContainer = %Speakers
 
 var _player: PlayerController
 var _weapon: Weapon
@@ -41,6 +43,9 @@ func _ready() -> void:
 	_scoreboard.visible = false
 	NetworkManager.kill_feed.connect(_on_kill_feed)
 	NetworkManager.roster_changed.connect(_refresh_scoreboard)
+	_mic_indicator.visible = false
+	VoiceChat.transmitting_changed.connect(_on_transmitting_changed)
+	VoiceChat.speaking_changed.connect(_on_speaking_changed)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -114,6 +119,31 @@ func _update_perf() -> void:
 		_perf_label.text += "\nPing %d ms" % NetworkManager.ping_ms
 
 
+func _on_transmitting_changed(transmitting: bool, channel: int) -> void:
+	_mic_indicator.visible = transmitting
+	_mic_indicator.text = "● MIC — %s" % ["TEAM", "PROXIMITY", "ALL"][channel]
+
+
+## Left-side "who is talking" list; also tints the speaker's name tag.
+func _on_speaking_changed(peer_id: int, speaking: bool) -> void:
+	var node_name := "Speaker_%d" % peer_id
+	var existing := _speakers.get_node_or_null(node_name)
+	if speaking and existing == null:
+		var l := Label.new()
+		l.name = node_name
+		l.text = "» %s" % NetworkManager.get_player_name(peer_id)
+		l.add_theme_color_override(&"font_color", Color(0.4, 1, 0.5))
+		l.add_theme_color_override(&"font_outline_color", Color.BLACK)
+		l.add_theme_constant_override(&"outline_size", 4)
+		_speakers.add_child(l)
+	elif not speaking and existing:
+		existing.queue_free()
+	var level := get_parent() as Level
+	var speaker := level.get_player(peer_id) if level else null
+	if speaker:
+		speaker.set_speaking(speaking)
+
+
 func _on_kill_feed(killer: String, victim: String, weapon_name: String, headshot: bool) -> void:
 	var label := Label.new()
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -145,7 +175,7 @@ func _refresh_scoreboard() -> void:
 	for id: int in ids:
 		var e: Dictionary = NetworkManager.roster[id]
 		var col := Color(1, 0.85, 0.3) if id == multiplayer.get_unique_id() else Color.WHITE
-		_add_score_cell(e.name, col)
+		_add_score_cell(("» " if VoiceChat.is_speaking(id) else "") + e.name, col)
 		_add_score_cell(str(e.kills), col)
 		_add_score_cell(str(e.deaths), col)
 		_add_score_cell("host" if id == 1 else str(e.ping), col)

@@ -33,6 +33,8 @@ func _run() -> void:
 	await _test_pause_disables_input()
 	await _test_fall_death_and_respawn()
 	_test_lag_compensation()
+	_test_voice_codec()
+	await _test_voice_loopback()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -205,6 +207,57 @@ func _test_lag_compensation() -> void:
 	var head := LagCompensation.trace(space, Vector3(-6, 1.6, 26), Vector3.FORWARD, 50.0, _player, players, t0)
 	_check(head.get("hitbox") == remote.head_hitbox, "head height hits the head hitbox")
 	_level.despawn_player(99)
+
+
+func _test_voice_codec() -> void:
+	# 440 Hz tone, 40 ms @ 16 kHz.
+	var n := 640
+	var tone := PackedFloat32Array()
+	tone.resize(n)
+	for i in n:
+		tone[i] = 0.5 * sin(TAU * 440.0 * i / 16000.0)
+	var packet := VoiceCodec.encode(tone)
+	_check(packet.size() == 3 + n / 2, "ADPCM packet is 4 bits/sample (%d bytes)" % packet.size())
+	var decoded := VoiceCodec.decode(packet, n)
+	var sig := 0.0
+	var err := 0.0
+	for i in n:
+		sig += tone[i] * tone[i]
+		err += (tone[i] - decoded[i]) * (tone[i] - decoded[i])
+	var snr := 10.0 * log(sig / maxf(err, 1e-12)) / log(10.0)
+	_check(snr > 25.0, "ADPCM round-trip SNR %.1f dB" % snr)
+
+	var proc := VoiceProcessor.new()
+	proc.set_input_rate(48000.0)
+	var in48 := PackedFloat32Array()
+	in48.resize(4800)
+	var out16 := proc.resample(in48)
+	_check(absi(out16.size() - 1600) <= 1, "48 kHz → 16 kHz resampler (%d samples)" % out16.size())
+
+	# Proximity relay rule.
+	var near := _level.spawn_player(201, "Near", Transform3D(Basis.IDENTITY, _player.global_position + Vector3(5, 0, 0)))
+	var far := _level.spawn_player(202, "Far", Transform3D(Basis.IDENTITY, _player.global_position + Vector3(0, 0, 60)))
+	var players := _level.get_players()
+	var prox := VoiceChat.recipients_for(1, VoiceChat.Channel.PROXIMITY, players)
+	_check(201 in prox and not 202 in prox, "proximity voice only reaches nearby players")
+	var team := VoiceChat.recipients_for(1, VoiceChat.Channel.TEAM, players)
+	_check(201 in team and 202 in team and not 1 in team, "team voice reaches everyone else")
+	_level.despawn_player(201)
+	_level.despawn_player(202)
+
+
+func _test_voice_loopback() -> void:
+	VoiceChat.loopback = true
+	var tone := PackedFloat32Array()
+	tone.resize(16000)
+	for i in tone.size():
+		tone[i] = 0.3 * sin(TAU * 300.0 * i / 16000.0)
+	VoiceChat.inject_test_audio(tone)
+	await _frames(20)
+	var pb := VoiceChat.get_playback(multiplayer.get_unique_id())
+	_check(pb != null and pb.samples_decoded >= 15000, "mic test loopback decodes the injected audio")
+	_check(VoiceChat.input_level > 0.05, "mic level meter reacts (%.2f)" % VoiceChat.input_level)
+	VoiceChat.loopback = false
 
 
 # -----------------------------------------------------------------------------

@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🚧 Phase 4 — online multiplayer prototype (host / join / dedicated server) on the test map.
+> **Status:** 🚧 Phase 5 — online multiplayer prototype with in-game voice chat (host / join / dedicated server) on the test map.
 
 ---
 
@@ -58,7 +58,7 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 | Game engine | **[Godot 4.x](https://godotengine.org/)** | Free & open-source, tiny editor, excellent low-end support via the *Compatibility* (OpenGL 3.3) renderer, and *Forward+* (Vulkan) for High/Ultra. |
 | Language | **GDScript** (gameplay) / **C#** (performance-critical systems) | Fast iteration + speed where needed. |
 | Networking | Godot High-Level Multiplayer (**ENet**) | Reliable/unreliable UDP channels, built-in. |
-| Voice codec | **Opus** (via GDExtension) | Industry standard, ~16–32 kbps per speaker, low latency. |
+| Voice codec | **IMA-ADPCM** in pure GDScript (Opus GDExtension planned) | No native dependencies — runs everywhere Godot does; 16 kHz, 64 kbps only while talking. |
 | Audio | Godot `AudioStreamPlayer3D` + Audio Buses | 3D positional audio, effects, per-bus volume. |
 | 3D assets | **Blender** → `.glb` (glTF 2.0) | Open standard, imports natively. |
 | Version control | **Git** + **Git LFS** | LFS for large binary assets. |
@@ -141,14 +141,20 @@ Presets are defined as data (`resources/settings/graphics_presets/*.tres`) so th
 
 | Feature | Details |
 |---------|---------|
-| Codec | **Opus**, 16–32 kbps mono, 20 ms frames |
+| Codec | **IMA-ADPCM** 4-bit, 16 kHz mono, 20 ms frames, 40 ms packets (≈64 kbps **only while talking**). Pure GDScript — an Opus GDExtension can replace `VoiceCodec` later to drop to ~24 kbps |
 | Channels | **Team** (all teammates), **Proximity** (3D — nearby players hear you, with distance falloff), **All** (lobby/post-match) |
 | Activation | **Push-to-Talk** (default key: `V`) or **Voice Activation** with adjustable threshold |
-| Processing | Noise suppression, automatic gain control, echo cancellation (where supported) |
-| Controls | Input/output device selection, mic volume, voice volume, per-player mute, mute-all |
-| Transport | Unreliable-ordered ENet channel, relayed through the game server |
+| Processing | High-pass filter, noise gate, automatic gain control (toggle in Settings). **No echo cancellation — use headphones** |
+| Controls | Microphone selection, mic volume, voice volume, activation level, live mic meter, "hear myself" mic test, per-player mute and mute-all (Esc menu) |
+| Playback | Per-speaker jitter buffer (60 ms prebuffer, 300 ms cap); proximity voice is 3D-positioned at the speaker's head |
+| Transport | ENet channel 2 (unreliable-ordered), relayed through the server, which only forwards to eligible listeners and rate-limits each speaker |
 | Privacy | Voice is never recorded or stored; players can disable voice chat entirely |
-| UI | Speaking indicator icon above players & in the scoreboard |
+| UI | "MIC" indicator while you transmit, list of who is talking, green name tag and `»` in the scoreboard for speakers |
+| Teams | The game is free-for-all until Phase 6, so *team* voice currently reaches everyone |
+
+**Key scripts:** `scripts/voice/voice_chat.gd` (autoload `VoiceChat`), `voice_codec.gd`, `voice_processor.gd`, `voice_playback.gd`.
+
+> **macOS:** exported builds need the microphone permission (`Export → macOS → Privacy → Microphone Usage Description`).
 
 ---
 
@@ -243,7 +249,7 @@ Then open **Godot → Import → select `project.godot` → Import & Edit**, and
 | `scripts/core/graphics_preset.gd` | `GraphicsPreset` resource type (render scale, FSR, AA, shadows, LOD, SSAO/SSR/SDFGI, fog…) |
 | `resources/settings/graphics_presets/*.tres` | The Low / Medium / High / Ultra presets (edit in the Inspector) |
 | `resources/audio/default_bus_layout.tres` | Audio buses; `MicCapture` (muted, with `AudioEffectCapture`) is where voice chat reads the microphone |
-| `scenes/main/main_menu.tscn` | Main menu + settings panel (quality, fullscreen, V-Sync, volumes, voice mode) |
+| `scenes/main/main_menu.tscn` | Main menu (offline / host / join) + settings panel (quality, fullscreen, V-Sync, volumes, voice chat & microphone) |
 
 **Using the settings in a level:**
 
@@ -279,7 +285,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -304,7 +310,7 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 
 | Topic | Implementation |
 |-------|----------------|
-| Transport | Godot High-Level Multiplayer over **ENet** (UDP). Channel 0 = reliable events, 1 = player state (unreliable-ordered), 2 = reserved for voice |
+| Transport | Godot High-Level Multiplayer over **ENet** (UDP). Channel 0 = reliable events, 1 = player state (unreliable-ordered), 2 = voice chat (unreliable-ordered) |
 | Authority | **Server-authoritative** health, damage, kills, deaths and respawns (`Health` only changes on the server and syncs to clients) |
 | Movement | The owner simulates its own movement instantly (no input lag) and sends state 30×/s; the server **validates speed** and snaps cheaters back |
 | Remote players | Snapshot buffer rendered **100 ms in the past** with interpolation → smooth even with jitter |
@@ -319,7 +325,7 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 
 ### Testing multiplayer locally
 
-- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; the client walks, shoots the host dead and both sides check replication, damage, kills, kill feed, respawn, ping and clean disconnect.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` starts a host and a client on localhost; the client walks, shoots the host dead and both sides check replication, damage, kills, kill feed, respawn, ping, **two-way voice chat** (test tones must arrive at the right frequency, speaking indicators on/off) and clean disconnect.
 - **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---
@@ -386,7 +392,7 @@ Rules every contributor follows so the game stays playable on low-end PCs:
 - **Lighting:** prefer **baked lightmaps**; limit real-time shadow-casting lights.
 - **Occlusion culling:** enable `OccluderInstance3D` in all maps.
 - **Scripts:** avoid heavy work in `_process()`; use object pooling for bullets, decals and particles.
-- **Network:** 30–60 Hz server tick, delta-compressed snapshots, target < 64 kbps per client (voice included).
+- **Network:** 30 Hz player state, target < 64 kbps per client excluding voice; voice adds ~64 kbps per active speaker (ADPCM) until Opus lands.
 - **Test every feature on the Low preset** before merging.
 
 ---
@@ -426,7 +432,8 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [ ] **Phase 2 — Settings:** ~~graphics presets, save/load settings~~ (base done) → full settings UI, key remapping, custom preset editor
 - [ ] **Phase 3 — Audio:** 3D SFX, audio buses, occlusion, music
 - [x] **Phase 4 — Multiplayer:** dedicated server, lobby, player sync, lag compensation, scoreboard, kill feed
-- [ ] **Phase 5 — Voice chat:** mic capture, Opus encode/decode, team & proximity channels, push-to-talk
+- [x] **Phase 5 — Voice chat:** mic capture, ADPCM encode/decode, team & proximity channels, push-to-talk, voice activation, mute
+- [ ] **Phase 5b — Opus codec** via GDExtension (lower bandwidth)
 - [ ] **Phase 6 — Content:** more weapons, 2–3 maps, game modes, HUD & menus
 - [ ] **Phase 7 — Optimization:** profiling on minimum-spec hardware, LODs, occlusion, auto-detect preset
 - [ ] **Phase 8 — Release:** installers, anti-cheat basics, beta testing, v1.0

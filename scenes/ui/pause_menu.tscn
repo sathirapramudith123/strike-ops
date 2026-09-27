@@ -89,6 +89,20 @@ layout_mode = 2
 [node name="Spacer" type="Control" parent="Panel/Center/Box/Grid"]
 layout_mode = 2
 
+[node name="VoiceTitle" type="Label" parent="Panel/Center/Box"]
+modulate = Color(1, 1, 1, 0.7)
+layout_mode = 2
+text = "Voice chat"
+
+[node name="MuteAllCheck" type="CheckBox" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Mute everyone"
+
+[node name="MuteList" type="VBoxContainer" parent="Panel/Center/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="ResumeButton" type="Button" parent="Panel/Center/Box"]
 unique_name_in_owner = true
 layout_mode = 2

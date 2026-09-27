@@ -266,6 +266,12 @@ func current_height() -> float:
 	return _height
 
 
+## Voice chat indicator on the name tag.
+func set_speaking(speaking: bool) -> void:
+	_name_tag.modulate = Color(0.45, 1, 0.55) if speaking else Color(1, 1, 1, 0.9)
+	_name_tag.text = ("» %s «" if speaking else "%s") % player_name
+
+
 # -----------------------------------------------------------------------------
 # Internals
 # -----------------------------------------------------------------------------

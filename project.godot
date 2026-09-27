@@ -29,6 +29,7 @@ buses/default_bus_layout="res://resources/audio/default_bus_layout.tres"
 
 SettingsManager="*res://scripts/core/settings_manager.gd"
 NetworkManager="*res://scripts/network/network_manager.gd"
+VoiceChat="*res://scripts/voice/voice_chat.gd"
 
 [display]
 

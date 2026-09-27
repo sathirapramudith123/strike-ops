@@ -181,6 +181,87 @@ text = "Voice mode"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="VoiceEnabledLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Voice chat"
+
+[node name="VoiceEnabledCheck" type="CheckButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="MicDeviceLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Microphone"
+
+[node name="MicDeviceOption" type="OptionButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+clip_text = true
+custom_minimum_size = Vector2(200, 0)
+
+[node name="MicVolumeLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Mic volume"
+
+[node name="MicVolumeSlider" type="HSlider" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+max_value = 2.0
+step = 0.05
+
+[node name="ThresholdLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Voice activation level"
+
+[node name="ThresholdSlider" type="HSlider" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+min_value = 0.005
+max_value = 0.5
+step = 0.005
+
+[node name="MicLevelLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Mic level"
+
+[node name="MicLevelBar" type="ProgressBar" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 4
+custom_minimum_size = Vector2(0, 10)
+max_value = 1.0
+show_percentage = false
+
+[node name="ProcessingLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Noise suppression + auto gain"
+
+[node name="ProcessingCheck" type="CheckButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ProximityLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Proximity chat (B)"
+
+[node name="ProximityCheck" type="CheckButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="LoopbackLabel" type="Label" parent="Center/Settings/Grid"]
+layout_mode = 2
+text = "Hear myself (mic test)"
+
+[node name="LoopbackCheck" type="CheckButton" parent="Center/Settings/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="RestartNotice" type="Label" parent="Center/Settings"]
 unique_name_in_owner = true
 visible = false

@@ -219,3 +219,30 @@ layout_mode = 2
 mouse_filter = 2
 theme_override_constants/h_separation = 24
 columns = 4
+
+[node name="MicIndicator" type="Label" parent="."]
+unique_name_in_owner = true
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = -124.0
+offset_right = 332.0
+offset_bottom = -96.0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.4, 1, 0.5, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+text = "● MIC — TEAM"
+
+[node name="Speakers" type="VBoxContainer" parent="."]
+unique_name_in_owner = true
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 16.0
+offset_top = -60.0
+offset_right = 316.0
+offset_bottom = 60.0
+grow_vertical = 2
+mouse_filter = 2

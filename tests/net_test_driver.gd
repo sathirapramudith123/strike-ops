@@ -43,6 +43,7 @@ func _run_host() -> void:
 	_check(client != null and not client.is_local, "client player spawned on host")
 	if client == null:
 		return _finish()
+	var client_id := client.peer_id # the node is freed when the client leaves
 	var start := client.global_position
 	var moved: Variant = await _wait_for(func() -> Variant:
 		return true if client.global_position.distance_to(start) > 1.0 else null)
@@ -53,13 +54,14 @@ func _run_host() -> void:
 	_check(hurt == true, "client's shots damage the host (server-side hit)")
 	var died: Variant = await _wait_for(func() -> Variant: return true if me.health.is_dead else null)
 	_check(died == true, "host player dies")
-	_check(NetworkManager.roster.get(client.peer_id, {}).get("kills", 0) >= 1, "kill credited to client")
+	_check(NetworkManager.roster.get(client_id, {}).get("kills", 0) >= 1, "kill credited to client")
 	_check(NetworkManager.roster.get(1, {}).get("deaths", 0) >= 1, "death credited to host")
 	_check(_kill_feed_seen, "kill feed on host")
 	var back: Variant = await _wait_for(func() -> Variant: return true if not me.health.is_dead else null)
 	_check(back == true and me.health.current == me.health.max_health, "host respawns with full health")
 
-	var client_id := client.peer_id # the node is freed when the client leaves
+	await _voice_exchange(client_id, 500.0, 440.0)
+
 	var left: Variant = await _wait_for(func() -> Variant:
 		return true if NetworkManager.roster.size() == 1 and level.get_player(client_id) == null else null)
 	_check(left == true, "client leaves cleanly (despawned + roster)")
@@ -107,6 +109,8 @@ func _run_client() -> void:
 	_check(respawned == true, "host respawn replicated to client")
 	_check(NetworkManager.ping_ms >= 0 and NetworkManager.ping_ms < 200, "ping measured (%d ms)" % NetworkManager.ping_ms)
 
+	await _voice_exchange(1, 440.0, 500.0)
+
 	NetworkManager.leave()
 	await _frames(30)
 	_finish()
@@ -125,6 +129,69 @@ func _run_observer() -> void:
 	NetworkManager.leave()
 	await _frames(10)
 	_finish()
+
+
+## Both sides talk at once (push-to-talk, team channel) with a test tone and
+## check that the other side's tone arrives intact.
+func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> void:
+	var started := [false]
+	var stopped := [false]
+	VoiceChat.speaking_changed.connect(func(id: int, speaking: bool) -> void:
+		if id == other_id:
+			if speaking: started[0] = true
+			else: stopped[0] = true)
+	Input.action_press(&"push_to_talk_team")
+	var phase := 0.0
+	var t := 0.0
+	var got: Variant = null
+	while t < 15.0:
+		# Feed ~one frame of "microphone" audio, like a real mic would.
+		var chunk := PackedFloat32Array()
+		chunk.resize(16000 / 60)
+		for i in chunk.size():
+			chunk[i] = 0.3 * sin(phase)
+			phase += TAU * my_freq / 16000.0
+		VoiceChat.inject_test_audio(chunk)
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var pb := VoiceChat.get_playback(other_id)
+		if t > 2.0 and pb and pb.packets_received > 20:
+			got = pb
+			break
+	# Keep talking a little so the other side also finishes its check.
+	for i in 60:
+		var chunk := PackedFloat32Array()
+		chunk.resize(16000 / 60)
+		for j in chunk.size():
+			chunk[j] = 0.3 * sin(phase)
+			phase += TAU * my_freq / 16000.0
+		VoiceChat.inject_test_audio(chunk)
+		await get_tree().process_frame
+	Input.action_release(&"push_to_talk_team")
+	_check(VoiceChat.packets_sent > 20, "voice packets sent (%d)" % VoiceChat.packets_sent)
+	var pb: VoicePlayback = got
+	_check(pb != null, "voice received from the other player (%d packets)" % (pb.packets_received if pb else 0))
+	if pb:
+		var f := _estimate_frequency(pb.last_decoded)
+		_check(absf(f - their_freq) < 10.0, "received tone is %.0f Hz (expected %.0f)" % [f, their_freq])
+	_check(started[0], "speaking indicator turned on")
+	await get_tree().create_timer(1.0).timeout
+	_check(stopped[0], "speaking indicator turned off after release")
+
+
+## Frequency from the time between the first and last zero crossing
+## (sub-sample accurate), so short packets still give a precise answer.
+static func _estimate_frequency(samples: PackedFloat32Array) -> float:
+	var crossings: Array[float] = []
+	for i in range(1, samples.size()):
+		var a := samples[i - 1]
+		var b := samples[i]
+		if (a < 0.0) != (b < 0.0):
+			crossings.append(i - 1 + a / (a - b))
+	if crossings.size() < 3:
+		return 0.0
+	var span := (crossings[-1] - crossings[0]) / 16000.0
+	return (crossings.size() - 1) * 0.5 / span
 
 
 # -----------------------------------------------------------------------------
