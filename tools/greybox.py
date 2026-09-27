@@ -584,14 +584,21 @@ def rooftops():
     for sx in (-1, 1):
         for sz in (-1, 1):
             cx, cz = sx * 14.0, sz * 14.0
-            m.box((cx, H / 2, cz), (14, H, 14), "wall" if sz < 0 else "stone", "Building")
+            enterable = sx == sz  # north-west and south-east: go in, climb to the roof
+            if enterable:
+                doors = [("e", 3.0, 1.8), ("s", 11.0, 1.6)] if sx < 0 else [("w", 7.0, 1.8), ("n", 8.0, 1.6)]
+                _house(m, cx - 7, cx + 7, cz - 7, cz + 7, "wall" if sz < 0 else "stone", floors=1, fh=H,
+                       doors=doors, windows="nsew", stair_side="n" if sz < 0 else "s", roof_access=True)
+            else:
+                m.box((cx, H / 2, cz), (14, H, 14), "wall" if sz < 0 else "stone", "Building")
             # Parapets on the outer edges only (inner edges hold bridges/ramps).
             m.box((sx * 20.85, H + 0.4, cz), (0.3, 0.8, 14), "wall", "Parapet")
             m.box((cx, H + 0.4, sz * 20.85), (14, 0.8, 0.3), "wall", "Parapet")
             # Rooftop cover: AC units and a water tank.
             m.box((cx - sx * 3, H + 0.6, cz + sz * 2), (1.6, 1.2, 1.6), "metal", "ACUnit")
             m.box((cx + sx * 2, H + 0.6, cz - sz * 3), (1.6, 1.2, 1.6), "metal", "ACUnit")
-            m.box((cx + sx * 4, H + 1.25, cz + sz * 4), (2, 2.5, 2), "accent", "WaterTank")
+            if not enterable:
+                m.box((cx + sx * 4, H + 1.25, cz + sz * 4), (2, 2.5, 2), "accent", "WaterTank")
     # Bridges between the roofs (top surface at roof height).
     m.box((0, H - 0.15, -14), (14, 0.3, 2.5), "wood", "Bridge")
     m.box((0, H - 0.15, 14), (14, 0.3, 2.5), "wood", "Bridge")
@@ -640,7 +647,7 @@ def docks():
             (8, -8, 90, 0, "blue"), (24, -8, 0, 0, "metal"), (24, -8, 0, 1, "blue"),
             (-20, 4, 90, 0, "wood"), (-12, 6, 0, 0, "blue"), (-12, 6, 0, 1, "metal"), (0, 3, 0, 0, "red"),
             (12, 6, 0, 0, "metal"), (20, 4, 90, 0, "red"), (-6, 14, 0, 0, "metal"), (6, 14, 0, 0, "wood"),
-            (-24, 16, 0, 0, "red"), (24, 16, 0, 0, "blue")):
+            (-24, 16, 0, 0, "red")):
         m.box((x, 1.3 + lvl * 2.6, z), (6, 2.6, 2.4), mat, "Container", yaw=yaw)
     # Gantry crane (legs collide, beam is visual).
     for z in (-10, 10):
@@ -657,6 +664,9 @@ def docks():
         m.spawn("red", (x, DECK + 0.1, -19), 180)
     m.spawn("ffa", (-30, 0.1, 0), 90)
     m.spawn("ffa", (30, 0.1, 0), -90)
+    # Harbour office: two floors and a roof you can climb to.
+    _house(m, 19, 29, 12, 20, "wall", floors=2, fh=3.5, doors=[("w", 4.0, 1.6), ("s", 2.0, 1.6)], windows="nswe",
+           stair_side="n", roof_access=True)
     m.write("scenes/levels/docks.tscn", sun_rot=(-55.0, 20.0), sky=(0.4, 0.55, 0.75))
 
 
@@ -1301,11 +1311,12 @@ def _rail(m, pos, size, mat="metal"):
 
 
 def _house(m, x0, x1, z0, z1, mat, floors=2, fh=4.0, doors=(), windows="nsew", stair_side="s",
-           floor_mat="wood", light=(1.0, 0.85, 0.65)):
-    """A building you can walk into: doors = [(face, offset, width)] on the
-    ground floor, windows on `windows` faces (every ~3 m, every floor),
-    floors joined by a ramp stair along the `stair_side` wall ("n"/"s" run
-    along X, "e"/"w" along Z), a closed flat roof with a parapet."""
+           floor_mat="wood", light=(1.0, 0.85, 0.65), stair_angle=25.0, roof_access=False):
+    """A building you can walk into: doors = [(face, offset, width[, floor])]
+    (ground floor unless a floor index is given), windows on `windows` faces
+    (every ~3 m, every floor), floors joined by a ramp stair along the
+    `stair_side` wall ("n"/"s" run along X, "e"/"w" along Z), and a flat
+    roof with a parapet — closed, or with a stair up to it (roof_access)."""
     t = 0.3
     faces = {"n": ((x0, z0), (x1, z0)), "s": ((x0, z1), (x1, z1)),
              "w": ((x0, z0), (x0, z1)), "e": ((x1, z0), (x1, z1))}
@@ -1313,8 +1324,7 @@ def _house(m, x0, x1, z0, z1, mat, floors=2, fh=4.0, doors=(), windows="nsew", s
         length = abs(b[0] - a[0]) + abs(b[1] - a[1])
         for f in range(floors):
             ops = []
-            if f == 0:
-                ops += [(off, w, 0.0, 2.4) for (fc, off, w) in doors if fc == face]
+            ops += [(d[1], d[2], 0.0, 2.4) for d in doors if d[0] == face and (d[3] if len(d) > 3 else 0) == f]
             if face in windows:
                 count = int(length // 3.0)
                 for k in range(count):
@@ -1323,12 +1333,12 @@ def _house(m, x0, x1, z0, z1, mat, floors=2, fh=4.0, doors=(), windows="nsew", s
                         ops.append((off, 1.2, 1.1, 2.3))
             _wall_openings(m, a, b, f * fh, fh, t, ops, mat)
     # Stair: a ramp along one wall (about 25 degrees) up to each floor.
-    run = fh / math.tan(math.radians(25))
+    run = fh / math.tan(math.radians(stair_angle))
     along_x = stair_side in "ns"
     inner = (z0 + t / 2 + 1.0) if stair_side == "n" else (z1 - t / 2 - 1.0) if stair_side == "s" \
         else (x0 + t / 2 + 1.0) if stair_side == "w" else (x1 - t / 2 - 1.0)
     start = (x0 + 0.8) if along_x else (z0 + 0.8)
-    for f in range(1, floors):
+    for f in range(1, floors + (1 if roof_access else 0)):
         y_lo, y_hi = (f - 1) * fh, f * fh
         if along_x:
             m.ramp((start, y_lo, inner), (start + run, y_hi, inner + 0.001), 1.8, floor_mat)
@@ -1363,7 +1373,8 @@ def _house(m, x0, x1, z0, z1, mat, floors=2, fh=4.0, doors=(), windows="nsew", s
                   (0.06, 1.0, start + run - z0 - 0.3))
         _strip_light(m, (x0 + x1) / 2, y - 0.1, (z0 + z1) / 2, 1.6)
     top = floors * fh
-    m.box(((x0 + x1) / 2, top + 0.15, (z0 + z1) / 2), (x1 - x0, 0.3, z1 - z0), mat, "HouseRoof")
+    if not roof_access:
+        m.box(((x0 + x1) / 2, top + 0.15, (z0 + z1) / 2), (x1 - x0, 0.3, z1 - z0), mat, "HouseRoof")
     for (pos, size) in ((((x0 + x1) / 2, top + 0.6, z0 + 0.15), (x1 - x0, 0.6, 0.3)),
                         (((x0 + x1) / 2, top + 0.6, z1 - 0.15), (x1 - x0, 0.6, 0.3)),
                         ((x0 + 0.15, top + 0.6, (z0 + z1) / 2), (0.3, 0.6, z1 - z0)),
@@ -1877,9 +1888,8 @@ def trainyard():
     m.omni((32, 6.0, -18), 1.2, 15.0)
     m.site("A", (30.0, 0.0, -17.0))
     # B: signal tower with balcony + ramp, container stack.
-    m.box((-34, 4.0, -8), (8, 8, 8), "brick", "Tower")
-    for z in (-10, -6):
-        m.box((-29.97, 5.5, z), (0.06, 1.2, 1.6), "glass", "TowerWindow", collide=False)
+    _house(m, -38, -30, -12, -4, "brick", floors=2, fh=4.0, stair_angle=30.0, stair_side="s",
+           doors=[("e", 1.2, 1.6), ("n", 3.0, 1.6), ("e", 3.0, 1.6, 1)], windows="nw")
     m.box((-28, 3.85, -8), (4, 0.3, 4), "metal", "Balcony")
     m.box((-26.05, 4.5, -8), (0.1, 1.0, 4), "metal", "BalconyRail")
     m.box((-28, 4.5, -9.95), (4, 1.0, 0.1), "metal", "BalconyRail")
@@ -1922,6 +1932,7 @@ def trainyard():
             ("Shed", (32, 3, -18), (13, 7, 26)),
             ("Bombsite A", (30, 2, -17), (10, 6, 10)),
             ("Tower", (-28, 5, -8), (4, 3, 4)),
+            ("Tower Room", (-34, 4, -8), (8, 8, 8)),
             ("Ramp", (-28.9, 2, 0), (2, 5, 12)),
             ("Bombsite B", (-31, 2, -22), (12, 6, 12)),
             ("Containers", (-32, 2, -30), (12, 6, 8)),

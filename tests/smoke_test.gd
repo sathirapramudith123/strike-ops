@@ -950,6 +950,13 @@ func _test_maps() -> void:
 			["subway", Vector3(-15, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "west platform"],
 			["subway", Vector3(6, -1.1, -20), 0.0, func(p: Vector3) -> bool: return p.y > -0.1 and p.z < -30.0, "climb out of the track bed"],
 			["subway", Vector3(-10, 0.1, 4.7), -PI / 2, func(p: Vector3) -> bool: return p.x > -3.0, "walk through the train"],
+			["trainyard", Vector3(-27, 0.1, -10), PI / 2, func(p: Vector3) -> bool: return p.x < -33.0, "door into the signal tower"],
+			["trainyard", Vector3(-36.9, 0.1, -5.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "tower stairs to the upper room"],
+			["trainyard", Vector3(-27.5, 4.1, -8.2), PI / 2, func(p: Vector3) -> bool: return p.x < -32.0 and p.y > 3.9, "balcony door into the upper room"],
+			["rooftops", Vector3(-4, 0.1, -17.1), PI / 2, func(p: Vector3) -> bool: return p.x < -9.0, "door into the north-west building"],
+			["rooftops", Vector3(-19.9, 0.1, -19.85), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "stairs up to its roof"],
+			["docks", Vector3(16, 0.1, 16.8), -PI / 2, func(p: Vector3) -> bool: return p.x > 21.0, "door into the harbour office"],
+			["docks", Vector3(20.1, 0.1, 13.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.4, "harbour office stairs"],
 			["trainyard", Vector3(0, 0.1, 20), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "lane between the cars"],
 			["trainyard", Vector3(-28.9, 0.1, 7), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the tower balcony"]]:
 		if _level.name.to_lower() != route[0]:
@@ -958,8 +965,10 @@ func _test_maps() -> void:
 			_check(_player.is_on_floor(), "%s: player lands" % route[0])
 		_reset_player(route[1], route[2])
 		await _frames(2)
-		await _walk_forward_max_y(300)
-		_check((route[3] as Callable).call(_player.global_position), "%s: %s (at %s)" % [route[0], route[4], _player.global_position.snapped(Vector3.ONE * 0.1)])
+		# The check sees where the walk ended, with y = the highest point reached.
+		var peak := await _walk_forward_max_y(300)
+		var at := Vector3(_player.global_position.x, peak, _player.global_position.z)
+		_check((route[3] as Callable).call(at), "%s: %s (at %s)" % [route[0], route[4], at.snapped(Vector3.ONE * 0.1)])
 
 	# Every map has team spawns and bomb sites A + B.
 	for m: Dictionary in GameConfig.MAPS:
