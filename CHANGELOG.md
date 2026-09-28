@@ -2,6 +2,14 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Subway rebuilt** after the concept art: Riverside station, a 3-lane
+bomb map. T spawn east (Exit stairs), CT spawn west (ticket hall). A Long
+(upper), Mid (the central island) and B Long (lower) are platforms with
+metro trains parked on the tracks between them — walk through the open
+doors or drop into the track bed and jump out. A and B are platforms
+beside a terminating train; tunnel mouths with red signals at every track
+end.
+
 **Training bots:** choose how many bots (0–15) and how good (Easy /
 Normal / Hard) in the main menu. Play Offline then plays FFA, TDM or Bomb
 Defusal against them (0 bots = Practice as before); hosting fills your

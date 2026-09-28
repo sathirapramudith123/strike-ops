@@ -1840,128 +1840,281 @@ def office():
             sun_energy=1.1, ambient=0.9, ambient_color=(0.72, 0.72, 0.72))
 
 
-def subway():
-    """Underground station: two side platforms and an island between two
-    track beds (drop down, climb out at the ends), a parked train you can
-    walk through, ticket halls at both ends (CT north, T south)."""
-    m = Map("Subway")
-    X, Z, TOP, PIT, CEIL = 26.0, 44.0, 0.0, -1.2, 5.0
-    # Track bed everywhere, platforms/concourses raised to 0.
-    m.box((0, PIT - 0.5, 0), (2 * X + 2, 1, 2 * Z + 2), "gravel", "TrackBed")
-    for (x0, x1) in ((-X, -7.8), (-4.2, 4.2), (7.8, X)):
-        m.box(((x0 + x1) / 2, (PIT + TOP) / 2, 0), (x1 - x0, TOP - PIT, 60), "floor_dark", "Platform")
-        for edge in (x0, x1):
-            if abs(edge) < X:
-                m.box((edge + (0.2 if edge == x0 else -0.2), 0.005, 0), (0.4, 0.01, 60), "yellow", "EdgeLine", collide=False)
-    for zc in (-37.0, 37.0):
-        m.box((0, (PIT + TOP) / 2, zc), (2 * X, TOP - PIT, 14), "tile", "Concourse")
-    for x in (-6.0, 6.0):
-        _rails(m, x, -30, 30, PIT, 2.4)
-        for (a, b) in (((x, PIT, -24.0), (x + 0.001, TOP, -29.9)), ((x, PIT, 24.0), (x + 0.001, TOP, 29.9))):
-            m.ramp(a, b, 2.2, "metal", thickness=0.3)
-    # Walls, ceiling, tunnel mouths (dark) above the track ends.
-    for (pos, size) in (((0, 2, -Z - 0.5), (2 * X + 2, 7, 1)), ((0, 2, Z + 0.5), (2 * X + 2, 7, 1)),
-                        ((X + 0.5, 2, 0), (1, 7, 2 * Z)), ((-X - 0.5, 2, 0), (1, 7, 2 * Z))):
-        m.box(pos, size, "tile", "Wall")
-    for x in (-X + 0.02, X - 0.02):
-        m.box((x, 1.2, 0), (0.06, 0.5, 60), "tile_band", "Band", collide=False)
-        for z in (-20, 0, 20):
-            m.box((x, 2.6, z), (0.06, 1.0, 4.0), "tile_band", "StationSign", collide=False)
-    m.box((0, CEIL + 0.2, 0), (2 * X + 2, 0.4, 2 * Z + 2), "ceiling", "Ceiling")
-    for x in (-6.0, 6.0):
-        m.box((x, CEIL - 0.3, 0), (4.0, 0.6, 60), "concrete", "Duct", collide=False)
-    # Pillars.
-    for z in (-24, -16, -8, 0, 8, 16, 24):
-        for x in (-12.5, 0.0, 12.5):
-            m.box((x, (TOP + CEIL) / 2, z), (0.7, CEIL - TOP, 0.7), "tile", "Pillar")
-    # Train: two cars on the west track (z -18..12), walk-through.
-    def car(z0, z1):
-        cx, w, L = -6.0, 3.4, z1 - z0
-        zc = (z0 + z1) / 2
-        m.box((cx, (PIT + TOP - 0.2) / 2, zc), (w - 0.4, TOP - 0.2 - PIT, L - 0.4), "floor_dark", "Bogies")
-        m.box((cx, TOP - 0.1, zc), (w, 0.2, L), "floor_dark", "CarFloor")
-        for side in (-1, 1):
-            xw = cx + side * (w / 2 - 0.05)
-            m.wall_with_gaps((xw, z0), (xw, z1), 2.4, 0.1, [(2.0, 1.4, 2.1), (6.6, 1.4, 2.1), (11.2, 1.4, 2.1)],
-                             "silver", y0=TOP, name="CarWall")
-            m.box((xw + side * 0.06, 0.9, zc), (0.02, 0.25, L), "red", "Stripe", collide=False)
-            for off in (4.3, 8.9, 13.2):
-                if off < L:
-                    m.box((xw + side * 0.06, 1.55, z0 + off), (0.02, 0.7, 2.6), "glass", "CarWindow", collide=False)
-            for (a0, a1) in ((0.3, 1.8), (3.6, 6.4), (8.2, 11.0), (12.8, L - 0.3)):
-                m.box((cx + side * 1.35, 0.25, z0 + (a0 + a1) / 2), (0.5, 0.5, a1 - a0), "tile_band", "Seats")
-        for zz in (z0, z1):
-            m.wall_with_gaps((cx - w / 2, zz), (cx + w / 2, zz), 2.4, 0.1, [(1.2, 1.0, 2.1)], "silver", y0=TOP, name="CarEnd")
-        m.box((cx, 2.5, zc), (w + 0.1, 0.2, L), "silver", "CarRoof")
-        _strip_light(m, cx, 2.35, zc, L - 2.0)
-    car(-18.0, -3.4)
-    m.box((-6.0, TOP - 0.1, -3.0), (1.2, 0.2, 0.8), "floor_dark", "Gangway")
-    car(-2.6, 12.0)
-    # Platform furniture.
-    for (x, z) in ((-18, -20), (-18, 4), (18, -12), (18, 16), (0, -12), (0, 12)):
-        m.box((x, 0.25, z), (0.6, 0.5, 2.6), "wood", "Bench")
-    for (x, z) in ((-24.5, -8), (24.5, 4), (24.5, -24)):
-        m.box((x, 1.0, z), (1.0, 2.0, 1.2), "red", "Vending")
-        m.box((x - 0.51 * (1 if x > 0 else -1), 1.3, z), (0.02, 0.8, 0.8), "lamp", "VendingFront", collide=False)
-    for (x, z) in ((-12.5, -12), (12.5, 20), (0, 20)):
-        m.cyl((x + 0.7, 0.45, z), 0.3, 0.9, "metal", "Bin")
-    m.box((17.5, 0.5, -6), (2.4, 1.0, 0.4), "yellow", "Barrier")
-    m.box((20, 0.5, -3.5), (0.4, 1.0, 2.4), "yellow", "Barrier")
-    _crates(m, 21.5, -10, 2, size=1.0)
-    m.box((-17, 0.6, 17), (2.2, 1.2, 1.2), "concrete", "Planter")
-    _crates(m, -21.5, 10, 1)
-    # Ticket halls: turnstiles, booths, stairs to the street (dead ends, cover).
-    for zc, sgn in ((-31.0, -1), (31.0, 1)):
-        for x in range(-24, 25, 3):
-            if abs(x) not in (0, 12, 24):
-                m.box((x, 0.5, zc), (0.3, 1.0, 1.0), "metal", "Turnstile")
-        m.box((18, 1.4, zc + sgn * 7), (5, 2.8, 3), "glass", "Booth")
-        m.ramp((-18.0, 0.0, zc + sgn * 5.0), (-18.001, 3.0, zc + sgn * 12.5), 3.4, "concrete")
-        m.box((-18, 0.5, zc + sgn * 12.9), (3.6, 7, 0.4), "concrete", "StairWall")
-        m.box((-18, 3.9, zc + sgn * 9.0), (3.6, 0.2, 7.0), "concrete", "StairCeiling", collide=False)
-        for x in (-16.1, -19.9):
-            m.box((x, 1.2, zc + sgn * 8.7), (0.2, 2.4, 7.6), "tile", "StairSide")
-    # Strip lights everywhere (emissive: rooms stay lit on Low) + a few real lights.
-    for z in range(-28, 29, 8):
-        for x in (-17, 0, 17):
-            _strip_light(m, x, CEIL - 0.05, z, 3.0)
-    for z in (-38, 38):
-        for x in (-12, 0, 12):
-            _strip_light(m, x, CEIL - 0.05, z, 3.0, yaw=90)
-    for (x, z) in ((-17, -16), (-17, 16), (17, -16), (17, 16), (0, 0), (0, -38), (0, 38)):
-        m.omni((x, 4.2, z), 1.0, 14.0, (0.95, 0.97, 1.0))
+def _metro_car(m, x0, x1, zc, pit, stripe="red", w=3.4, doors_open=True):
+    """Metro car along X at track centre zc: floor level with the platforms
+    (y 0), sliding-door gaps on both sides (walk through it from one
+    platform to the other), windows, seats, a gangway door at each end."""
+    L = x1 - x0
+    xc = (x0 + x1) / 2
+    m.box((xc, (pit + 0.0 - 0.2) / 2, zc), (L - 0.6, -0.2 - pit, w - 0.8), "floor_dark", "Underframe")
+    m.box((xc, -0.1, zc), (L, 0.2, w), "floor_dark", "CarFloor")
+    doors = [(off, 1.4, 2.1) for off in (L * 0.18, L * 0.5 - 0.7, L * 0.82 - 1.4)] if doors_open else []
+    for side in (-1, 1):
+        zw = zc + side * (w / 2 - 0.05)
+        m.wall_with_gaps((x0, zw), (x1, zw), 2.4, 0.1, doors, "silver", y0=0.0, name="CarWall")
+        m.box((xc, 0.75, zw + side * 0.06), (L, 0.22, 0.02), stripe, "Stripe", collide=False)
+        m.box((xc, 2.25, zw + side * 0.06), (L, 0.08, 0.02), "tile_band", "Stripe", collide=False)
+        # Windows between the doors, seats under them.
+        cuts = [0.0] + [c for (off, dw, _) in doors for c in (off, off + dw)] + [L]
+        for k in range(0, len(cuts), 2):
+            a, b = cuts[k] + 0.4, cuts[k + 1] - 0.4
+            if b - a > 0.8:
+                m.box((x0 + (a + b) / 2, 1.5, zw + side * 0.06), (b - a, 0.75, 0.02), "glass", "CarWindow",
+                      collide=False)
+                m.box((x0 + (a + b) / 2, 0.25, zc + side * (w / 2 - 0.4)), (b - a, 0.5, 0.5), "tile_band", "Seats")
+    for (xx, face) in ((x0, -1), (x1, 1)):
+        m.wall_with_gaps((xx, zc - w / 2), (xx, zc + w / 2), 2.4, 0.1, [(w / 2 - 0.5, 1.0, 2.1)], "silver",
+                         y0=0.0, name="CarEnd")
+        for dz in (-1.1, 1.1):
+            m.box((xx + face * 0.07, 0.55, zc + dz), (0.03, 0.18, 0.25), "lamp_red", "TailLight", collide=False)
+    m.box((xc, 2.5, zc), (L + 0.05, 0.2, w + 0.1), "silver", "CarRoof")
+    m.box((xc, 2.7, zc), (L - 1.0, 0.2, w - 1.0), "metal", "RoofUnit", collide=False)
+    _strip_light(m, xc, 2.35, zc, L - 2.0, yaw=90)
 
-    m.site("A", (18.0, 0.0, -18.0))
-    m.site("B", (-17.0, 0.0, -6.0))
-    for x in (-8, -4, 0, 4, 8):
-        m.spawn("red", (x, 0.1, 38), 0)
-    for x in (-6, -2, 2, 6):
-        m.spawn("blue", (x, 0.1, -38), 180)
-    for (x, y, z, yaw) in ((-6, 0.1, 5, 0), (6, PIT + 0.1, 0, 0), (20, 0.1, 8, 0), (-20, 0.1, -24, 180), (0, 0.1, -20, 0)):
+
+def _tunnel_mouth(m, x, zc, face, pit, top=4.2, w=4.0):
+    """Tunnel mouth on the end wall at x (face "e"/"w" = the way it looks):
+    a dark recess with a red signal. Visual only (the wall behind is solid)."""
+    s = 1 if face == "e" else -1
+    m.box((x + s * 0.03, (pit + top) / 2, zc), (0.04, top - pit, w - 0.6), "dark", "TunnelMouth", collide=False)
+    for dz in (-w / 2, w / 2):
+        m.box((x + s * 0.1, (pit + top) / 2, zc + dz), (0.2, top - pit, 0.3), "concrete", "TunnelFrame", collide=False)
+    m.box((x + s * 0.1, top, zc), (0.2, 0.5, w + 0.3), "concrete", "TunnelFrame", collide=False)
+    m.box((x + s * 0.12, top - 0.6, zc + w / 2 - 0.5), (0.06, 0.18, 0.18), "lamp_red", "Signal", collide=False)
+
+
+def _poster(m, x, y, z, face, mat="blue"):
+    """Advert on a tiled wall (framed)."""
+    along_x = face in ("n", "s")
+    n = {"n": -1, "s": 1, "e": 1, "w": -1}[face]
+    if along_x:
+        m.box((x, y, z + n * 0.03), (2.2, 1.5, 0.04), "metal", "PosterFrame", collide=False)
+        m.box((x, y, z + n * 0.05), (2.0, 1.3, 0.02), mat, "Poster", collide=False)
+    else:
+        m.box((x + n * 0.03, y, z), (0.04, 1.5, 2.2), "metal", "PosterFrame", collide=False)
+        m.box((x + n * 0.05, y, z), (0.02, 1.3, 2.0), mat, "Poster", collide=False)
+
+
+def _luggage(m, x, z, n=1, mat="green", yaw=0.0):
+    """The dark green equipment cases on the platforms (cover)."""
+    for i in range(n):
+        m.box((x, 0.55 + i * 1.1, z), (1.6, 1.1, 1.0), mat, "Crate", yaw=yaw + i * 8)
+        m.box((x, 1.12 + i * 1.1, z), (1.64, 0.04, 1.04), "metal", "CrateLid", yaw=yaw + i * 8, collide=False)
+
+
+def subway():
+    """Subway (bomb map, 3 lanes) after the concept art: Riverside station.
+    CT spawn west (the ticket hall, stairs up "To All Trains"), T spawn east
+    (the Exit stairs). Three platforms run east-west between the spawns: A
+    Long (upper, north), Mid (the central island) and B Long (lower, south),
+    with parked trains on the tracks between them — drop into a track bed
+    and jump out, or walk through a train's open doors. A (north) and B
+    (south) are platforms of their own beside a terminating train, reached
+    from A / B Long through two openings each and by CT from the ticket
+    hall. Tunnel mouths with red signals at the ends of every track."""
+    m = Map("Subway")
+    PIT = -1.2
+
+    def area(name, x0, x1, z0, z1, y=0.0, wall="tile", floor="floor_dark", h=5.0, top=5.0, ceil="ceiling"):
+        return dict(name=name, x0=x0, x1=x1, z0=z0, z1=z1, y=y, wall=wall, floor=floor, wall_h=h, top=top, ceil=ceil)
+
+    rooms = [
+        area("CTSpawn", -56, -40, -10, 10, floor="tile", top=6.0),
+        area("MidDoorW", -40, -36, -3, 3, floor="tile", top=3.6),
+        area("CTA", -48, -42, -28, -10, floor="tile", top=4.0),
+        area("CTADoor", -42, -40, -27, -22, floor="tile", top=3.6),
+        area("CTB", -48, -42, 10, 28, floor="tile", top=4.0),
+        area("CTBDoor", -42, -40, 22, 27, floor="tile", top=3.6),
+        area("TSpawn", 40, 56, -10, 10, floor="tile", top=6.0),
+        area("MidDoorE", 38, 40, -3, 3, floor="tile", top=3.6),
+        area("TA", 40, 46, -19, -10, floor="tile", top=4.0),
+        area("TB", 40, 46, 10, 19, floor="tile", top=4.0),
+        # The station: platforms (y 0) and track beds (pits).
+        area("ATrack", -40, 14, -36, -32, y=PIT, floor="gravel", top=6.0),
+        area("ASite", -40, 14, -32, -20, top=6.0),
+        area("ADoor1", -28, -22, -20, -19, top=3.6),
+        area("ADoor2", 0, 6, -20, -19, top=3.6),
+        area("ALong", -30, 40, -19, -12),
+        area("TrackN", -36, 36, -12, -8, y=PIT, floor="gravel"),
+        area("Mid", -36, 38, -8, 8),
+        area("TrackS", -36, 36, 8, 12, y=PIT, floor="gravel"),
+        area("BLong", -30, 40, 12, 19),
+        area("BDoor1", -28, -22, 19, 20, top=3.6),
+        area("BDoor2", 0, 6, 19, 20, top=3.6),
+        area("BSite", -40, 14, 20, 32, top=6.0),
+        area("BTrack", -40, 14, 32, 36, y=PIT, floor="gravel", top=6.0),
+    ]
+    _rooms(m, rooms, trim=("tile_band", "tile_band"))
+
+    # --- Tracks: rails, the yellow platform edges, ramps out at the ends -------------
+    tracks = (("ATrack", -34, -40, 14), ("TrackN", -10, -36, 36), ("TrackS", 10, -36, 36), ("BTrack", 34, -40, 14))
+    for (_, zc, x0, x1) in tracks:
+        _rails_x(m, zc, x0, x1, PIT, 2.4)
+        for edge in (zc - 2, zc + 2):
+            if abs(edge) == 36:
+                continue  # the wall side of the A / B tracks
+            s = 1 if edge < zc else -1  # towards the platform
+            m.box(((x0 + x1) / 2, 0.005, edge - s * 0.35), (x1 - x0, 0.01, 0.5), "yellow", "EdgeLine", collide=False)
+            m.box(((x0 + x1) / 2, 0.005, edge - s * 0.75), (x1 - x0, 0.01, 0.3), "hazard", "Tactile", collide=False)
+        # Maintenance ramps out of the bed at both ends (and the tunnel mouths).
+        for (xe, face) in ((x0, "e"), (x1, "w")):
+            s = 1 if face == "e" else -1
+            m.ramp((xe + s * 6.0, PIT, zc), (xe + s * 0.05, 0.0, zc + 0.001), 3.9, "metal", thickness=0.3)
+            _tunnel_mouth(m, xe, zc, face, PIT)
+    # Island-edge ramps would block the trains' doors: none in the middle.
+
+    # --- Trains --------------------------------------------------------------------
+    _metro_car(m, -34, -20, -34, PIT, "red", doors_open=True)
+    _metro_car(m, -19.2, -5, -34, PIT, "red")
+    _metro_car(m, -26, -12, -10, PIT, "tile_band")
+    _metro_car(m, 6, 20, -10, PIT, "tile_band")
+    _metro_car(m, -16, -2, 10, PIT, "red")
+    _metro_car(m, 14, 28, 10, PIT, "red")
+    _metro_car(m, -34, -20, 34, PIT, "tile_band")
+    _metro_car(m, -19.2, -5, 34, PIT, "tile_band")
+    for (x, z) in ((-19.6, -34), (-19.6, 34)):
+        m.box((x, -0.1, z), (0.8, 0.2, 1.2), "floor_dark", "Gangway")
+
+    # --- Pillars (tiled, a blue band) ---------------------------------------------------
+    for x in range(-32, 37, 8):
+        for z in (-15.5, -4.0, 4.0, 15.5):
+            if -30 < x < 38 or abs(z) < 8:
+                m.box((x, 2.5, z), (0.8, 5.0, 0.8), "tile", "Pillar")
+                m.box((x, 1.2, z), (0.84, 0.3, 0.84), "tile_band", "PillarBand", collide=False)
+    for x in (-32, -20, -8, 4):
+        for z in (-26, 26):
+            m.box((x, 3.0, z), (0.8, 6.0, 0.8), "tile", "Pillar")
+            m.box((x, 1.2, z), (0.84, 0.3, 0.84), "tile_band", "PillarBand", collide=False)
+
+    # --- Mid: the central island --------------------------------------------------------
+    # A stairwell block in the middle ("To Platform 2") breaks the long sightline.
+    m.box((0, 2.5, 0), (8.0, 5.0, 4.0), "tile", "Stairwell")
+    m.box((0, 1.2, 0), (8.04, 0.3, 4.04), "tile_band", "Band", collide=False)
+    for s in (-1, 1):
+        m.sign((0, 3.2, s * 2.0), "s" if s > 0 else "n", "PLATFORM 2 ->", color=(0.9, 0.9, 0.86), pixel=0.004)
+    for (x, z, n) in ((-14, 3.5, 2), (-13, -3.8, 1), (14, -3.2, 2), (15.2, 3.6, 1), (27, 0, 1), (-26, 0.5, 1)):
+        _luggage(m, x, z, n, "green" if n == 1 else "steel_blue")
+    for (x, z) in ((-22, -5), (22, 5), (8, -5.5), (-8, 5.5)):
+        m.box((x, 0.25, z), (2.6, 0.5, 0.6), "wood", "Bench")
+    for (x, z) in ((-31, 5.5), (31, -5.5)):
+        m.box((x, 1.0, z), (1.2, 2.0, 1.0), "red", "Vending")
+    m.box((34.5, 0.6, 3.5), (1.2, 1.2, 1.2), "wood", "Crate")
+    m.box((-33.5, 0.6, -4), (1.2, 1.2, 1.2), "wood", "Crate")
+
+    # --- A Long (upper) -----------------------------------------------------------------
+    for (x, z, n) in ((34, -16.5, 2), (22, -13.8, 1), (9, -17.5, 1), (-6, -14, 2), (-18, -17.5, 1)):
+        _luggage(m, x, z, n)
+    for (x, z) in ((28, -18.5), (-12, -18.5), (14, -18.5)):
+        m.box((x, 0.25, z), (2.6, 0.5, 0.6), "wood", "Bench")
+    m.cyl((3, 0.45, -18.3), 0.3, 0.9, "metal", "Bin")
+    for x in (-14, 20):
+        _poster(m, x, 2.4, -19.0, "s", "blue" if x < 0 else "red")
+    m.sign((38.0, 3.2, -19.0), "s", "PLATFORM 1 ->", color=(0.9, 0.9, 0.86), pixel=0.004)
+
+    # --- A site -------------------------------------------------------------------------
+    for (x, z, n) in ((-12, -24, 2), (-4, -28.5, 1), (-2.8, -28.2, 1), (6, -24.5, 1), (-26, -29, 2), (-33, -23, 1)):
+        _luggage(m, x, z, n)
+    m.box((-18, 0.6, -22.5), (3.0, 1.2, 1.2), "concrete", "LowWall")
+    for (x, z) in ((10.5, -29), (-36, -29.5)):
+        m.box((x, 1.0, z), (1.2, 2.0, 1.0), "red", "Vending")
+    m.site("A", (-14.0, 0.0, -25.5))
+    m.sign((-14.0, 3.4, -20.0), "n", "A", color=(0.75, 0.1, 0.07), pixel=0.024)
+    m.sign((14.0, 3.0, -26.0), "w", "A", color=(0.75, 0.1, 0.07), pixel=0.016)
+    m.sign((-40.0, 3.0, -30.0), "e", "RIVERSIDE", color=(0.9, 0.9, 0.86), pixel=0.008)
+    for x in (-30, 8):
+        _poster(m, x, 3.0, -36.0, "s", "green" if x < 0 else "blue")
+
+    # --- B Long (lower) and B site ------------------------------------------------------
+    for (x, z, n) in ((33, 16.5, 1), (21, 13.8, 2), (8, 17.5, 1), (-8, 14, 1), (-19, 16.5, 2)):
+        _luggage(m, x, z, n)
+    for (x, z) in ((27, 18.5), (-13, 18.5)):
+        m.box((x, 0.25, z), (2.6, 0.5, 0.6), "wood", "Bench")
+    for x in (-14, 18):
+        _poster(m, x, 2.4, 19.0, "n", "red" if x < 0 else "green")
+    for (x, z, n) in ((-12, 24, 2), (-5, 28.5, 1), (4, 23, 2), (-27, 29, 1), (-33, 23.5, 1), (10, 29, 1)):
+        _luggage(m, x, z, n, "green" if n == 1 else "steel_blue")
+    m.box((-19, 0.6, 22.5), (3.0, 1.2, 1.2), "concrete", "LowWall")
+    m.box((13.3, 1.2, 25), (0.6, 0.5, 0.4), "red", "FireAlarm", collide=False)
+    m.site("B", (-14.0, 0.0, 25.5))
+    m.sign((-14.0, 3.4, 20.0), "s", "B", color=(0.75, 0.1, 0.07), pixel=0.024)
+    m.sign((14.0, 3.0, 26.0), "w", "B", color=(0.75, 0.1, 0.07), pixel=0.016)
+    m.sign((-40.0, 3.0, 30.0), "e", "RIVERSIDE", color=(0.9, 0.9, 0.86), pixel=0.008)
+    m.omni((6, 4.2, 30), 0.7, 10.0, (1.0, 0.2, 0.15))   # the red glow at B
+
+    # --- CT spawn: ticket hall, stairs up "To All Trains" -------------------------------
+    for z in range(-8, 9, 2):
+        if abs(z) > 3:
+            m.box((-43, 0.5, z), (0.9, 1.0, 0.25), "metal", "Turnstile")
+    m.box((-43, 0.5, -3.3), (0.9, 1.0, 0.25), "metal", "Turnstile")
+    m.box((-43, 0.5, 3.3), (0.9, 1.0, 0.25), "metal", "Turnstile")
+    m.ramp((-50.0, 0.0, 6.0), (-55.9, 2.6, 6.001), 3.6, "concrete")      # dead-end stairs (cover)
+    m.box((-53, 1.3, 3.9), (6.0, 2.6, 0.3), "tile", "StairSide")
+    m.box((-51, 1.4, -7), (3.0, 2.8, 2.4), "glass", "Booth")
+    m.sign((-40.0, 3.6, -6.0), "w", "TO ALL TRAINS ->", color=(0.9, 0.9, 0.86), pixel=0.004)
+    _poster(m, -56.0, 2.6, -2.0, "e", "red")
+    m.sign((-55.98, 4.2, 0.0), "e", "CT", color=(0.25, 0.45, 0.85), pixel=0.014)
+    m.sign((-48.0, 3.0, -28.0), "s", "A", toward=(-44, -24), color=(0.75, 0.1, 0.07))
+    m.sign((-48.0, 3.0, 28.0), "n", "B", toward=(-44, 24), color=(0.75, 0.1, 0.07))
+
+    # --- T spawn: the Exit stairs ----------------------------------------------------
+    m.ramp((50.0, 0.0, -6.0), (55.9, 2.6, -6.001), 3.6, "concrete")
+    m.box((53, 1.3, -3.9), (6.0, 2.6, 0.3), "tile", "StairSide")
+    m.sign((56.0, 3.8, -6.0), "w", "EXIT", color=(0.95, 0.85, 0.3), pixel=0.008)
+    for (x, z, n) in ((46, 5, 2), (51, 7.5, 1), (44, -6, 1)):
+        _luggage(m, x, z, n)
+    m.sign((55.98, 4.2, 2.0), "w", "T", color=(0.85, 0.6, 0.1), pixel=0.014)
+    m.sign((46.0, 3.0, -16.0), "w", "A", toward=(40, -16), color=(0.75, 0.1, 0.07))
+    m.sign((46.0, 3.0, 16.0), "w", "B", toward=(40, 16), color=(0.75, 0.1, 0.07))
+
+    # --- Lights: strip lights everywhere (emissive: lit on Low) + a few real ones ------
+    for x in range(-28, 37, 8):
+        for z in (-15.5, 0.0, 15.5):
+            if not (abs(z) < 1 and abs(x) < 5):
+                _strip_light(m, x + 4, 4.95, z if z else -6.0, 3.0, yaw=90)
+                if z == 0.0:
+                    _strip_light(m, x + 4, 4.95, 6.0, 3.0, yaw=90)
+    for x in range(-36, 13, 8):
+        for z in (-26.0, 26.0):
+            _strip_light(m, x + 4, 5.95, z, 3.0, yaw=90)
+    for (x, z) in ((-48, 0), (48, 0)):
+        for dz in (-6, 0, 6):
+            _strip_light(m, x, 5.95, z + dz, 3.0, yaw=90)
+    for (x, z) in ((-45, -19), (-45, 19), (43, -14), (43, 14)):
+        _strip_light(m, x, 3.95, z, 3.0)
+    for (x, z) in ((-12, -26), (-12, 26), (-20, 0), (20, 0), (10, -15.5), (10, 15.5), (-48, 0), (48, 0)):
+        m.omni((x, 4.0, z), 1.0, 14.0, (0.92, 0.96, 1.0))
+
+    # --- Spawns, callouts, sound --------------------------------------------------------
+    for (x, z) in ((50, -2), (50, 2), (47, 0), (53, 0), (47, -4)):
+        m.spawn("red", (x, 0.1, z), 90)
+    for (x, z) in ((-50, -2), (-50, 2), (-47, 0), (-53, 0), (-47, 4)):
+        m.spawn("blue", (x, 0.1, z), -90)
+    for (x, y, z, yaw) in ((-20, 0.1, 2, -90), (20, 0.1, -2, 90), (-10, 0.1, -28, 0), (-10, 0.1, 28, 180),
+                           (24, 0.1, -16, 90), (24, 0.1, 16, 90), (-24, 0.1, -15, -90), (-24, 0.1, 15, -90)):
         m.spawn("ffa", (x, y, z), yaw)
     for (label, pos, size) in (
-            ("South Hall", (0, 2, 37), (52, 5, 14)),
-            ("North Hall", (0, 2, -37), (52, 5, 14)),
-            ("East Platform", (17, 2, 0), (18, 5, 60)),
-            ("West Platform", (-17, 2, 0), (18, 5, 60)),
-            ("Island", (0, 2, 0), (8.4, 5, 60)),
-            ("Train", (-6, 1.2, -3), (3.4, 2.4, 30)),
-            ("East Tracks", (6, 0, 0), (3.6, 3, 60)),
-            ("West Tracks", (-6, -0.2, 0), (3.6, 2, 60)),
-            ("Bombsite A", (18, 2, -18), (12, 5, 12)),
-            ("Bombsite B", (-17, 2, -6), (12, 5, 12)),
-            ("Stairs", (-18, 2, -40), (4, 5, 8)),
-            ("Stairs", (-18, 2, 40), (4, 5, 8))):
+            ("CT Spawn", (-48, 2.5, 0), (16, 6, 20)),
+            ("T Spawn", (48, 2.5, 0), (16, 6, 20)),
+            ("CT A", (-45, 2, -19), (6, 5, 18)),
+            ("CT B", (-45, 2, 19), (6, 5, 18)),
+            ("T A", (43, 2, -14.5), (6, 5, 9)),
+            ("T B", (43, 2, 14.5), (6, 5, 9)),
+            ("Mid", (1, 2.5, 0), (74, 5, 16)),
+            ("A Long", (5, 2.5, -15.5), (70, 5, 7)),
+            ("B Long", (5, 2.5, 15.5), (70, 5, 7)),
+            ("Tracks", (0, 0.5, -10), (72, 4, 4)),
+            ("Tracks", (0, 0.5, 10), (72, 4, 4)),
+            ("Bombsite A", (-13, 3, -26), (54, 6, 12)),
+            ("Bombsite B", (-13, 3, 26), (54, 6, 12)),
+            ("A Train", (-13, 1, -34), (54, 5, 4)),
+            ("B Train", (-13, 1, 34), (54, 5, 4))):
         m.callout(label, pos, size)
-    m.reverb((0, 2, 0), (2 * X, 7, 2 * Z), "hall", 0.5)
-    m.reverb((-6, 1.2, -3), (3.4, 2.4, 30), "room", 0.3, priority=1)
-    m.sign((-26.0, 2.6, -12.0), "e", "B", toward=(-17, -6))
-    m.sign((26.0, 2.6, -28.0), "w", "A", toward=(18, -18))
-    m.sign((-26.0, 2.6, 28.0), "e", "B", toward=(-26, 0))
-    m.sign((26.0, 2.6, 28.0), "w", "A", toward=(26, 0))
+    m.reverb((0, 2.5, 0), (80, 7, 72), "hall", 0.5)
+    for (x0, x1, z) in ((-34, -5, -34), (-26, -12, -10), (6, 20, -10), (-16, -2, 10), (14, 28, 10), (-34, -5, 34)):
+        m.reverb(((x0 + x1) / 2, 1.2, z), (x1 - x0, 2.4, 3.4), "room", 0.3, priority=1)
 
     m.write("scenes/levels/subway.tscn", sun_rot=(-80.0, 0.0), sky=(0.1, 0.1, 0.12), horizon=(0.2, 0.2, 0.22),
-            sun_color=(1, 1, 1), sun_energy=0.0, sun_shadow=False, ambient=1.1, ambient_color=(0.78, 0.8, 0.84))
+            sun_color=(1, 1, 1), sun_energy=0.0, sun_shadow=False, ambient=0.8, ambient_color=(0.72, 0.75, 0.82))
 
 
 def trainyard():
