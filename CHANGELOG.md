@@ -2,6 +2,13 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Flashbang and smoke grenade:** two flashes (`F`) and one smoke (`Z`)
+per life. A flash whites out the screen of anyone who sees it — up to 4 s
+looking straight at it, less further away or looking away, nothing
+through walls — with ringing ears. A smoke makes a thick 3.5 m cloud for
+15 s that hides players (their name tags and aim assist too), puts out
+Molotov fires and makes a Molotov thrown into it fizzle.
+
 **HE grenade and Molotov:** one of each per life (per round in Bomb
 Defusal), quick-thrown with `G` / `Q` (controller: RB for the HE). The HE
 bounces and goes off after 1.6 s — up to 98 damage, gone by 6 m, blocked

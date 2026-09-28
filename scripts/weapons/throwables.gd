@@ -1,8 +1,9 @@
 class_name Throwables
 extends Node
-## Grenades a player carries: one HE grenade and one Molotov per life (per
-## round in Bomb Defusal). Quick-throw — G throws the HE, Q the Molotov —
-## without switching away from the gun.
+## Grenades a player carries, refilled every life (every round in Bomb
+## Defusal): one HE grenade, one Molotov, two flashbangs and one smoke.
+## Quick-throw — G HE, Q Molotov, F flash, Z smoke — without switching away
+## from the gun.
 ##
 ## Networking: the owner asks the server to throw (origin + velocity); the
 ## server checks the count, clamps the throw and tells every peer to spawn the
@@ -14,12 +15,18 @@ extends Node
 
 signal changed
 
-enum Kind { HE, MOLOTOV }
+enum Kind { HE, MOLOTOV, FLASH, SMOKE }
 
-const NAMES := { Kind.HE: "HE Grenade", Kind.MOLOTOV: "Molotov" }
-const SHORT_NAMES := { Kind.HE: "HE", Kind.MOLOTOV: "Molotov" }
-const ACTIONS := { Kind.HE: &"throw_grenade", Kind.MOLOTOV: &"throw_molotov" }
-const START_COUNT := 1
+## HUD order.
+const ORDER: Array[int] = [Kind.HE, Kind.FLASH, Kind.SMOKE, Kind.MOLOTOV]
+const NAMES := { Kind.HE: "HE Grenade", Kind.MOLOTOV: "Molotov", Kind.FLASH: "Flashbang", Kind.SMOKE: "Smoke Grenade" }
+const SHORT_NAMES := { Kind.HE: "HE", Kind.MOLOTOV: "Molotov", Kind.FLASH: "Flash", Kind.SMOKE: "Smoke" }
+const ACTIONS := { Kind.HE: &"throw_grenade", Kind.MOLOTOV: &"throw_molotov",
+	Kind.FLASH: &"throw_flash", Kind.SMOKE: &"throw_smoke" }
+## Grenades of each kind at spawn.
+const START_COUNTS := { Kind.HE: 1, Kind.MOLOTOV: 1, Kind.FLASH: 2, Kind.SMOKE: 1 }
+## Fuse (s) for the kinds that go off on a timer (the Molotov breaks on impact).
+const FUSES := { Kind.HE: 1.6, Kind.FLASH: 1.5, Kind.SMOKE: 1.8 }
 ## Throw speed (m/s) along the view, plus a little lift and some of the
 ## player's own speed.
 const THROW_SPEED := 16.0
@@ -29,13 +36,13 @@ const INHERIT_VELOCITY := 0.5
 const COOLDOWN := 0.6
 ## HE grenade: fuse, blast radius, damage at the centre (falls off linearly),
 ## armour penetration.
-const HE_FUSE := 1.6
+const HE_FUSE := 1.6 # = FUSES[Kind.HE]
 const HE_RADIUS := 6.0
 const HE_DAMAGE := 98.0
 const HE_ARMOR_PENETRATION := 0.5
 
 ## kind -> grenades left.
-var counts := { Kind.HE: START_COUNT, Kind.MOLOTOV: START_COUNT }
+var counts := START_COUNTS.duplicate()
 
 var _player: PlayerController
 var _cooldown := 0.0
@@ -64,7 +71,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Refill on (re)spawn — every peer does this, so no RPC is needed.
 func refill() -> void:
-	counts = { Kind.HE: START_COUNT, Kind.MOLOTOV: START_COUNT }
+	counts = START_COUNTS.duplicate()
 	changed.emit()
 
 
@@ -159,21 +166,30 @@ func _client_detonate(id: int, kind: int, pos: Vector3) -> void:
 		_detonate(id, kind, pos)
 
 
-## Everyone: remove the projectile and show the effect (and, for the
-## Molotov, start the fire — it only burns anyone on the server).
+## Everyone: remove the projectile and show the effect. The Molotov's fire
+## only burns anyone on the server; each peer works out how blind its own
+## player is from a flash; the smoke cloud is the same everywhere.
 func _detonate(id: int, kind: int, pos: Vector3) -> void:
 	var p: GrenadeProjectile = _live.get(id)
 	_live.erase(id)
 	if is_instance_valid(p):
 		p.queue_free()
-	if kind == Kind.HE:
-		GrenadeFx.explosion(_world_root(), pos)
-	else:
-		var fire := FireZone.new()
-		fire.thrower = _player
-		fire.name = "Fire_%d_%d" % [_player.peer_id, id]
-		_world_root().add_child(fire)
-		fire.ignite(pos)
+	match kind:
+		Kind.HE:
+			GrenadeFx.explosion(_world_root(), pos)
+		Kind.MOLOTOV:
+			var fire := FireZone.new()
+			fire.thrower = _player
+			fire.name = "Fire_%d_%d" % [_player.peer_id, id]
+			_world_root().add_child(fire)
+			fire.ignite(pos)
+		Kind.FLASH:
+			GrenadeFx.flash(_world_root(), pos)
+		Kind.SMOKE:
+			var cloud := SmokeCloud.new()
+			cloud.name = "Smoke_%d_%d" % [_player.peer_id, id]
+			_world_root().add_child(cloud)
+			cloud.start(pos)
 
 
 ## Server: HE damage to everyone in range that the blast can see.
@@ -210,11 +226,3 @@ func _world_root() -> Node:
 	if level is Level:
 		return level
 	return get_tree().current_scene if get_tree().current_scene else get_tree().root
-
-
-## Throw counts as HUD text: "HE 1   Molotov 1".
-func hud_text() -> String:
-	var parts: PackedStringArray = []
-	for kind: int in [Kind.HE, Kind.MOLOTOV]:
-		parts.append("%s %d" % [SHORT_NAMES[kind], counts[kind]])
-	return "   ".join(parts)

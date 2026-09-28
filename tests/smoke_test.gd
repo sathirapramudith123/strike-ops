@@ -39,6 +39,7 @@ func _run() -> void:
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
 	await _test_grenades()
+	await _test_flash_and_smoke()
 	await _test_audio()
 	await _test_controller()
 	_test_friendly_fire_and_match_end()
@@ -551,6 +552,81 @@ func _test_grenades() -> void:
 	await _frames(int(_player.respawn_delay * 60.0) + 15)
 	_check(not _player.health.is_dead and t.counts[Throwables.Kind.HE] == 1 and t.counts[Throwables.Kind.MOLOTOV] == 1,
 		"grenades refilled on respawn")
+
+
+func _test_flash_and_smoke() -> void:
+	var t := _player.throwables
+	_check(t.counts[Throwables.Kind.FLASH] == 2 and t.counts[Throwables.Kind.SMOKE] == 1, "spawn with two flashbangs and a smoke")
+	var slots := _level.hud._weapon_slots.get_children().map(func(l: Label) -> String: return l.text)
+	_check(slots.any(func(x: String) -> bool: return x.begins_with("Flash ×2")) \
+		and slots.any(func(x: String) -> bool: return x.begins_with("Smoke ×1")), "HUD lists flash and smoke")
+
+	# How blind: looking at it, looking away, far away, behind a wall.
+	var space := _player.get_world_3d().direct_space_state
+	var eye := Vector3(0, 1.6, -12)
+	var fl := eye + Vector3(0, -0.5, 4)
+	var facing := GrenadeFx.blind_seconds(space, eye, Vector3(0, 0, 1), fl)
+	var away := GrenadeFx.blind_seconds(space, eye, Vector3(0, 0, -1), fl)
+	var far := GrenadeFx.blind_seconds(space, eye, Vector3(0, 0, 1), eye + Vector3(0, 0, 30))
+	_check(facing > 3.0 and away > 0.0 and away < 1.0 and far == 0.0,
+		"flash blinds by where you look and how far (facing %.1f s, away %.1f s, 30 m %.1f s)" % [facing, away, far])
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4.0, 4.0, 0.3)
+	shape.shape = box
+	wall.add_child(shape)
+	_level.add_child(wall)
+	wall.global_position = eye + Vector3(0, 0, 2)
+	await _frames(2)
+	_check(GrenadeFx.blind_seconds(space, eye, Vector3(0, 0, 1), fl) == 0.0, "walls stop the flash")
+	wall.queue_free()
+
+	# F throws a flash; looking its way whites out the screen.
+	_reset_player(Vector3(0, 0.1, -12), PI)
+	_player.head.rotation.x = deg_to_rad(-5)
+	await _frames(3)
+	_press_action(&"throw_flash")
+	await _frames(2)
+	_check(t.counts[Throwables.Kind.FLASH] == 1, "F throws a flashbang")
+	await _frames(int(Throwables.FUSES[Throwables.Kind.FLASH] * 60.0) + 10)
+	_check(_player.blind_time > 0.5, "flashbang blinds the player looking at it (%.1f s)" % _player.blind_time)
+	await _frames(2)
+	_check(_level.hud._flash_overlay.visible and _level.hud._flash_overlay.color.a > 0.3, "screen whites out")
+	_player.blind_time = 0.0
+
+	# Z throws a smoke; the cloud blocks sight and puts out fire.
+	await _frames(40)
+	_reset_player(Vector3(0, 0.1, -12), PI)
+	_player.head.rotation.x = deg_to_rad(-40)
+	await _frames(3)
+	_press_action(&"throw_smoke")
+	await _frames(int(Throwables.FUSES[Throwables.Kind.SMOKE] * 60.0) + 20)
+	_check(t.counts[Throwables.Kind.SMOKE] == 0, "Z throws a smoke grenade")
+	var cloud := _level.find_child("Smoke_*", true, false) as SmokeCloud
+	_check(cloud != null and cloud.is_active(), "smoke grenade makes a cloud")
+	if cloud:
+		var c := cloud.global_position + Vector3.UP * 1.2
+		_check(SmokeCloud.blocks_line(get_tree(), c + Vector3(-8, 0, 0), c + Vector3(8, 0, 0))
+			and not SmokeCloud.blocks_line(get_tree(), c + Vector3(-8, 0, 8), c + Vector3(8, 0, 8)),
+			"smoke blocks lines through it, not beside it")
+		var bottle := FireZone.new()
+		_level.add_child(bottle)
+		bottle.ignite(cloud.global_position + Vector3.UP * 0.5)
+		await _frames(1)
+		_check(not is_instance_valid(bottle) or not bottle.is_burning(), "Molotov fizzles in smoke")
+		cloud.queue_free()
+		await _frames(2)
+	var fire := FireZone.new()
+	_level.add_child(fire)
+	fire.ignite(Vector3(0, 0.5, -20))
+	_check(fire.is_burning(), "fire lit for the smoke test")
+	var put_out := SmokeCloud.new()
+	_level.add_child(put_out)
+	put_out.start(fire.global_position + Vector3(1.5, 0, 0))
+	_check(not fire.is_burning(), "smoke puts out a burning fire")
+	put_out.queue_free()
+	fire.queue_free()
 
 
 func _test_friendly_fire_and_match_end() -> void:

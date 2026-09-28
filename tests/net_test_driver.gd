@@ -73,6 +73,9 @@ func _run_host() -> void:
 		return true if int(Audio.stats.get("3d:explosion", 0)) > 0 else null)
 	_check(boom == true and client.throwables.counts[Throwables.Kind.HE] == 0,
 		"client's HE grenade is thrown and explodes on the host")
+	var smoke: Variant = await _wait_for(func() -> Variant:
+		return level.find_child("Smoke_*", true, false))
+	_check(smoke is SmokeCloud and (smoke as SmokeCloud).is_active(), "client's smoke grenade makes a cloud on the host")
 
 	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_OPUS)
 
@@ -141,6 +144,11 @@ func _run_client() -> void:
 	var exploded: Variant = await _wait_for(func() -> Variant:
 		return true if int(Audio.stats.get("3d:explosion", 0)) > 0 else null)
 	_check(exploded == true and me.throwables.counts[Throwables.Kind.HE] == 0, "client sees its grenade explode")
+	await _frames(40)
+	_check(me.throwables.throw(Throwables.Kind.SMOKE), "client throws a smoke grenade")
+	# Wait for the cloud like the host does, so both reach the voice test together.
+	var cloud: Variant = await _wait_for(func() -> Variant: return level.find_child("Smoke_*", true, false))
+	_check(cloud is SmokeCloud, "client sees its smoke cloud")
 
 	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_OPUS)
 

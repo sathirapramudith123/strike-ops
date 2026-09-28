@@ -124,6 +124,14 @@ throw_molotov={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":81)]
 }
+throw_flash={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":70)]
+}
+throw_smoke={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":90)]
+}
 push_to_talk_team={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":86)]
