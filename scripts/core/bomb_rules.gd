@@ -158,6 +158,11 @@ func _start_round() -> void:
 	sides_swapped = halftime > 0 and round_number == halftime
 	if sides_swapped:
 		attacking_team = 1 - attacking_team
+	# Money: a fresh start each half; survivors keep their gear otherwise.
+	if round_number == 0 or sides_swapped:
+		Match.economy.server_reset()
+	else:
+		Match.economy.server_prepare_round()
 	round_number += 1
 	phase = Phase.FREEZE
 	phase_time_left = freeze_time
@@ -169,6 +174,7 @@ func _start_round() -> void:
 	_reset_action()
 	_interact.clear()
 
+	NetworkManager.broadcast_roster() # money, before the respawns hand out gear
 	var level := _level()
 	if level:
 		for p in level.get_players():
@@ -205,6 +211,7 @@ func _end_round(winner: int, reason: String) -> void:
 	round_reason = reason
 	_reset_action()
 	Match.team_scores[winner] += 1
+	Match.economy.on_round_end(winner, reason, bomb_state in [BombState.PLANTED, BombState.EXPLODED, BombState.DEFUSED])
 	print("[bomb] Round %d → %s (%s)" % [round_number, GameConfig.TEAM_NAMES[winner], reason])
 	_sync()
 	round_ended.emit(winner, reason)
@@ -265,6 +272,7 @@ func _update_carrier_and_plant(delta: float) -> void:
 				action_progress = 0.0
 			action_progress += delta / PLANT_TIME
 			if action_progress >= 1.0:
+				Match.economy.on_plant(bomb_carrier)
 				_plant(site, carrier.global_position)
 		elif action == Action.PLANT:
 			_reset_action()
@@ -316,6 +324,7 @@ func _update_defuse(delta: float) -> void:
 		bomb_state = BombState.DEFUSED
 		print("[bomb] Bomb defused by %s" % NetworkManager.get_player_name(defuser.peer_id))
 		bomb_defused.emit()
+		Match.economy.on_defuse(defuser.peer_id)
 		_end_round(defending_team(), "Bomb defused")
 
 
@@ -389,7 +398,7 @@ func _sync() -> void:
 func _pack() -> Array:
 	return [phase, phase_time_left, round_number, attacking_team, bomb_state, bomb_carrier,
 		bomb_position, bomb_site, action, action_player, action_progress, round_winner,
-		round_reason, sides_swapped, Match.team_scores, waiting_for_players]
+		round_reason, sides_swapped, Match.team_scores, waiting_for_players, round_time]
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -413,6 +422,7 @@ func _sync_round(data: Array) -> void:
 	sides_swapped = data[13]
 	Match.team_scores = data[14]
 	waiting_for_players = data[15]
+	round_time = data[16]
 	if round_number != old_round:
 		round_started.emit(round_number)
 	if phase == Phase.ROUND_END and old_phase != Phase.ROUND_END:

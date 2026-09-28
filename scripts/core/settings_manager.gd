@@ -44,7 +44,7 @@ const REMAPPABLE_ACTIONS := {
 	&"weapon_4": "Grenades (press again to switch)", &"throw_grenade": "Quick-throw grenade",
 	&"weapon_next": "Next weapon / scope zoom in", &"weapon_prev": "Previous weapon / scope zoom out",
 	&"reload": "Reload", &"shoot": "Fire", &"aim": "Aim down sights", &"fire_mode": "Switch fire mode",
-	&"interact": "Use / pick up / plant / defuse", &"map": "Map",
+	&"interact": "Use / pick up / plant / defuse", &"map": "Map", &"buy_menu": "Buy menu (Bomb Defusal)",
 	&"chat_all": "Chat (all)", &"chat_team": "Chat (team)",
 	&"push_to_talk_team": "Voice chat (team)", &"push_to_talk_proximity": "Voice chat (proximity)",
 	&"scoreboard": "Scoreboard", &"toggle_perf_overlay": "Performance overlay",

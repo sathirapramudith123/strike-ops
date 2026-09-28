@@ -2,8 +2,8 @@ class_name Hud
 extends CanvasLayer
 ## In-game HUD: crosshair, scope, hit markers, health, ammo, weapon slots,
 ## reload bar, damage flash, radar + location name, top bar (clock, scores,
-## player cards), kill feed, scoreboard (Tab), end-of-match results and the
-## F3 performance overlay.
+## player cards), kill feed, scoreboard (Tab), end-of-match results, the
+## F3 performance overlay and — in Bomb Defusal — money and the buy menu (X).
 
 const KILL_FEED_TIME := 5.0
 const KILL_FEED_MAX := 5
@@ -60,6 +60,13 @@ var _flash_overlay: ColorRect
 var _big_map: Minimap
 ## "WALK" under the crosshair while the walk toggle (Caps Lock) is on.
 var _walk_label: Label
+## Bomb Defusal: money (bottom left, over the health), "+$300 Kill" lines
+## under it, and the buy menu.
+var _money_box: VBoxContainer
+var _money_label: Label
+var _buy_hint: Label
+var _money_events: VBoxContainer
+var buy_menu: BuyMenu
 var _feed_style_mine: StyleBoxFlat
 
 
@@ -93,6 +100,7 @@ func bind_player(player: PlayerController) -> void:
 		GamepadInput.rumble(0.6, 0.4, 0.2)
 		Audio.play_local(&"hurt", -4.0, randf_range(0.9, 1.1)))
 	_on_health_changed(player.health.current, player.health.max_health)
+	buy_menu.player = player
 	if player.throwables:
 		player.throwables.changed.connect(_update_weapon_slots)
 	_bind_weapon(player.current_weapon)
@@ -172,6 +180,7 @@ func _ready() -> void:
 	_walk_label.add_theme_constant_override(&"outline_size", 4)
 	_walk_label.visible = false
 	add_child(_walk_label)
+	_build_money()
 	var level := get_parent() as Level
 	_top_bar.level = level
 	if level and not level.preview_only:
@@ -231,6 +240,7 @@ func _process(delta: float) -> void:
 		_scope.amount = clampf((_weapon.ads_blend - 0.85) / 0.15, 0.0, 1.0) if _weapon.data.scoped else 0.0
 	_update_match_bar()
 	_update_bomb_hud()
+	_update_money()
 	_update_banner(delta)
 	_location_timer -= delta
 	if _location_timer <= 0.0:
@@ -441,6 +451,74 @@ func _name_color(peer_id: int) -> Color:
 	if Match.is_team_mode():
 		return GameConfig.team_color(Match.get_team(peer_id)).lightened(0.25)
 	return Color.WHITE
+
+
+func _build_money() -> void:
+	_money_box = VBoxContainer.new()
+	_money_box.name = "Money"
+	_money_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_money_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_money_box.offset_left = 24
+	_money_box.offset_bottom = -84
+	_money_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_money_box.visible = false
+	add_child(_money_box)
+	_money_events = VBoxContainer.new()
+	_money_events.name = "MoneyEvents"
+	_money_box.add_child(_money_events)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 14)
+	_money_box.add_child(row)
+	_money_label = _outlined_label(26, Color(0.55, 0.95, 0.5))
+	_money_label.name = "MoneyLabel"
+	row.add_child(_money_label)
+	_buy_hint = _outlined_label(15, Color(1, 0.9, 0.55))
+	_buy_hint.name = "BuyHint"
+	row.add_child(_buy_hint)
+	buy_menu = BuyMenu.new()
+	add_child(buy_menu)
+	Match.economy.money_event.connect(_on_money_event)
+	Match.economy.buy_refused.connect(func(reason: String) -> void:
+		_add_money_line(reason, Color(1, 0.55, 0.45)))
+
+
+func _outlined_label(font_size: int, color: Color) -> Label:
+	var l := Label.new()
+	l.add_theme_font_size_override(&"font_size", font_size)
+	l.add_theme_color_override(&"font_color", color)
+	l.add_theme_color_override(&"font_outline_color", Color.BLACK)
+	l.add_theme_constant_override(&"outline_size", 5)
+	return l
+
+
+func _update_money() -> void:
+	var active := Economy.is_active() and _player != null
+	_money_box.visible = active
+	if not active:
+		return
+	_money_label.text = "$%d" % Economy.money_of(_player.peer_id)
+	var can_buy := Economy.buy_block_reason(_player) == "" and not buy_menu.visible
+	_buy_hint.visible = can_buy
+	if can_buy:
+		_buy_hint.text = "%s  Buy  (%ds)" % [SettingsManager.prompt_text(BuyMenu.BUY_ACTION), ceili(Economy.buy_time_left())]
+
+
+func _on_money_event(amount: int, text: String) -> void:
+	_add_money_line("%s$%d  %s" % ["+" if amount >= 0 else "-", absi(amount), text],
+		Color(0.6, 1, 0.55) if amount >= 0 else Color(1, 0.55, 0.45))
+
+
+## A line over the money that fades out after a few seconds.
+func _add_money_line(text: String, color: Color) -> void:
+	var l := _outlined_label(15, color)
+	l.text = text
+	_money_events.add_child(l)
+	while _money_events.get_child_count() > 4:
+		_money_events.get_child(0).free()
+	var tween := l.create_tween()
+	tween.tween_interval(3.0)
+	tween.tween_property(l, "modulate:a", 0.0, 1.0)
+	tween.tween_callback(l.queue_free)
 
 
 ## Right-hand weapon list (CS style): the current weapon bright, others dim.

@@ -82,7 +82,8 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
 var current_weapon: Weapon
-## Loadout: primary weapon id (GameConfig.PRIMARY_WEAPONS) + the pistol + the knife.
+## Loadout: primary weapon id (GameConfig.PRIMARY_WEAPONS; "" = none, Bomb
+## Defusal before buying one) + the pistol + the knife.
 var primary_id: String = GameConfig.DEFAULT_PRIMARY
 ## 0 = primary, 1 = secondary (pistol), 2 = knife.
 var current_slot: int = 0
@@ -204,7 +205,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if throwables and throwables.is_holding():
 			select_slot(current_slot, true)
 		else:
-			select_slot(posmod(current_slot + step, SLOT_COUNT))
+			select_slot(_next_slot(current_slot, step))
 	elif event.is_action_pressed(&"fire_mode"):
 		if current_weapon:
 			current_weapon.cycle_fire_mode()
@@ -330,21 +331,47 @@ func _physics_process(delta: float) -> void:
 # Public API
 # -----------------------------------------------------------------------------
 
-## Weapons in slot order: [primary, secondary, knife].
+## Weapons in slot order: [primary (null if none), secondary, knife].
 func loadout_weapons() -> Array[Weapon]:
-	var primary: Weapon = weapons.get(primary_id, weapons.get(GameConfig.DEFAULT_PRIMARY))
+	var primary: Weapon = weapons.get(primary_id) if primary_id != "" else null
 	return [primary, weapons.get(GameConfig.SECONDARY_WEAPON), weapons.get(GameConfig.MELEE_WEAPON)]
 
 
-## Sets the primary weapon, refills ammo and equips `slot` (spawn / respawn).
+## Sets the primary weapon, refills ammo and equips `slot` (spawn / respawn);
+## the pistol if there is no primary.
 func apply_loadout(primary: String, slot: int = 0) -> void:
-	primary_id = primary if weapons.has(primary) else GameConfig.DEFAULT_PRIMARY
+	primary_id = primary if primary == "" or weapons.has(primary) else GameConfig.DEFAULT_PRIMARY
 	# No health regeneration in Bomb Defusal (damage carries through a round).
 	health.regen_per_second = 0.0 if Match.mode == GameConfig.Mode.BOMB else _default_regen
 	for w: Weapon in weapons.values():
 		w.refill_ammo()
 	current_slot = -1
-	_equip_slot(clampi(slot, 0, SLOT_COUNT - 1))
+	slot = clampi(slot, 0, SLOT_COUNT - 1)
+	if loadout_weapons()[slot] == null:
+		slot = 1
+	_equip_slot(slot)
+
+
+## A bought primary (Bomb Defusal): replaces the old one, full ammo, in hand.
+func give_primary(primary: String) -> void:
+	if not weapons.has(primary):
+		return
+	if throwables and throwables.is_holding():
+		throwables.put_away()
+	primary_id = primary
+	(weapons[primary] as Weapon).refill_ammo()
+	_equip_slot(0)
+	play_equip_sound()
+
+
+## The next slot that holds a weapon, going `step` from `slot`.
+func _next_slot(slot: int, step: int) -> int:
+	var ws := loadout_weapons()
+	for i in range(1, SLOT_COUNT + 1):
+		var s := posmod(slot + step * i, SLOT_COUNT)
+		if ws[s] != null:
+			return s
+	return slot
 
 
 ## Local player switches weapon (keys 1/2/3, mouse wheel); replicated via
@@ -358,6 +385,8 @@ func select_slot(slot: int, force: bool = false) -> void:
 			play_equip_sound()
 			return
 	if slot == current_slot and not force:
+		return
+	if loadout_weapons()[slot] == null:
 		return
 	_equip_slot(slot)
 	play_equip_sound()
@@ -411,10 +440,11 @@ func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 	_recoil.y += deg_to_rad(yaw_degrees)
 
 
-## Called on every peer by PlayerNetSync when the server respawns this player.
-func respawn_at(xform: Transform3D, primary: String) -> void:
+## Called on every peer by PlayerNetSync when the server respawns this
+## player. `nades`: grenade counts carried into the round (Bomb Defusal).
+func respawn_at(xform: Transform3D, primary: String, nades: Array = []) -> void:
 	apply_loadout(primary, 0)
-	throwables.refill()
+	throwables.refill(nades)
 	blind_time = 0.0
 	global_transform = xform
 	head.rotation = Vector3.ZERO

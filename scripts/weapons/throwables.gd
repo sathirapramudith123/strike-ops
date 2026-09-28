@@ -1,7 +1,8 @@
 class_name Throwables
 extends Node
-## Grenades a player carries, refilled every life (every round in Bomb
-## Defusal): one HE grenade, one Molotov, two flashbangs and one smoke.
+## Grenades a player carries, refilled every life: one HE grenade, one
+## Molotov, two flashbangs and one smoke. In Bomb Defusal they are bought
+## instead (Economy) and kept by survivors into the next round.
 ## Key 4 takes one in hand (press again for the next type) — the gun is put
 ## away — then left click throws it (right click: a short underhand lob) and
 ## the gun comes back; 1 / 2 / 3 or the wheel put it away. G quick-throws
@@ -61,6 +62,9 @@ var _hand_model: Node3D
 
 func _ready() -> void:
 	_player = get_parent() as PlayerController
+	# Same rule on every peer: Bomb Defusal players buy their grenades.
+	if Match.mode == GameConfig.Mode.BOMB:
+		_set_counts([0, 0, 0, 0])
 
 
 func _process(delta: float) -> void:
@@ -151,11 +155,47 @@ func _first_available() -> int:
 
 
 ## Refill on (re)spawn — every peer does this, so no RPC is needed.
-func refill() -> void:
+## `nades` (counts by Kind) is what a Bomb Defusal player carries; without
+## it Bomb Defusal starts empty and the other modes full.
+func refill(nades: Array = []) -> void:
 	if held_kind >= 0:
 		put_away()
-	counts = START_COUNTS.duplicate()
+	if nades.size() == Kind.size():
+		_set_counts(nades)
+	elif Match.mode == GameConfig.Mode.BOMB:
+		_set_counts([0, 0, 0, 0])
+	else:
+		counts = START_COUNTS.duplicate()
 	changed.emit()
+
+
+## Counts by Kind (HE, Molotov, flash, smoke).
+func counts_array() -> Array:
+	var result := []
+	for kind in Kind.size():
+		result.append(counts.get(kind, 0))
+	return result
+
+
+## Server: new counts (bought grenades), sent to every peer.
+func server_set_counts(nades: Array) -> void:
+	if not multiplayer.is_server():
+		return
+	_set_counts(nades)
+	changed.emit()
+	NetworkManager.send_to_ready(self, &"_client_counts", [nades])
+
+
+@rpc("authority", "call_remote", "reliable")
+func _client_counts(nades: Array) -> void:
+	_set_counts(nades)
+	changed.emit()
+
+
+func _set_counts(nades: Array) -> void:
+	counts = {}
+	for kind in Kind.size():
+		counts[kind] = clampi(int(nades[kind]) if kind < nades.size() else 0, 0, 9)
 
 
 func can_throw(kind: int) -> bool:

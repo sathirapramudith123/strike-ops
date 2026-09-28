@@ -2,6 +2,19 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Money and the buy menu (Bomb Defusal):** everyone starts a half with
+$800 and only the pistol and knife. Press **X** near your spawn during the
+freeze time and the first 20 s of a round to buy guns (AR-7 $2700, SMG
+$1250, shotgun $1100, sniper $4750), armour ($650, with helmet $1000) and
+grenades (HE $300, flash $200, smoke $300, Molotov $400). Earn money for
+kills ($300; knife $1500, shotgun $900, SMG $600, sniper $100), plants and
+defuses ($300), round wins ($3250, $3500 by the bomb) and losses ($1400,
+growing by $500 per loss in a row up to $3400, +$800 for attackers who
+planted). Survivors keep their gun, armour and grenades into the next
+round; halftime resets everything. Armour is no longer free, and head hits
+only hit armour with a helmet. Money shows over your health, with a line
+for every reward. The other modes keep free loadouts.
+
 **New control layout:** WASD, hold Shift to sprint, C crouch, Ctrl slide,
 Space jump, **Q / E lean**, **Caps Lock walk toggle**, 1 / 2 guns, **3 knife**,
 **4 grenades** (press again to switch, click to throw, right click to lob,

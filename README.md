@@ -334,7 +334,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps/bridges/gangways of every map, the Kasbah terrace, doors and covered corridor, routes through Factory, Office, Subway (platforms, track beds, the train) and Train Yard, the radar outline and location names, first-person arms and the reload animations, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap, money and the buy menu: prices, limits, rewards, buy time and zone, gear kept by survivors — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps/bridges/gangways of every map, the Kasbah terrace, doors and covered corridor, routes through Factory, Office, Subway (platforms, track beds, the train) and Train Yard, the radar outline and location names, first-person arms and the reload animations, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -465,7 +465,7 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 | **Reload (others)** | `PlayerNetSync` sends a `RELOADING` flag; `PlayerModel` tips the gun and swings its separate left arm; the *mag out* sound plays at the player |
 | **More maps** | `factory()`, `office()`, `subway()`, `trainyard()` in `tools/greybox.py`; new helpers for trucks, containers, freight cars, rails, desks, strip lights; new materials (brick, tile, carpet, glass, gravel, sleepers…) and an emissive *lamp* kind so indoor maps stay lit on Low, where real lights are off |
 
-| **Armour** | `Health.uses_armor` (players): 100 at each Bomb Defusal round (and spawn), absorbs `ARMOR_ABSORB` = 40 % of weapon damage; synced with health; falls/bomb ignore it |
+| **Armour** | `Health.uses_armor` (players): bought in Bomb Defusal (`Health.server_set_armor`, kept by survivors; `helmet` covers head hits), absorbs `ARMOR_ABSORB` = 40 % of weapon damage; synced with health; falls/bomb ignore it |
 | **HUD details** | Health + armour row with bars, ammo bullet marks, drawn faces on top-bar cards (`TopBar._draw_face`), map name banner (`Hud.show_banner`, 6 s), radar with boxed sites and teammate view ticks |
 | **Detail textures** | `tools/make_textures.py` (numpy + Pillow) writes two tileable 512² texture arrays, 7 layers each: `assets/textures/surfaces_albedo.png` (colour around mid-grey + roughness) and `surfaces_normal.png`. They are global shader uniforms (`surface_albedo`, `surface_normal`); `prototype_grid.gdshader` picks a layer by surface kind and projects it in world space, only when *Surface detail* is on (Medium+). To use photo textures instead, replace a layer keeping size and order |
 | **Enterable buildings** | `_house(m, x0, x1, z0, z1, mat, floors, fh, doors, windows, stair_side)` in `tools/greybox.py`: walls with real door/window openings per floor (`_wall_openings`), a ramp stair along one wall, upper floor slabs with a railed stair hole, roof, lights and a reverb zone. Options: doors on upper floors (`(face, offset, width, floor)`), `stair_angle`, `roof_access`. Used for Kasbah's A House and B House, Factory's Lanka Steel, two Rooftops buildings and the Docks harbour office |
@@ -541,17 +541,34 @@ Match flow: the server runs the clock and score → **results screen** (winner +
 | Rule | Detail |
 |------|--------|
 | Sides | Red attacks first, Blue defends; **sides swap at halftime** (after `rounds to win − 1` rounds) |
-| Round | **5 s freeze** (can't move or shoot — pick your loadout) → **1:45** to plant → bomb timer **40 s** → 5 s round result |
+| Round | **5 s freeze** (can't move or shoot — buy with `X`) → **1:45** to plant → bomb timer **40 s** → 5 s round result |
 | Bomb | Given to a random attacker when the round goes live; carried on their back (visible to others); **dropped where the carrier dies**, any attacker can walk over it to pick it up |
-| Plant | Carrier stands still inside site **A** or **B** (orange floor + big letter) and **holds `E` for 3 s** |
-| Defuse | A defender stands still next to the bomb and **holds `E` for 5 s** (anyone can interrupt by killing them) |
+| Plant | Carrier stands still inside site **A** or **B** (orange floor + big letter) and **holds `F` for 3 s** |
+| Defuse | A defender stands still next to the bomb and **holds `F` for 5 s** (anyone can interrupt by killing them) |
 | Win a round | Attackers: bomb explodes (blast radius 15 m) or all defenders dead. Defenders: bomb defused, all attackers dead before a plant, or time runs out |
-| Death | **No respawn during a round** — you spectate living teammates (`Shoot` = next); no health regen; next round revives everyone with full ammo |
+| Death | **No respawn during a round** — you spectate living teammates (`Shoot` = next); no health regen; next round revives everyone with full ammo — survivors keep their gear, the dead start with pistol + knife |
 | Joining | Freeze time waits until both teams have a player; joining mid-round = spectate until the next round |
 
-Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only send "holding E / released" and the server checks site, distance, standing still and timers. Bomb sites are `Marker3D`s in the level's `bomb_sites` list (`tools/greybox.py` → `m.site("A", pos)`).
+**Money and the buy menu** (`scripts/core/economy.gd`, `scripts/ui/buy_menu.gd`) — Bomb Defusal only; the other modes keep free loadouts.
 
-**Weapons** — loadout = one primary + the pistol. Switch with `1` / `2` / mouse wheel; pick your primary in the `Esc` menu (applies on your next spawn).
+| | |
+|---|---|
+| Start | **$800** each half (halftime resets money and gear), max **$16,000**. Everyone starts with the pistol and knife |
+| Buy | Press **`X`** near your side's spawn during the freeze time and the first **20 s** of the round (the HUD shows `X Buy (18s)`). Click an item; the menu closes when buy time ends or you leave the spawn |
+| Guns | AR-7 **$2700**, V-10 SMG **$1250**, M-12 Shotgun **$1100**, LR-50 Sniper **$4750** (a new gun replaces the old primary) |
+| Armour | Kevlar **$650**, Kevlar + Helmet **$1000** (helmet alone **$350** with a full vest). Without a helmet, head hits ignore armour |
+| Grenades | HE **$300**, Flash **$200** (max 2), Smoke **$300**, Molotov **$400** — 1 of each other kind, 4 in total |
+| Round win | **$3250**, or **$3500** by exploding / defusing the bomb |
+| Round loss | **$1400**, +$500 for each loss in a row (max **$3400**); attackers who planted but lost get **+$800** |
+| Kills | **$300**; knife $1500, shotgun $900, SMG $600, sniper $100; no money for teammates |
+| Objective | Plant **+$300**, defuse **+$300** |
+| Next round | Survivors keep gun, armour, helmet and grenades; anyone who died starts over with pistol + knife |
+
+The server checks money, buy time and zone; money lives in the roster (`money`) and every reward shows under your money (`+$300 Kill (AR-7)`).
+
+Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only send "holding F / released" and the server checks site, distance, standing still and timers. Bomb sites are `Marker3D`s in the level's `bomb_sites` list (`tools/greybox.py` → `m.site("A", pos)`).
+
+**Weapons** — loadout = one primary + the pistol. Switch with `1` / `2` / mouse wheel; pick your primary in the `Esc` menu (applies on your next spawn). In Bomb Defusal guns are bought instead (see above).
 
 | Weapon | Type | Damage | Head | Armour pen. | RPM | Mag | Notes |
 |--------|------|--------|------|-------------|-----|-----|-------|
@@ -572,7 +589,7 @@ Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only 
 
 With armour (Bomb Defusal), the armour soaks `1 − armour penetration` of the hit and loses that much; the rest goes to health. A rifle bullet keeps 78 % of its damage against armour, a pistol bullet only half. Falls and the bomb ignore armour. Zones are worked out on the server from the rewound (lag-compensated) player shapes: `Hitbox.zone_at()` and `ZONE_MULTIPLIERS` in `scripts/core/hitbox.gd`, `armor_penetration` in each `WeaponData`.
 
-**Grenades** — everyone gets one **HE grenade** (`G`), one **Molotov** (`Q`), two **flashbangs** (`F`) and one **smoke** (`Z`) per life (per round in Bomb Defusal), thrown straight away without switching from the gun (`scripts/weapons/throwables.gd`):
+**Grenades** — everyone gets one **HE grenade** (`G`), one **Molotov** (`Q`), two **flashbangs** (`F`) and one **smoke** (`Z`) per life (bought in Bomb Defusal), thrown straight away without switching from the gun (`scripts/weapons/throwables.gd`):
 
 | Grenade | Goes off | Damage | Armour |
 |---------|----------|--------|--------|
@@ -611,7 +628,7 @@ All maps except the Test Range are generated by **`tools/greybox.py`** (boxes, r
 
 ### Testing multiplayer locally
 
-- **Automated:** `tools/run_net_test.sh /path/to/godot` runs three host + client pairs on localhost. First, it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **rotates to Warehouse**, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client walks to site B and plants, the host walks over and defuses (Blue 1–0), the client eliminates the host (1–1), then plants again and the bomb explodes — Red wins 2–1 on both sides. A third pair is a **hacked client** that fires at the legal rate but never reloads: the server accepts exactly one magazine (30 hits) and kicks it, and the kick reason appears in its main menu.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` runs three host + client pairs on localhost. First, it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **rotates to Warehouse**, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client buys a vest in the buy menu, walks to site B and plants, the host walks over and defuses (Blue 1–0), the client buys an SMG with its round money and eliminates the host (1–1), keeps the SMG, then plants again and the bomb explodes — Red wins 2–1 on both sides. A third pair is a **hacked client** that fires at the legal rate but never reloads: the server accepts exactly one magazine (30 hits) and kicks it, and the kick reason appears in its main menu.
 - **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---

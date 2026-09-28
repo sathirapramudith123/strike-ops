@@ -923,6 +923,54 @@ func await_safe_cleanup(mate: PlayerController, enemy: PlayerController) -> void
 	Match.start_match()
 
 
+## Round 1 freeze time at the red spawn: money, the buy menu and its limits.
+func _test_buying() -> void:
+	var eco := Match.economy
+	var hud := _level.hud
+	_check(Economy.money_of(1) == Economy.START_MONEY, "start with $%d" % Economy.START_MONEY)
+	_check(_player.primary_id == "" and _player.current_weapon.data.weapon_id == "pistol"
+		and is_zero_approx(_player.health.armor) and _player.throwables.counts_array() == [0, 0, 0, 0],
+		"first round: pistol and knife, no armour, no grenades")
+	_check(Economy.buy_block_reason(_player) == "", "can buy at the spawn in freeze time")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(hud._buy_hint.visible and "Buy" in hud._buy_hint.text and hud._money_label.text == "$800",
+		"HUD shows the money and the buy key (%s / %s)" % [hud._money_label.text, hud._buy_hint.text])
+	_press_action(&"buy_menu")
+	await _frames(2)
+	await get_tree().process_frame
+	var menu := hud.buy_menu
+	_check(menu.visible and not _player.input_enabled, "X opens the buy menu")
+	_check(not menu._buttons["vest"].disabled and menu._buttons["sniper"].disabled
+		and menu._buttons["sniper"].tooltip_text == "Not enough money", "unaffordable items are greyed out")
+	menu._buttons["vest"].pressed.emit()
+	await _frames(1)
+	_check(is_equal_approx(_player.health.armor, 100.0) and not _player.health.helmet
+		and Economy.money_of(1) == Economy.START_MONEY - 650, "bought a vest for $650")
+	var refused := []
+	eco.buy_refused.connect(func(r: String) -> void: refused.append(r))
+	eco.request_buy("rifle")
+	_check(_player.primary_id == "" and refused == ["Not enough money"], "can't buy without the money")
+	_press_action(&"buy_menu")
+	await _frames(2)
+	_check(not menu.visible and _player.input_enabled, "X closes it again")
+
+	NetworkManager.roster[1].money = 10000
+	eco.request_buy("rifle")
+	_check(_player.primary_id == "rifle" and _player.current_weapon.data.weapon_id == "rifle"
+		and Economy.money_of(1) == 10000 - 2700, "bought the AR-7: in hand, $2700 taken")
+	eco.request_buy("rifle")
+	_check(refused.back() == "You already have it", "no second copy of the same gun")
+	_check(Economy.price_of("vest_helmet", _player) == Economy.HELMET_PRICE, "full vest: the helmet alone costs $%d" % Economy.HELMET_PRICE)
+	eco.request_buy("vest_helmet")
+	_check(_player.health.helmet and Economy.money_of(1) == 10000 - 2700 - Economy.HELMET_PRICE, "bought the helmet")
+	for item: String in ["flash", "flash", "flash", "he", "smoke", "molotov"]:
+		eco.request_buy(item)
+	_check(_player.throwables.counts_array() == [1, 0, 2, 1], "2 flashes, 1 HE, 1 smoke (%s)" % str(_player.throwables.counts_array()))
+	_check(refused.slice(-2) == ["You can't carry more", "You can't carry more grenades"], "grenade limits (%s)" % str(refused))
+	NetworkManager.roster[1].money = 400
+
+
 ## Full Bomb Defusal match offline: us (attacker, red) vs a scripted defender.
 func _test_bomb_defusal() -> void:
 	var b := Match.bomb
@@ -941,6 +989,7 @@ func _test_bomb_defusal() -> void:
 	await _frames(2)
 	_check(b.round_number == 1 and b.phase == BombRules.Phase.FREEZE, "round 1 starts in freeze time")
 	_check(b.is_attacker(1) and not b.is_attacker(402), "red attacks, blue defends")
+	await _test_buying()
 	var start := _player.global_position
 	Input.action_press(&"move_forward")
 	await _frames(15)
@@ -950,8 +999,8 @@ func _test_bomb_defusal() -> void:
 	await _frames(30)
 	_check(b.phase == BombRules.Phase.LIVE, "round goes live after freeze")
 	_check(b.bomb_carrier == 1 and b.bomb_state == BombRules.BombState.CARRIED, "the attacker gets the bomb when the round goes live")
-	# Armour: full each Bomb Defusal round; soaks 40 % of a weapon hit.
-	_check(is_equal_approx(_player.health.armor, 100.0), "bomb round starts with 100 armour")
+	# Armour (bought above): soaks 40 % of a weapon hit.
+	_check(is_equal_approx(_player.health.armor, 100.0), "bought armour is full")
 	_player.health.take_damage(50.0, defender)
 	_check(is_equal_approx(_player.health.current, 70.0) and is_equal_approx(_player.health.armor, 80.0),
 		"armour takes 40 %% of a hit (health %.0f, armour %.0f)" % [_player.health.current, _player.health.armor])
@@ -974,6 +1023,19 @@ func _test_bomb_defusal() -> void:
 	_check(is_equal_approx(_player.health.current, 80.0) and is_equal_approx(_player.health.armor, armour_before),
 		"leg hits ignore armour")
 	_player.health.heal(100.0)
+	# The helmet makes armour cover head hits too.
+	armour_before = _player.health.armor
+	_player.health.take_damage(20.0, defender, true, "", 0.5)
+	_check(is_equal_approx(_player.health.current, 90.0) and _player.health.armor < armour_before,
+		"helmet: armour soaks a head hit (health %.1f)" % _player.health.current)
+	_player.health.heal(100.0)
+	_player.health.helmet = false
+	armour_before = _player.health.armor
+	_player.health.take_damage(20.0, defender, true, "", 0.5)
+	_check(is_equal_approx(_player.health.current, 80.0) and is_equal_approx(_player.health.armor, armour_before),
+		"no helmet: head hits ignore armour")
+	_player.health.helmet = true
+	_player.health.heal(100.0)
 
 	# Drop + pick up.
 	b.on_player_down(1, _player.global_position + Vector3(0.5, 0, 0))
@@ -982,6 +1044,9 @@ func _test_bomb_defusal() -> void:
 	_check(b.bomb_state == BombRules.BombState.CARRIED and b.bomb_carrier == 1, "attacker picks the dropped bomb up")
 
 	# Round 1: plant at B, the defender defuses.
+	var money_before := Economy.money_of(1)
+	var defender_money := Economy.money_of(402)
+	var armour_kept := _player.health.armor
 	_reset_player(Vector3(9, 0.1, 0))
 	await _frames(5)
 	_check(b.site_at(_player.global_position) == "B", "standing inside site B")
@@ -990,6 +1055,7 @@ func _test_bomb_defusal() -> void:
 	b.request_interact(false)
 	_check(b.bomb_state == BombRules.BombState.PLANTED and b.bomb_site == "B" and b.phase == BombRules.Phase.PLANTED,
 		"bomb planted at B after holding interact")
+	_check(Economy.money_of(1) == money_before + Economy.PLANT_REWARD, "planting pays $%d" % Economy.PLANT_REWARD)
 	b.bomb_time = 30.0 # give the defender time in this round
 	b.phase_time_left = 30.0
 	defender.global_position = b.bomb_position + Vector3(1.0, 0, 0)
@@ -999,11 +1065,20 @@ func _test_bomb_defusal() -> void:
 	_check(b.bomb_state == BombRules.BombState.DEFUSED and b.round_winner == 0 and b.round_reason == "Bomb defused",
 		"defender defuses → Blue wins the round")
 	_check(Match.team_scores[0] == 1 and Match.team_scores[1] == 0, "round score 1–0")
+	_check(Economy.money_of(402) == defender_money + Economy.DEFUSE_REWARD + Economy.BOMB_WIN_REWARD,
+		"defuser gets the defuse and bomb win money ($%d)" % Economy.money_of(402))
+	_check(Economy.money_of(1) == money_before + Economy.PLANT_REWARD + Economy.LOSS_REWARD + Economy.PLANTED_LOSS_BONUS,
+		"losing attackers get the loss bonus + $%d for the plant ($%d)" % [Economy.PLANTED_LOSS_BONUS, Economy.money_of(1)])
+	var rewards := _level.hud._money_events.get_children().map(func(l: Label) -> String: return l.text)
+	_check(rewards.any(func(x: String) -> bool: return "Round lost" in x), "HUD shows the round money (%s)" % str(rewards))
 
 	# Round 2: plant at A and let it explode (we stay next to it).
 	b.bomb_time = 2.0
 	await _frames(45)
 	_check(b.round_number == 2 and not _player.health.is_dead and not defender.health.is_dead, "round 2: everyone revived")
+	_check(_player.primary_id == "rifle" and is_equal_approx(_player.health.armor, armour_kept) and _player.health.helmet
+		and _player.throwables.counts[Throwables.Kind.FLASH] == 2 and _player.throwables.counts[Throwables.Kind.SMOKE] == 1,
+		"a survivor keeps gun, armour, helmet and grenades (%s, %.0f)" % [_player.primary_id, _player.health.armor])
 	await _frames(35)
 	_reset_player(Vector3(-16, 0.1, -4))
 	await _frames(3)
@@ -1019,11 +1094,23 @@ func _test_bomb_defusal() -> void:
 
 	# Round 3: eliminate the defender → Red reaches 2 round wins.
 	await _frames(45)
+	_check(b.round_number == 3 and _player.primary_id == "" and _player.current_weapon.data.weapon_id == "pistol"
+		and is_zero_approx(_player.health.armor) and _player.throwables.counts_array() == [0, 0, 0, 0],
+		"after dying: pistol and knife only, no armour, no grenades")
 	await _frames(35)
 	_check(b.phase == BombRules.Phase.LIVE and b.round_number == 3, "round 3 live")
+	_check(Economy.buy_block_reason(_player) == "", "buying stays open just after the freeze time")
+	_reset_player(Vector3(-16, 0.1, -4)) # site A, well away from the red spawn
+	await _frames(2)
+	_check(Economy.buy_block_reason(_player) == "Go back to your spawn to buy", "no buying away from your spawn")
+	b.phase_time_left = b.round_time - Economy.BUY_TIME - 1.0
+	_check(Economy.buy_time_left() <= 0.0, "buy time closes %ds into the round" % Economy.BUY_TIME)
+	money_before = Economy.money_of(1)
 	defender.health.take_damage(500.0, _player)
 	await _frames(2)
 	_check(b.round_reason == "Defenders eliminated", "eliminating the defenders wins the round")
+	_check(Economy.money_of(1) == money_before + Economy.KILL_REWARD + Economy.WIN_REWARD,
+		"pistol kill $%d + round win $%d ($%d)" % [Economy.KILL_REWARD, Economy.WIN_REWARD, Economy.money_of(1)])
 	_check(Match.is_ended() and Match.winner_text == "Red team wins!", "match ends at the round limit (%s)" % Match.winner_text)
 
 	# Halftime: sides swap after the configured number of rounds.
@@ -1034,6 +1121,8 @@ func _test_bomb_defusal() -> void:
 	b._end_round(0, "test")
 	b._start_round()
 	_check(b.attacking_team != first and b.sides_swapped, "sides swap at halftime")
+	_check(Economy.money_of(1) == Economy.START_MONEY and Economy.money_of(402) == Economy.START_MONEY,
+		"halftime resets the money")
 
 	_level.despawn_player(402)
 	NetworkManager.roster.erase(402)

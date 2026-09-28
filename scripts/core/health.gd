@@ -18,9 +18,10 @@ const NET_GROUP := &"net_health"
 ## Seconds without damage before regeneration starts (0 = no regen).
 @export var regen_delay: float = 0.0
 @export var regen_per_second: float = 0.0
-## Players get armour (Bomb Defusal only, full at each round start). While
-## there is armour, it takes ARMOR_ABSORB of every weapon hit and loses that
-## much; the rest hurts. Falls and the bomb ignore armour.
+## Players can wear armour (Bomb Defusal only, bought in the buy menu —
+## see Economy). While there is armour, it takes ARMOR_ABSORB of every weapon
+## hit and loses that much; the rest hurts. Head hits only when there is a
+## helmet too. Falls and the bomb ignore armour.
 @export var uses_armor: bool = false
 const MAX_ARMOR := 100.0
 ## Share of a hit the armour soaks when the attacker gives no penetration
@@ -29,6 +30,8 @@ const ARMOR_ABSORB := 0.4
 
 var current: float
 var armor: float = 0.0
+## Bomb Defusal: armour covers the head too.
+var helmet: bool = false
 var is_dead: bool = false
 ## Whether the most recent hit was a headshot (used for kill feed).
 var last_hit_headshot: bool = false
@@ -45,9 +48,6 @@ var _regen_sync_timer: float = 0.0
 
 func _ready() -> void:
 	current = max_health
-	# Same rule on every peer, so players who spawn mid-freeze have armour too.
-	if uses_armor and Match.mode == GameConfig.Mode.BOMB:
-		armor = MAX_ARMOR
 	add_to_group(NET_GROUP)
 
 
@@ -80,7 +80,7 @@ func take_damage(amount: float, source: Node = null, is_headshot: bool = false, 
 	last_cause = cause
 	silent_death = false
 	var hurt := amount
-	if armor > 0.0 and source != null and armored:
+	if armor > 0.0 and source != null and armored and (helmet or not is_headshot):
 		var soak := ARMOR_ABSORB if armor_penetration < 0.0 else 1.0 - clampf(armor_penetration, 0.0, 1.0)
 		var absorbed := minf(amount * soak, armor)
 		armor -= absorbed
@@ -107,18 +107,29 @@ func heal(amount: float) -> void:
 	health_changed.emit(current, max_health)
 
 
-## Server only.
-func revive() -> void:
+## Server only. Bomb Defusal passes the armour the player carries into the round.
+func revive(new_armor: float = 0.0, new_helmet: bool = false) -> void:
 	if not multiplayer.is_server():
 		return
 	is_dead = false
 	current = max_health
-	armor = MAX_ARMOR if uses_armor and Match.mode == GameConfig.Mode.BOMB else 0.0
+	armor = clampf(new_armor, 0.0, MAX_ARMOR) if uses_armor else 0.0
+	helmet = new_helmet and armor > 0.0
 	_time_since_damage = 0.0
 	_broadcast(0.0)
 	health_changed.emit(current, max_health)
 	armor_changed.emit(armor)
 	revived.emit()
+
+
+## Server only: armour (and helmet) bought in the buy menu.
+func server_set_armor(new_armor: float, new_helmet: bool) -> void:
+	if not multiplayer.is_server() or not uses_armor:
+		return
+	armor = clampf(new_armor, 0.0, MAX_ARMOR)
+	helmet = new_helmet and armor > 0.0
+	_broadcast(0.0)
+	armor_changed.emit(armor)
 
 
 ## Server only: mark as dead without a kill (joined mid-round, switched team).
@@ -145,19 +156,21 @@ func is_protected() -> bool:
 ## Server only: sends the current state to one peer (late joiners).
 func send_state_to(peer_id: int) -> void:
 	if is_inside_tree():
-		_net_sync.rpc_id(peer_id, current, is_dead, 0.0, false, armor)
+		_net_sync.rpc_id(peer_id, current, is_dead, 0.0, false, armor, helmet)
 
 
 func _broadcast(damage_amount: float, is_headshot: bool = false) -> void:
-	NetworkManager.send_to_ready(self, &"_net_sync", [current, is_dead, damage_amount, is_headshot, armor])
+	NetworkManager.send_to_ready(self, &"_net_sync", [current, is_dead, damage_amount, is_headshot, armor, helmet])
 
 
 @rpc("authority", "call_remote", "reliable")
-func _net_sync(new_current: float, new_dead: bool, damage_amount: float, is_headshot: bool, new_armor: float = 0.0) -> void:
+func _net_sync(new_current: float, new_dead: bool, damage_amount: float, is_headshot: bool,
+		new_armor: float = 0.0, new_helmet: bool = false) -> void:
 	var was_dead := is_dead
 	current = new_current
-	if new_armor != armor:
+	if new_armor != armor or new_helmet != helmet:
 		armor = new_armor
+		helmet = new_helmet
 		armor_changed.emit(armor)
 	is_dead = new_dead
 	last_hit_headshot = is_headshot

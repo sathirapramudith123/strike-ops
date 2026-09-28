@@ -140,6 +140,10 @@ throw_grenade={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":71)]
 }
+buy_menu={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":88)]
+}
 push_to_talk_team={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":85)]

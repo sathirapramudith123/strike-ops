@@ -41,12 +41,17 @@ var _sync_timer: float = 0.0
 
 ## Round logic for Bomb Defusal.
 var bomb: BombRules
+## Money and the buy menu (Bomb Defusal).
+var economy: Economy
 
 
 func _ready() -> void:
 	bomb = BombRules.new()
 	bomb.name = "BombRules"
 	add_child(bomb)
+	economy = Economy.new()
+	economy.name = "Economy"
+	add_child(economy)
 
 
 func _process(delta: float) -> void:
@@ -165,6 +170,7 @@ func on_kill(killer_id: int, victim_id: int) -> void:
 	if mode == GameConfig.Mode.BOMB:
 		var level := NetworkManager.current_level()
 		var victim := level.get_player(victim_id) if level else null
+		economy.on_kill(killer_id, victim_id)
 		bomb.on_player_down(victim_id, victim.global_position if victim else Vector3.ZERO)
 	elif is_team_mode():
 		var t := get_team(killer_id)
