@@ -5,7 +5,8 @@ extends Node3D
 ## everyone standing in it (TICK at a time, armour does not help); every
 ## peer shows the flames, smoke, flickering light and crackle.
 ## Teammates of the thrower are not hurt (same rule as bullets); the
-## thrower is.
+## thrower is. A smoke grenade puts it out (extinguish), and a bottle that
+## breaks inside a smoke cloud doesn't light at all.
 
 const RADIUS := 3.0
 const DURATION := 7.0
@@ -16,6 +17,7 @@ const BELOW := 0.6
 const ABOVE := 1.2
 ## How far down the fire looks for a floor when the bottle broke in the air.
 const DROP := 25.0
+const GROUP := &"fire_zone"
 
 var thrower: PlayerController
 var _time := 0.0
@@ -35,11 +37,25 @@ func ignite(pos: Vector3) -> void:
 		queue_free()
 		return
 	global_position = hit.position + Vector3.UP * 0.02
+	for node in get_tree().get_nodes_in_group(SmokeCloud.GROUP):
+		if (node as SmokeCloud).covers_point(global_position + Vector3.UP * 0.2, 0.5):
+			# Fizzles in the smoke: just the glass breaking.
+			if not NetworkManager.is_dedicated():
+				Audio.play_3d(&"glass_break", global_position, -2.0, 40.0, randf_range(0.95, 1.05), 5.0)
+			queue_free()
+			return
 	_lit = true
+	add_to_group(GROUP)
 	if not NetworkManager.is_dedicated():
 		_build_visuals()
 		Audio.play_3d(&"glass_break", global_position, -2.0, 40.0, randf_range(0.95, 1.05), 5.0)
 		Audio.play_3d(&"fire", global_position + Vector3.UP * 0.3, -2.0, 35.0, randf_range(0.95, 1.05), 5.0)
+
+
+## Puts the fire out now (smoke grenade); the flames die down over ~1.5 s.
+func extinguish() -> void:
+	if is_burning():
+		_time = DURATION
 
 
 func is_burning() -> bool:

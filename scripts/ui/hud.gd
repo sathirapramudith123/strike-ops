@@ -54,6 +54,8 @@ var _banner_time := 0.0
 var _banner_round := -1
 const BANNER_TIME := 6.0
 var _feed_style: StyleBoxFlat
+## Full-screen white-out while flashed (see PlayerController.blind_alpha).
+var _flash_overlay: ColorRect
 var _feed_style_mine: StyleBoxFlat
 
 
@@ -93,6 +95,13 @@ func bind_player(player: PlayerController) -> void:
 
 
 func _ready() -> void:
+	_flash_overlay = ColorRect.new()
+	_flash_overlay.name = "FlashOverlay"
+	_flash_overlay.color = Color(1, 1, 1, 0)
+	_flash_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_flash_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_flash_overlay.visible = false
+	add_child(_flash_overlay)
 	_perf_label.visible = SettingsManager.show_perf_overlay
 	_reload_bar.visible = false
 	_dead_label.visible = false
@@ -171,6 +180,11 @@ func _process(delta: float) -> void:
 	_damage_flash.color.a = move_toward(_damage_flash.color.a, 0.0, delta * 0.8)
 	# A full-screen quad costs fill rate even when transparent — hide it.
 	_damage_flash.visible = _damage_flash.color.a > 0.001
+	var blind := _player.blind_alpha() if _player else 0.0
+	_flash_overlay.color.a = blind
+	if blind > 0.001 and not _flash_overlay.visible:
+		move_child(_flash_overlay, -1) # over everything, banners included
+	_flash_overlay.visible = blind > 0.001
 	var show_scores := Input.is_action_pressed(&"scoreboard")
 	if show_scores and not _scoreboard.visible:
 		_refresh_scoreboard()
@@ -408,7 +422,7 @@ func _update_weapon_slots() -> void:
 	# Grenades under the guns, with their quick-throw keys.
 	var t := _player.throwables
 	if t:
-		for kind: int in [Throwables.Kind.HE, Throwables.Kind.MOLOTOV]:
+		for kind: int in Throwables.ORDER:
 			var l := Label.new()
 			var n: int = t.counts[kind]
 			l.text = "%s ×%d   %s" % [Throwables.SHORT_NAMES[kind], n, _key_name(Throwables.ACTIONS[kind])]

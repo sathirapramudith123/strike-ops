@@ -81,8 +81,10 @@ var primary_id: String = GameConfig.DEFAULT_PRIMARY
 var current_slot: int = 0
 ## weapon_id -> Weapon (every weapon exists on every player; see GameConfig.WEAPONS).
 var weapons: Dictionary = {}
-## HE grenade + Molotov (quick-throw, G / Q).
+## Grenades (quick-throw: G HE, Q Molotov, F flash, Z smoke).
 var throwables: Throwables
+## Seconds of flashbang blindness left (local player only; see GrenadeFx.flash).
+var blind_time: float = 0.0
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -188,10 +190,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Controller look runs every rendered frame (smooth at any FPS).
 func _process(delta: float) -> void:
+	blind_time = maxf(blind_time - delta, 0.0)
 	if is_local and input_enabled and not health.is_dead:
 		_pad_look(delta)
 	if not is_local and visible:
 		_model.animate(delta, is_crouching)
+		_update_tag_through_smoke()
 
 
 func _physics_process(delta: float) -> void:
@@ -338,6 +342,23 @@ func equip_weapon(weapon: Weapon) -> void:
 		_model.set_weapon(weapon.data.weapon_id)
 
 
+## Blinds the local player for `seconds` (a flashbang went off in view).
+func flash(seconds: float) -> void:
+	if seconds <= 0.0:
+		return
+	blind_time = maxf(blind_time, seconds)
+	if is_local:
+		Audio.play_local(&"flash_ring", remap(clampf(seconds, 0.0, GrenadeFx.FLASH_MAX_BLIND),
+			0.0, GrenadeFx.FLASH_MAX_BLIND, -24.0, -6.0))
+		GamepadInput.rumble(0.3, 0.2, 0.2)
+
+
+## White-out strength 0..1 for the HUD: full while there is more than
+## GrenadeFx.FLASH_FADE seconds left, then fading.
+func blind_alpha() -> float:
+	return clampf(blind_time / GrenadeFx.FLASH_FADE, 0.0, 1.0)
+
+
 ## Called by weapons. Values are in degrees.
 func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 	_recoil.x += deg_to_rad(pitch_degrees)
@@ -348,6 +369,7 @@ func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 func respawn_at(xform: Transform3D, primary: String) -> void:
 	apply_loadout(primary, 0)
 	throwables.refill()
+	blind_time = 0.0
 	global_transform = xform
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO
@@ -395,6 +417,20 @@ func _update_team_visuals() -> void:
 	_model.set_team_color(GameConfig.team_color(team))
 	_name_tag.no_depth_test = friendly
 	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
+
+
+## Enemy name tags are hidden through walls by the depth test, but smoke is
+## see-through to it — hide them while a smoke cloud is in the way.
+func _update_tag_through_smoke() -> void:
+	if not get_tree().has_group(SmokeCloud.GROUP):
+		if not _name_tag.visible and not is_local:
+			_name_tag.visible = true
+		return
+	var viewer := get_viewport().get_camera_3d()
+	if viewer == null or Match.is_friendly(peer_id, multiplayer.get_unique_id()):
+		_name_tag.visible = true
+		return
+	_name_tag.visible = not SmokeCloud.blocks_line(get_tree(), viewer.global_position, _name_tag.global_position)
 
 
 ## Voice chat indicator on the name tag.
@@ -536,6 +572,8 @@ func aim_assist_factor() -> float:
 	var target := hb.health.get_parent() as PlayerController
 	if target and Match.is_friendly(peer_id, target.peer_id):
 		return 1.0
+	if get_tree().has_group(SmokeCloud.GROUP) and SmokeCloud.blocks_line(get_tree(), from, hit.position):
+		return 1.0 # no help aiming into smoke
 	return GamepadInput.AIM_ASSIST_SLOWDOWN
 
 

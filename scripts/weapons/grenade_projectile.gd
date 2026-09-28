@@ -1,9 +1,9 @@
 class_name GrenadeProjectile
 extends RigidBody3D
-## A thrown HE grenade or Molotov. Every peer simulates its own copy (same
-## start, same physics), but only the server decides when it goes off:
-## the HE after its fuse, the Molotov when it smashes on a floor (or after
-## MOLOTOV_MAX_FLIGHT in the air). See Throwables for the networking.
+## A thrown grenade. Every peer simulates its own copy (same start, same
+## physics), but only the server decides when it goes off: the HE, flash and
+## smoke after their fuse (Throwables.FUSES), the Molotov when it smashes on
+## a floor (or after MOLOTOV_MAX_FLIGHT in the air). See Throwables for the networking.
 
 const RADIUS := 0.07
 const MOLOTOV_MAX_FLIGHT := 2.5
@@ -41,7 +41,7 @@ func _init() -> void:
 
 func _ready() -> void:
 	var mat := PhysicsMaterial.new()
-	mat.bounce = 0.35 if kind == Throwables.Kind.HE else 0.15
+	mat.bounce = 0.15 if kind == Throwables.Kind.MOLOTOV else 0.35
 	mat.friction = 0.7
 	physics_material_override = mat
 	body_entered.connect(_on_body_entered)
@@ -64,9 +64,8 @@ func _physics_process(delta: float) -> void:
 		if _age > CLIENT_TIMEOUT:
 			queue_free()
 		return
-	if kind == Throwables.Kind.HE and _age >= Throwables.HE_FUSE:
-		_detonate(global_position)
-	elif kind == Throwables.Kind.MOLOTOV and _age >= MOLOTOV_MAX_FLIGHT:
+	var fuse: float = Throwables.FUSES.get(kind, MOLOTOV_MAX_FLIGHT)
+	if _age >= fuse:
 		_detonate(global_position)
 
 
@@ -101,16 +100,27 @@ func _on_body_entered(_body: Node) -> void:
 	if now - _last_bounce_ms < 120 or linear_velocity.length() < 1.5:
 		return
 	_last_bounce_ms = now
-	if kind == Throwables.Kind.HE:
+	if kind != Throwables.Kind.MOLOTOV:
 		Audio.play_3d(&"grenade_bounce", global_position, -8.0, 25.0, randf_range(0.9, 1.1), 3.0)
 
 
-## Small low-poly model: an olive-drab frag with a lever, or a bottle with a
-## burning rag.
+## Small low-poly model: an olive-drab frag with a lever, a bottle with a
+## burning rag, or a can (flash: grey with a white top; smoke: green-grey
+## with a dark band).
 func _build_model() -> Node3D:
 	var root := Node3D.new()
 	root.name = "Model"
-	if kind == Throwables.Kind.HE:
+	if kind == Throwables.Kind.FLASH or kind == Throwables.Kind.SMOKE:
+		var smoke := kind == Throwables.Kind.SMOKE
+		var can := _part(_cylinder(0.032, 0.032, 0.11), Color(0.32, 0.36, 0.3) if smoke else Color(0.45, 0.46, 0.48), 0.6)
+		root.add_child(can)
+		var band := _part(_cylinder(0.034, 0.034, 0.02), Color(0.12, 0.12, 0.12) if smoke else Color(0.9, 0.9, 0.85), 0.6)
+		band.position.y = 0.035 if smoke else 0.057
+		root.add_child(band)
+		var lever := _part(_box(Vector3(0.014, 0.08, 0.008)), Color(0.4, 0.4, 0.38), 0.4)
+		lever.position = Vector3(0.036, 0.02, 0)
+		root.add_child(lever)
+	elif kind == Throwables.Kind.HE:
 		var body := _part(_sphere(0.055, 0.075), Color(0.25, 0.3, 0.18), 0.7)
 		root.add_child(body)
 		var cap := _part(_cylinder(0.022, 0.022, 0.03), Color(0.35, 0.35, 0.33), 0.4)

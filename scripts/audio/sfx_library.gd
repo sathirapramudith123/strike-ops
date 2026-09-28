@@ -16,7 +16,7 @@ const NAMES: Array[StringName] = [
 	# Bullets
 	&"impact", &"whiz",
 	# Grenades
-	&"throw", &"grenade_bounce", &"glass_break", &"fire",
+	&"throw", &"grenade_bounce", &"glass_break", &"fire", &"flash_bang", &"flash_ring", &"smoke_hiss",
 	# Feedback (UI bus)
 	&"hitmarker", &"headshot", &"kill", &"hurt", &"ui_click", &"ui_hover",
 	# Bomb Defusal + match
@@ -177,6 +177,20 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			rng.seed = 88
 			for i in 90:
 				PS.add_noise(b, rng.randf_range(0.0, 7.0), 0.03, rng.randf_range(0.3, 0.7), 0.9, 0.5, 90.0, 0.0005, 200 + i)
+		&"flash_bang":
+			# A sharp, bright crack — higher and shorter than the HE.
+			b = PS.buffer(1.0)
+			PS.add_noise(b, 0.0, 0.08, 1.0, 0.98, 0.2, 60.0, 0.0003, 89)
+			PS.add_tone(b, 0.0, 0.3, 0.7, 180.0, 60.0, 14.0)
+			PS.add_noise(b, 0.0, 1.0, 0.45, 0.3, 0.0, 4.0, 0.005, 90)
+		&"flash_ring":
+			# Ears ringing after a flash: a high whine fading out.
+			b = PS.buffer(3.5)
+			PS.add_tone(b, 0.0, 3.5, 0.5, 3600.0, -1.0, 0.9, 0.05)
+			PS.add_tone(b, 0.0, 3.5, 0.15, 3615.0, -1.0, 0.9, 0.05)
+		&"smoke_hiss":
+			b = PS.buffer(3.0)
+			PS.add_noise(b, 0.0, 3.0, 0.6, 0.85, 0.3, 0.8, 0.05, 93)
 		# --- Feedback ---
 		&"hitmarker":
 			b = PS.buffer(0.05)
