@@ -7030,7 +7030,7 @@ size = Vector3(8.000, 3.300, 18.000)
 [sub_resource type="BoxShape3D" id="Zone_4"]
 size = Vector3(14.000, 4.000, 5.000)
 
-[node name="Kasbah" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points", "bomb_sites")]
+[node name="Oasis" type="Node3D" node_paths=PackedStringArray("world_environment", "sun", "spawn_points", "blue_spawn_points", "red_spawn_points", "bomb_sites")]
 script = ExtResource("1_level")
 player_scene = ExtResource("6_player")
 world_environment = NodePath("WorldEnvironment")

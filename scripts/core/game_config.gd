@@ -27,22 +27,13 @@ const MAPS: Array[Dictionary] = [
 	{ "id": "test_map", "name": "Test Range", "path": "res://scenes/levels/test_map.tscn", "bomb": true,
 		"style": "Training", "players": "1–8",
 		"description": "Shooting range with targets, a ramp, stairs and a crouch tunnel. Good for practice." },
-	{ "id": "warehouse", "name": "Warehouse", "path": "res://scenes/levels/warehouse.tscn", "bomb": true,
-		"style": "Indoor · close quarters", "players": "4–12",
-		"description": "Shelf aisles and crate stacks under a raised catwalk, with two small offices." },
-	{ "id": "courtyard", "name": "Courtyard", "path": "res://scenes/levels/courtyard.tscn", "bomb": true,
-		"style": "Outdoor · mid range", "players": "6–16",
-		"description": "Fountain plaza ringed by pillars, with two 2-storey buildings and their rooftops." },
-	{ "id": "rooftops", "name": "Rooftops", "path": "res://scenes/levels/rooftops.tscn", "bomb": true,
-		"style": "Vertical · long range", "players": "6–16",
-		"description": "Four rooftops joined by bridges above a crossroads. Snipers up high, cars for cover below." },
 	{ "id": "docks", "name": "Docks", "path": "res://scenes/levels/docks.tscn", "bomb": true,
-		"style": "Outdoor · lanes", "players": "6–16",
-		"description": "Container lanes on the quay and a ship deck reached by two gangways." },
+		"style": "Port · 3 lanes", "players": "6–16",
+		"description": "Mid runs through the Port Authority warehouse. A in the container yard under a gantry crane, B on the quay beside the ship; A Long is a raised loading platform, B Long the quay." },
 	{ "id": "bunker", "name": "Bunker", "path": "res://scenes/levels/bunker.tscn", "bomb": true,
 		"style": "Indoor · 3 lanes", "players": "4–12",
 		"description": "Underground base: A Long up to a balcony over A, B one level down through the rock tunnel, a reactor hall in Mid." },
-	{ "id": "kasbah", "name": "Kasbah", "path": "res://scenes/levels/kasbah.tscn", "bomb": true,
+	{ "id": "oasis", "name": "Oasis", "path": "res://scenes/levels/oasis.tscn", "bomb": true,
 		"style": "Desert town · bomb defusal", "players": "6–16",
 		"description": "Sun-baked town: A Long, Mid and the covered B Apartments. A is a raised terrace, B a courtyard around a well." },
 	{ "id": "factory", "name": "Factory", "path": "res://scenes/levels/factory.tscn", "bomb": true,
@@ -85,7 +76,14 @@ const MELEE_WEAPON := "knife"
 const DEFAULT_PRIMARY := "rifle"
 
 
+## Old map ids that were renamed (saved settings, server command lines).
+const RENAMED := { "kasbah": "oasis" }
+
+
 static func map_index(path: String) -> int:
+	var key := path.get_file().get_basename() if path.begins_with("res://") else path
+	if RENAMED.has(key):
+		path = RENAMED[key]
 	for i in MAPS.size():
 		if MAPS[i].path == path or MAPS[i].id == path:
 			return i

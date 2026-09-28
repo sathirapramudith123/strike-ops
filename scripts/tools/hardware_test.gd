@@ -24,7 +24,7 @@ const REPORT_FORMAT := 1
 const RENDERERS: Array[String] = ["gl_compatibility", "forward_plus"]
 const RENDERER_NAMES := { "gl_compatibility": "OpenGL", "forward_plus": "Vulkan" }
 ## One indoor map with lamps + the biggest outdoor map.
-const MAPS: Array[String] = ["warehouse", "courtyard"]
+const MAPS: Array[String] = ["office", "docks"]
 const DURATION := 5.0
 const BOTS := 12
 const TARGET_AVG_FPS := 60.0

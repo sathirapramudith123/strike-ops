@@ -13,7 +13,7 @@ body:
     id: steps
     attributes:
       label: Steps to reproduce
-      placeholder: "1. Host a Bomb Defusal game on Warehouse\n2. …"
+      placeholder: "1. Host a Bomb Defusal game on Docks\n2. …"
   - type: input
     id: version
     attributes:

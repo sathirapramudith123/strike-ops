@@ -21,8 +21,9 @@ func _ready() -> void:
 	%NameEdit.text = SettingsManager.player_name
 	%AddressEdit.text = SettingsManager.last_join_address
 	%PortSpin.value = SettingsManager.host_port
-	if GameConfig.map_index(SettingsManager.selected_map) < 0:
-		SettingsManager.selected_map = GameConfig.MAPS[0].path
+	# A map that was removed or renamed since the settings were saved.
+	var saved := GameConfig.map_index(SettingsManager.selected_map)
+	SettingsManager.selected_map = GameConfig.MAPS[maxi(saved, 0)].path
 	_update_map_button()
 	%MapButton.pressed.connect(func() -> void:
 		_main.visible = false

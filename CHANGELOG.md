@@ -2,6 +2,20 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Docks rebuilt** from concept art as a 3-lane bomb map at sunset. Mid
+runs through the Port Authority warehouse; A is the container yard off
+its north door under a gantry crane (the red container with the A), and T
+reach it along A Long — a raised loading platform with a rail track; B is
+on the quay beside the moored ship and two ship-to-shore cranes (the blue
+container with the B), reached along B Long, the quay. T spawn is the gate
+road under a walkway, CT spawn a harbour office with a pickup. A fence
+along the quay edge keeps everyone out of the water.
+
+**Map line-up:** Warehouse, Courtyard and Rooftops are gone; **Kasbah is
+now called Oasis** (a saved "kasbah" choice or `--map kasbah` still opens
+it). Rotation: Test Range → Docks → Bunker → Oasis → Factory → Office →
+Subway → Train Yard. The full hardware test now plays Office and Docks.
+
 **Climbing:** press Space facing a crate, car, sandbag wall, low wall or
 other climbable prop up to 2.2 m high and you pull yourself up on top (or
 keep Space held after a jump to grab the ledge). Only those props can be

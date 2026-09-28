@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal with money and a buy menu; 5 guns + knife and 4 grenade types; 11 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
+> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal with money and a buy menu; 5 guns + knife and 4 grenade types; 8 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
 
 ---
 
@@ -336,7 +336,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap, money and the buy menu: prices, limits, rewards, buy time and zone, gear kept by survivors — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps/bridges/gangways of every map, the Kasbah terrace, doors and covered corridor, routes through Factory, Office, Subway (platforms, track beds, the train) and Train Yard, the radar outline and location names, first-person arms and the reload animations, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap, money and the buy menu: prices, limits, rewards, buy time and zone, gear kept by survivors — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps, stairs and doors of every map (Docks: through the warehouse, onto A Long, the quay edge), the Oasis terrace, doors and covered corridor, routes through Factory, Office, Subway (platforms, track beds, the train) and Train Yard, the radar outline and location names, first-person arms and the reload animations, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -352,10 +352,10 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 - **Internet:** forward **UDP 7777** on your router to the host PC, or use a VPN such as Tailscale / ZeroTier / Radmin VPN.
 - **Dedicated server** (no graphics, very low CPU/RAM — good for a cheap VPS):
   ```bash
-  ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16 --mode tdm --map warehouse
+  ./FPSGame.x86_64 --headless -- --server --port 7777 --max-players 16 --mode tdm --map docks
   # from source:
-  godot --headless --path . -- --server --port 7777 --mode ffa --map courtyard
-  # --mode: ffa | tdm | bomb      --map: test_map | warehouse | courtyard | rooftops | docks | bunker
+  godot --headless --path . -- --server --port 7777 --mode ffa --map oasis
+  # --mode: ffa | tdm | bomb      --map: test_map | docks | bunker | oasis | factory | office | subway | trainyard
   ```
 
 **How it works**
@@ -389,7 +389,7 @@ Everything goes through the **`Audio`** autoload (`scripts/audio/audio_manager.g
 | **Bullets** | Impact sound where bullets hit; enemy bullets flying within 3 m of your head **whiz** past |
 | **Feedback** | Hit marker, headshot "ding", kill confirm (can be turned off), hurt thump when you take damage |
 | **Occlusion** | A ray from your ears to each sound: if a wall is in between, the sound goes to the `SFXOccluded` bus (low-pass + quieter). Long sounds re-check while they play (High quality) |
-| **Reverb zones** | `Area3D`s on physics layer 7 (`audio_zone`) send indoor sounds to `ReverbRoom` or `ReverbHall`: Warehouse hall + drier offices, Courtyard buildings, Bunker rooms, reactor hall and tunnel. Add one in `tools/greybox.py` with `m.reverb(pos, size, "room"/"hall", amount)` |
+| **Reverb zones** | `Area3D`s on physics layer 7 (`audio_zone`) send indoor sounds to `ReverbRoom` or `ReverbHall`: the Docks warehouse, Bunker rooms, reactor hall and tunnel. Add one in `tools/greybox.py` with `m.reverb(pos, size, "room"/"hall", amount)` |
 | **Music** | Menu theme (calm, A minor) and a quiet tense drone in matches (can be turned off); cross-fades between them; results screen plays a **win or lose sting**. Bomb Defusal: round start, bomb planted, defused, round won/lost stings |
 | **UI** | Every button clicks and ticks on hover |
 | **Voices** | Pooled players — Low: 16 at once, High: 40; when all are busy the oldest is reused. Sounds out of range aren't played at all. Nothing plays on a dedicated server |
@@ -458,7 +458,7 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 
 | What | How |
 |------|-----|
-| **Kasbah map** | `kasbah()` in `tools/greybox.py`: a 3-lane bomb map, original layout. New generator helpers: `cyl()` (pots, barrels, sacks, wells), `beam()` (cables, palm fronds, poles), `blocker()` (one invisible collider for a pile of sandbags), rotated boxes (`pitch`/`roll`), facades with windows/shutters/doors/balconies, market stalls, palms, and `callout()` boxes that name places |
+| **Oasis map** (was Kasbah) | `oasis()` in `tools/greybox.py`: a 3-lane bomb map, original layout. New generator helpers: `cyl()` (pots, barrels, sacks, wells), `beam()` (cables, palm fronds, poles), `blocker()` (one invisible collider for a pile of sandbags), rotated boxes (`pitch`/`roll`), facades with windows/shutters/doors/balconies, market stalls, palms, and `callout()` boxes that name places |
 | **Desert materials** | New kinds in the level shader: sandstone blocks (running bond, per-block tint), weathered plaster (bricks show through patches, water stains), irregular flagstones (cellular), striped cloth. Seams stay on Low; the noise needs *Surface detail* |
 | **Radar** | `scripts/ui/minimap.gd`: built once from the map's collision shapes (floor light, cover mid, walls dark; ceilings ignored), so every map gets one. Rotates with the view; teammates, bomb sites, carrier ring, dropped/planted bomb. `location()` reads the map's `Callouts` (falls back to "Bombsite A/B") |
 | **Top bar** | `scripts/ui/top_bar.gd`: clock (red after the plant), round number, team scores and up to 5 player cards per team (+N), dead players greyed out, you outlined in yellow |
@@ -474,13 +474,13 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 | **Multi-level room maps** | `_rooms(m, rooms, trim, windows)` in `tools/greybox.py`: list rooms as rectangles on a 1 m grid with a floor height (upper, ground or lower level) and an optional ceiling; walls go wherever a room meets empty space, lintels where ceilings step, floors are solid blocks. A 1 m gap between rooms is a wall; a small room across it is a doorway. Used for Bunker and Train Yard. The radar draws any `Floor*` body as floor at every level and skips `Ceiling*` |
 | **Wall signs** | `m.sign(pos, face, "A", toward=(x, z))` in `tools/greybox.py`: a painted Label3D letter + arrow boxes pointing towards a place; plus `_rug()`, `_tower()`, fruit crates on stalls |
 
-Draw calls at the worst view on Low (after batching): Courtyard ~120, Kasbah ~185, Factory ~190, Office / Train Yard ~205, Subway ~235 — still well within what the minimum-spec GPUs handle.
+Draw calls at the worst view on Low (after batching): Oasis ~185, Factory ~190, Office / Train Yard ~205, Subway ~235 — still well within what the minimum-spec GPUs handle.
 
 ### Phase 7b — real-hardware tuning
 
 The presets can only be tuned on real PCs, so the game measures itself and players send the results.
 
-**1. Players run the full hardware test** — *Settings → Graphics → Full hardware test* (≈5 min; don't touch the mouse). It plays Warehouse and Courtyard with 12 bots and measures:
+**1. Players run the full hardware test** — *Settings → Graphics → Full hardware test* (≈5 min; don't touch the mouse). It plays Office and Docks with 12 bots and measures:
 
 | Stage | Measured |
 |-------|----------|
@@ -536,7 +536,7 @@ Preset files themselves are only *suggested* — review and edit `resources/sett
 | **Team Deathmatch** | Blue vs Red, auto-balanced on join, **friendly fire off** (bullets pass through teammates), first team to **50** kills or most after **10 min** |
 | **Bomb Defusal** | Rounds, first team to **5 round wins**; sides swap after round 4. See below |
 
-Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **map vote**: the results screen offers 3 maps (the next one in the rotation + 2 random maps that support the mode); press **`1` / `2` / `3`** to vote (you can change your vote). The map with the most votes wins; ties and no votes keep the normal rotation (Test Range → Warehouse → Courtyard → Rooftops → Docks → Bunker → Kasbah → Factory → Office → Subway → Train Yard → …). Everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
+Match flow: the server runs the clock and score → **results screen** (winner + scoreboard, 10 s) → **map vote**: the results screen offers 3 maps (the next one in the rotation + 2 random maps that support the mode); press **`1` / `2` / `3`** to vote (you can change your vote). The map with the most votes wins; ties and no votes keep the normal rotation (Test Range → Docks → Bunker → Oasis → Factory → Office → Subway → Train Yard → …). Everyone stays connected. Players get **1.5 s spawn protection**, and respawn at the spawn point furthest from living enemies (team spawns in TDM). Enemy name tags are hidden behind walls; teammates' are always visible. In TDM, *team* voice (`V`) only reaches your team; use proximity (`B`) to talk to nearby enemies.
 
 **Bomb Defusal**
 
@@ -611,12 +611,9 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Map | Style | Features |
 |-----|-------|----------|
 | Test Range | Shooting range | Targets, ramp, stairs, crouch tunnel |
-| Warehouse | Close quarters | Shelf aisles, crate stacks, raised catwalk with ramps, two offices |
-| Courtyard | Outdoor, mid-range | Fountain plaza, pillars, low walls, two 2-storey buildings with roof access |
-| Rooftops | Vertical, long range | Four flat roofs linked by two bridges, ramps up from the street, parked cars as cover, sites A/B in the street |
-| Docks | Outdoor, lanes | Container stacks on a quay, a moored ship (Red spawns on its deck) with two gangways, a crane |
+| Docks | Port, 3 lanes, bomb defusal | Mid runs through the Port Authority warehouse (racks, a forklift); A (north) is the container yard off its north door under a gantry crane — the red container with the A — reached by T along A Long, a raised loading platform with a rail track; B (south) is on the quay beside the moored ship and two ship-to-shore cranes — the blue container with the B — reached along B Long, the quay; T spawn is the gate road with a walkway over it, CT spawn a small harbour office with a pickup; sunset over the water |
 | Bunker | Indoor, 3 lanes, bomb defusal | Underground base on three levels: A Long rises to an upper corridor and a balcony over A (north); B is one level down (south), reached by the B Long ramp and the rock-walled Tunnel (B2) or the stairs from Mid; Mid is a tall hall round a red-lit reactor with a catwalk; Storage / Utility flank; T west, CT east |
-| Kasbah | Desert town, bomb defusal | Three lanes (A Long, Mid with doors, covered B Apartments), Connector and Short; A is a raised terrace, B a courtyard round a well |
+| Oasis | Desert town, bomb defusal | Three lanes (A Long, Mid with doors, covered B Apartments), Connector and Short; A is a raised terrace, B a courtyard round a well |
 | Factory | Industrial, 3 lanes | A under a gantry crane next to two silos with a flat roof overlooking it; B in a walled yard; West Lane past the Warehouse, Mid with a catwalk under the Lanka Steel building, Tunnels to Lower Mid, the Rail Yard along the east; painted T / CT spawns, coconut palms, a Sri Lankan flag |
 | Office | Indoor, two floors | Lobby with reception, open-plan office (A), conference + server room (B), break room and storage under a mezzanine reached by two stairs, side alleys |
 | Subway | Underground | Two side platforms and an island, track beds to drop into (climb out at the ends), a two-car train to walk through, ticket halls with turnstiles |
@@ -632,7 +629,7 @@ All maps except the Test Range are generated by **`tools/greybox.py`** (boxes, r
 
 ### Testing multiplayer locally
 
-- **Automated:** `tools/run_net_test.sh /path/to/godot` runs three host + client pairs on localhost. First, it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **rotates to Warehouse**, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client buys a vest in the buy menu, walks to site B and plants, the host walks over and defuses (Blue 1–0), the client buys an SMG with its round money and eliminates the host (1–1), keeps the SMG, then plants again and the bomb explodes — Red wins 2–1 on both sides. A third pair is a **hacked client** that fires at the legal rate but never reloads: the server accepts exactly one magazine (30 hits) and kicks it, and the kick reason appears in its main menu.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` runs three host + client pairs on localhost. First, it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **follows the map vote** to the next map, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client buys a vest in the buy menu, walks to site B and plants, the host walks over and defuses (Blue 1–0), the client buys an SMG with its round money and eliminates the host (1–1), keeps the SMG, then plants again and the bomb explodes — Red wins 2–1 on both sides. A third pair is a **hacked client** that fires at the legal rate but never reloads: the server accepts exactly one magazine (30 hits) and kicks it, and the kick reason appears in its main menu.
 - **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---
@@ -664,14 +661,14 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 
 **Code signing** — the Release workflow signs the Windows exe, Opus DLL and installer (Azure Trusted Signing or a `.pfx`) and signs + notarizes the macOS app as soon as the certificates are added as GitHub secrets; until then builds are unsigned (Windows: *More info → Run anyway*, macOS: right-click → *Open*). Costs and step-by-step: [`docs/SIGNING.md`](docs/SIGNING.md).
 
-**Dedicated server** — [`server/README.md`](server/README.md): `./run_server.sh --mode tdm --map warehouse` or Docker (`server/Dockerfile`, `server/docker-compose.yml`). Measured: ~96 MB RAM and ~8 % of one CPU core with 4 players.
+**Dedicated server** — [`server/README.md`](server/README.md): `./run_server.sh --mode tdm --map docks` or Docker (`server/Dockerfile`, `server/docker-compose.yml`). Measured: ~96 MB RAM and ~8 % of one CPU core with 4 players.
 
 **Command line**
 
 | Command | Does |
 |---------|------|
 | `FPSGame -- --connect 1.2.3.4:7777 --name Bob` | join a server directly (shortcuts, server lists) |
-| `FPSGame-server.x86_64 --port 7777 --mode bomb --map courtyard` | dedicated server (options also work after `--`) |
+| `FPSGame-server.x86_64 --port 7777 --mode bomb --map oasis` | dedicated server (options also work after `--`) |
 | `FPSGame -- --benchmark --preset low --quit` | built-in benchmark |
 
 > `builds/` and `dist/` are git-ignored — builds are shared through GitHub Releases.

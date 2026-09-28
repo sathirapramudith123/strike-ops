@@ -9,7 +9,7 @@ extends Node
 ##
 ## Run it:
 ##   • Settings → Graphics → "Run benchmark"
-##   • godot --path . -- --benchmark [--duration 10] [--bots 12] [--maps warehouse,courtyard]
+##   • godot --path . -- --benchmark [--duration 10] [--bots 12] [--maps office,docks]
 ##     (add --quit to exit when done, --no-batching to compare without
 ##     StaticBatcher; use a real window, not --headless)
 ##

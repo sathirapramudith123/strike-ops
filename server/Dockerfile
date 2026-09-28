@@ -1,7 +1,7 @@
 # Dedicated server image. Build the "Linux Server" export first
 # (tools/build_release.sh), then from the repository root:
 #   docker build -f server/Dockerfile -t fpsgame-server builds/server
-#   docker run -d -p 7777:7777/udp --name fpsgame fpsgame-server --mode tdm --map warehouse
+#   docker run -d -p 7777:7777/udp --name fpsgame fpsgame-server --mode tdm --map docks
 FROM debian:bookworm-slim
 RUN useradd --create-home --shell /usr/sbin/nologin fps
 WORKDIR /home/fps/server

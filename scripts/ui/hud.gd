@@ -293,7 +293,7 @@ func _on_health_changed(current: float, maximum: float) -> void:
 	_health_icon.queue_redraw()
 
 
-## "KASBAH / BOMB DEFUSAL" in the top-right when a map loads and when each
+## "OASIS / BOMB DEFUSAL" in the top-right when a map loads and when each
 ## Bomb Defusal round starts; fades out after a few seconds. The kill feed
 ## moves down while it is shown.
 func _build_banner() -> void:
@@ -666,7 +666,7 @@ func _on_match_state_changed() -> void:
 		_refresh_vote()
 
 
-## "Vote for the next map: [1] Rooftops (2) …" on the results screen.
+## "Vote for the next map: [1] Docks (2) …" on the results screen.
 func _refresh_vote() -> void:
 	if Match.vote_maps.is_empty():
 		_next_map_label.text = "Next: %s" % GameConfig.map_name(GameConfig.next_map(NetworkManager.current_map, Match.mode))

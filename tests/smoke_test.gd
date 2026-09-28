@@ -1455,95 +1455,55 @@ func _test_performance() -> void:
 
 
 func _test_maps() -> void:
-	# Warehouse: ramp from the ground up to the catwalk (3 m).
-	await _load_map("res://scenes/levels/warehouse.tscn")
-	_check(_level.blue_spawn_points.size() >= 3 and _level.red_spawn_points.size() >= 3, "warehouse has team spawns")
+	# Docks: lights per preset, the warehouse echo, the ramp up onto A Long.
+	await _load_map("res://scenes/levels/docks.tscn")
+	_check(_level.blue_spawn_points.size() >= 3 and _level.red_spawn_points.size() >= 3, "docks has team spawns")
 	SettingsManager.set_graphics_quality(GraphicsPreset.Quality.LOW)
 	_check(not (_level.get_node("Lights") as Node3D).visible, "Low preset turns decorative lights off")
 	SettingsManager.set_graphics_quality(GraphicsPreset.Quality.MEDIUM)
 	_check((_level.get_node("Lights") as Node3D).visible, "Medium preset turns them back on")
 	await _frames(40)
-	_check(_player.is_on_floor(), "warehouse: player lands on the floor")
-	_reset_player(Vector3(15, 0.1, -2.0))
-	Input.action_press(&"move_forward")
-	var top := 0.0
-	for i in 150:
-		await get_tree().physics_frame
-		top = maxf(top, _player.global_position.y)
-	_release_all()
-	_check(top > 2.8, "warehouse: ramp reaches the catwalk (max y=%.2f)" % top)
-	# Reverb zones: the same point query the audio engine uses.
-	var hall := _reverb_zone_at(Vector3(0, 2, 0))
-	var office := _reverb_zone_at(Vector3(-18.5, 1.5, 12.5))
-	_check(hall and hall.reverb_bus_name == &"ReverbHall" and office and office.reverb_bus_name == &"ReverbRoom"
-		and office.priority > hall.priority, "warehouse: hall echo, drier offices (reverb zones)")
-	_check(_reverb_zone_at(Vector3(0, 2, 40)) == null, "no reverb outside the building")
-
-	# Courtyard: ramp inside the west building to the upper floor (3.6 m).
-	await _load_map("res://scenes/levels/courtyard.tscn")
-	await _frames(40)
-	_check(_player.is_on_floor(), "courtyard: player lands on the floor")
-	_reset_player(Vector3(-23.5, 0.1, 7.7))
-	Input.action_press(&"move_forward")
-	top = 0.0
-	for i in 150:
-		await get_tree().physics_frame
-		top = maxf(top, _player.global_position.y)
-	_release_all()
-	_check(top > 3.4, "courtyard: ramp reaches the upper floor (max y=%.2f)" % top)
-
-	# Rooftops: street ramp up to the north-west roof (4 m).
-	await _load_map("res://scenes/levels/rooftops.tscn")
-	await _frames(40)
-	_check(_player.is_on_floor(), "rooftops: player lands")
-	_reset_player(Vector3(-16, 0.1, 2.5))
-	top = await _walk_forward_max_y(150)
-	_check(top > 3.8, "rooftops: ramp reaches the roof (max y=%.2f)" % top)
-	_reset_player(Vector3(-10, 4.1, -14), -PI * 0.5) # face +x, across the bridge
-	await _frames(5)
-	var across := await _walk_forward_max_y(220)
-	_check(_player.global_position.x > 8.0 and _player.global_position.y > 3.8,
-		"rooftops: bridge crosses to the other roof (x=%.1f, y=%.2f)" % [_player.global_position.x, _player.global_position.y])
-
-	# Docks: gangway up to the ship deck (3 m).
-	await _load_map("res://scenes/levels/docks.tscn")
-	await _frames(40)
 	_check(_player.is_on_floor(), "docks: player lands")
-	_reset_player(Vector3(-18, 0.1, -3))
+	var hall := _reverb_zone_at(Vector3(0, 2, 0))
+	_check(hall and hall.reverb_bus_name == &"ReverbHall", "docks: the Port Authority warehouse echoes (reverb zone)")
+	_check(_reverb_zone_at(Vector3(4, 2, 30)) == null, "no reverb out on the quay")
+	_reset_player(Vector3(48, 0.1, -13))
 	await _walk_forward_max_y(200)
-	_check(_player.global_position.y > 2.95 and _player.global_position.z < -16.0,
-		"docks: gangway leads onto the deck (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
+	_check(_player.global_position.y > 1.9 and _player.global_position.z < -24.0,
+		"docks: ramp from T spawn up onto A Long (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
+	_reset_player(Vector3(2, 0.1, 36), PI) # facing the water
+	await _walk_forward_max_y(90)
+	_check(_player.global_position.z < 40.0 and _player.global_position.y > -0.5, "docks: the quay edge keeps players out of the water")
 
-
-	# Kasbah: A ramp onto the terrace, Mid doors, the covered B Apartments.
-	await _load_map("res://scenes/levels/kasbah.tscn")
+	# Oasis: A ramp onto the terrace, Mid doors, the covered B Apartments.
+	await _load_map("res://scenes/levels/oasis.tscn")
 	await _frames(40)
-	_check(_player.is_on_floor(), "kasbah: player lands")
+	_check(_player.is_on_floor(), "oasis: player lands")
 	_reset_player(Vector3(28, 0.1, -10.5))
 	await _walk_forward_max_y(150)
 	_check(_player.global_position.y > 0.95 and _player.global_position.z < -18.5,
-		"kasbah: A ramp leads up onto the site terrace (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
+		"oasis: A ramp leads up onto the site terrace (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
 	_reset_player(Vector3(0, 0.1, 4))
 	await _walk_forward_max_y(150)
-	_check(_player.global_position.z < -6.0, "kasbah: Mid doors are passable (z=%.1f)" % _player.global_position.z)
+	_check(_player.global_position.z < -6.0, "oasis: Mid doors are passable (z=%.1f)" % _player.global_position.z)
 	_reset_player(Vector3(-32, 0.1, 22))
 	await _walk_forward_max_y(330)
-	_check(_player.global_position.z < -2.0, "kasbah: B Apartments corridor is passable (z=%.1f)" % _player.global_position.z)
+	_check(_player.global_position.z < -2.0, "oasis: B Apartments corridor is passable (z=%.1f)" % _player.global_position.z)
 	# Enterable houses: in through a door, up the stairs.
 	_reset_player(Vector3(32, 0.1, -6.2), PI / 2)
 	await _walk_forward_max_y(150)
-	_check(_player.global_position.x < 25.0, "kasbah: door into the house on A Long (x=%.1f)" % _player.global_position.x)
+	_check(_player.global_position.x < 25.0, "oasis: door into the house on A Long (x=%.1f)" % _player.global_position.x)
 	_reset_player(Vector3(19.15, 0.1, -8.5), PI)
 	var upstairs := await _walk_forward_max_y(200)
-	_check(upstairs > 3.9, "kasbah: stairs to the house's upper floor (y=%.2f)" % upstairs)
+	_check(upstairs > 3.9, "oasis: stairs to the house's upper floor (y=%.2f)" % upstairs)
 	_reset_player(Vector3(-33, 0.1, 0.3), -PI / 2)
 	await _walk_forward_max_y(150)
-	_check(_player.global_position.x > -27.0, "kasbah: door into the house by B (x=%.1f)" % _player.global_position.x)
+	_check(_player.global_position.x > -27.0, "oasis: door into the house by B (x=%.1f)" % _player.global_position.x)
 
 	# Radar + location names (built from the map's collision shapes).
 	var radar: Minimap = _level.hud._minimap
 	_check(radar._polys.size() > 60, "radar outline built from the map (%d shapes)" % radar._polys.size())
-	_check((_level.hud._banner.get_node(^"Title") as Label).text == "KASBAH", "map name banner shows KASBAH")
+	_check((_level.hud._banner.get_node(^"Title") as Label).text == "OASIS", "map name banner shows OASIS")
 	var tex := load("res://assets/textures/surfaces_albedo.png") as TextureLayered
 	var nrm := load("res://assets/textures/surfaces_normal.png") as TextureLayered
 	_check(tex != null and nrm != null and tex.get_layers() == 7 and nrm.get_layers() == 7
@@ -1594,10 +1554,15 @@ func _test_maps() -> void:
 			["subway", Vector3(-15, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "west platform"],
 			["subway", Vector3(6, -1.1, -20), 0.0, func(p: Vector3) -> bool: return p.y > -0.1 and p.z < -30.0, "climb out of the track bed"],
 			["subway", Vector3(-10, 0.1, 4.7), -PI / 2, func(p: Vector3) -> bool: return p.x > -3.0, "walk through the train"],
-			["rooftops", Vector3(-4, 0.1, -17.1), PI / 2, func(p: Vector3) -> bool: return p.x < -9.0, "door into the north-west building"],
-			["rooftops", Vector3(-19.9, 0.1, -19.85), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "stairs up to its roof"],
-			["docks", Vector3(16, 0.1, 16.8), -PI / 2, func(p: Vector3) -> bool: return p.x > 21.0, "door into the harbour office"],
-			["docks", Vector3(20.1, 0.1, 13.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.4, "harbour office stairs"],
+			# Docks: Mid through the warehouse, A Short / B Short, B Long, the CT routes.
+			["docks", Vector3(30, 0.1, 0), PI / 2, func(p: Vector3) -> bool: return p.x < 10.0, "T Mid through the east door into the warehouse"],
+			["docks", Vector3(-30, 0.1, 0), -PI / 2, func(p: Vector3) -> bool: return p.x > -10.0, "CT Mid through the west door"],
+			["docks", Vector3(-5, 0.1, -5), 0.0, func(p: Vector3) -> bool: return p.z < -24.0, "north door up A Short into A"],
+			["docks", Vector3(4, 0.1, 5), PI, func(p: Vector3) -> bool: return p.z > 22.0, "south door down B Short onto B"],
+			["docks", Vector3(48, 0.1, 9), PI, func(p: Vector3) -> bool: return p.z > 22.0, "the road from T spawn down to B Long"],
+			["docks", Vector3(-44, 0.1, -10), 0.0, func(p: Vector3) -> bool: return p.z < -32.0, "CT to the A yard"],
+			["docks", Vector3(-46, 0.1, 10), PI, func(p: Vector3) -> bool: return p.z > 26.0, "CT down to the B quay"],
+			["docks", Vector3(24, 2.1, -27), PI / 2, func(p: Vector3) -> bool: return p.x < 4.0, "along A Long and down into A"],
 			# Bunker: A Long up to the balcony over A, B Long down the tunnel, Mid.
 			["bunker", Vector3(-41, 0.1, -8.5), 0.0, func(p: Vector3) -> bool: return p.y > 2.4 and p.z < -24.0, "A Long ramp up to the upper corridor"],
 			["bunker", Vector3(-30, 2.6, -31), -PI / 2, func(p: Vector3) -> bool: return p.x > -13.0, "A Long Upper onto the balcony over A"],

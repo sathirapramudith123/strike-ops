@@ -9,8 +9,8 @@ Options work with or without the `--` separator
 
 ```bash
 ./run_server.sh                                   # FFA on the Test Range, port 7777
-./run_server.sh --mode tdm --map warehouse        # Team Deathmatch
-./run_server.sh --mode bomb --map courtyard --max-players 10 --port 7777
+./run_server.sh --mode tdm --map docks        # Team Deathmatch
+./run_server.sh --mode bomb --map oasis --max-players 10 --port 7777
 ```
 
 | Option | Values | Default |
@@ -18,7 +18,7 @@ Options work with or without the `--` separator
 | `--port` | UDP port | 7777 |
 | `--max-players` | 2–32 | 16 |
 | `--mode` | `ffa`, `tdm`, `bomb` | `ffa` |
-| `--map` | `test_map`, `warehouse`, `courtyard`, `rooftops`, `docks`, `bunker` | `test_map` |
+| `--map` | `test_map`, `docks`, `bunker`, `oasis`, `factory`, `office`, `subway`, `trainyard` | `test_map` |
 
 Open **UDP 7777** in the firewall / cloud security group. Players join with
 the server's IP (`Join` in the main menu, or `FPSGame -- --connect IP:7777`).

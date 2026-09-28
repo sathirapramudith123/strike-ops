@@ -494,7 +494,7 @@ func _local_time() -> float:
 	return Time.get_ticks_usec() / 1_000_000.0
 
 
-## `godot --headless -- --server [--port 7777] [--max-players 16] [--map warehouse] [--mode tdm]`
+## `godot --headless -- --server [--port 7777] [--max-players 16] [--map docks] [--mode tdm]`
 ## `godot -- --connect 1.2.3.4:7777 [--name Bob]`
 func _start_dedicated_from_args() -> void:
 	var args := OS.get_cmdline_user_args()
