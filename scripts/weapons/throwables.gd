@@ -3,10 +3,13 @@ extends Node
 ## Grenades a player carries, refilled every life: one HE grenade, one
 ## Molotov, two flashbangs and one smoke. In Bomb Defusal they are bought
 ## instead (Economy) and kept by survivors into the next round.
-## Key 4 takes one in hand (press again for the next type) — the gun is put
-## away — then left click throws it (right click: a short underhand lob) and
-## the gun comes back; 1 / 2 / 3 or the wheel put it away. G quick-throws
-## the one in hand, or the HE grenade, without the extra key press.
+## Key 4 takes one in hand — the gun is put away — then left click throws
+## it (right click: a short underhand lob) and the gun comes back; 1 / 2 / 3
+## or the wheel put it away. Holding 4 opens a grenade wheel: move the mouse
+## (or right stick) towards one and let go (or click) to take it; a quick
+## tap takes the next type. G quick-throws the one in hand, or the HE
+## grenade, without the extra key press. While one is in hand its flight is
+## drawn ahead of time (GrenadeArc) with a ring where it will land.
 ##
 ## Networking: the owner asks the server to throw (origin + velocity); the
 ## server checks the count, clamps the throw and tells every peer to spawn the
@@ -47,10 +50,22 @@ const HE_RADIUS := 6.0
 const HE_DAMAGE := 98.0
 const HE_ARMOR_PENETRATION := 0.5
 
+## Grenade wheel: pointing this far (px of mouse movement) picks a segment.
+const WHEEL_PICK := 40.0
+## Held this long (s), 4 opens the wheel on screen; a shorter tap cycles.
+const WHEEL_DELAY := 0.15
+
 ## kind -> grenades left.
 var counts := START_COUNTS.duplicate()
 ## The grenade in hand (Kind) or -1.
 var held_kind: int = -1
+## Grenade wheel (local player): open while 4 is held; the kind pointed at (or -1).
+var wheel_open: bool = false
+var wheel_choice: int = -1
+var _wheel_time := 0.0
+var _wheel_vec := Vector2.ZERO
+## The predicted flight while a grenade is in hand (local player only).
+var arc: GrenadeArc
 
 var _player: PlayerController
 var _cooldown := 0.0
@@ -69,7 +84,12 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_cooldown -= delta
-	if held_kind < 0 or _player == null or not _player.is_local:
+	if _player == null or not _player.is_local:
+		return
+	if wheel_open:
+		_update_wheel(delta)
+	_update_arc()
+	if held_kind < 0 or wheel_open:
 		return
 	if not _player.input_enabled or _player.health.is_dead:
 		return
@@ -80,10 +100,19 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _player == null or not _player.is_local or not _player.input_enabled:
+	if _player == null or not _player.is_local:
 		return
-	if event.is_action_pressed(HOLD_ACTION):
-		hold_next()
+	if wheel_open:
+		if event is InputEventMouseMotion:
+			_point_wheel((event as InputEventMouseMotion).relative)
+		elif event.is_action_released(HOLD_ACTION) or event.is_action_pressed(&"shoot"):
+			close_wheel(true)
+			get_viewport().set_input_as_handled()
+		return
+	if not _player.input_enabled:
+		return
+	if event.is_action_pressed(HOLD_ACTION) and not event.is_echo():
+		open_wheel()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed(QUICK_ACTION):
 		var kind := held_kind if held_kind >= 0 else Kind.HE
@@ -94,6 +123,67 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func is_holding() -> bool:
 	return held_kind >= 0
+
+
+## 4 pressed: start the wheel (shown after WHEEL_DELAY). False if there are no grenades.
+func open_wheel() -> bool:
+	if _player.health.is_dead or _first_available() < 0:
+		return false
+	wheel_open = true
+	wheel_choice = -1
+	_wheel_time = 0.0
+	_wheel_vec = Vector2.ZERO
+	_player.grenade_wheel_open = true
+	return true
+
+
+## 4 released (or a click): take the grenade pointed at; nothing pointed at
+## = a tap, the next grenade (`pick` false: just close).
+func close_wheel(pick: bool) -> void:
+	if not wheel_open:
+		return
+	wheel_open = false
+	_player.grenade_wheel_open = false
+	if not pick or _player.health.is_dead:
+		return
+	if wheel_choice >= 0 and counts.get(wheel_choice, 0) > 0:
+		if wheel_choice != held_kind:
+			_hold(wheel_choice)
+	else:
+		hold_next()
+
+
+## Whether the wheel is open long enough to be drawn.
+func wheel_visible() -> bool:
+	return wheel_open and (_wheel_time >= WHEEL_DELAY or wheel_choice >= 0)
+
+
+## Wheel segments: ORDER[0] at the top, then clockwise.
+static func wheel_kind_at(dir: Vector2) -> int:
+	if dir.length() < 0.001:
+		return -1
+	var a := fposmod(atan2(dir.x, -dir.y) + PI / ORDER.size(), TAU)
+	return ORDER[int(a / (TAU / ORDER.size())) % ORDER.size()]
+
+
+func _point_wheel(motion: Vector2) -> void:
+	_wheel_vec = (_wheel_vec + motion).limit_length(WHEEL_PICK * 3.0)
+	if _wheel_vec.length() >= WHEEL_PICK:
+		wheel_choice = wheel_kind_at(_wheel_vec)
+
+
+func _update_wheel(delta: float) -> void:
+	_wheel_time += delta
+	if _player.health.is_dead or not _player.input_enabled:
+		close_wheel(false)
+		return
+	if not Input.is_action_pressed(HOLD_ACTION):
+		close_wheel(true) # the release was missed (e.g. the window lost focus)
+		return
+	# Controller: the right stick points.
+	var stick := GamepadInput.look_vector(SettingsManager.pad_deadzone, 1.0)
+	if stick.length() > 0.5:
+		wheel_choice = wheel_kind_at(stick)
 
 
 ## Key 4: take a grenade in hand, or switch to the next type you have.
@@ -112,6 +202,7 @@ func hold_next() -> bool:
 
 ## Back to the gun (1 / 2 / 3, the wheel, after a throw, on death).
 func put_away() -> void:
+	close_wheel(false)
 	if held_kind < 0:
 		return
 	held_kind = -1
@@ -208,10 +299,9 @@ func throw(kind: int, strength: float = 1.0) -> bool:
 	if not can_throw(kind):
 		return false
 	_cooldown = COOLDOWN
-	var cam := _player.camera
-	var dir := -cam.global_basis.z
-	var origin := cam.global_position + dir * 0.4 + cam.global_basis.x * 0.15 - cam.global_basis.y * 0.1
-	var vel := dir * THROW_SPEED * strength + Vector3.UP * THROW_LIFT * strength + _player.velocity * INHERIT_VELOCITY
+	var launch := throw_launch(strength)
+	var origin: Vector3 = launch[0]
+	var vel: Vector3 = launch[1]
 	Audio.play_local(&"throw", -6.0, randf_range(0.95, 1.05))
 	_player.add_recoil(-1.5, 0.0)
 	if multiplayer.is_server():
@@ -221,6 +311,31 @@ func throw(kind: int, strength: float = 1.0) -> bool:
 		changed.emit()
 		_server_throw.rpc_id(1, kind, origin, vel)
 	return true
+
+
+## [origin, velocity] of a throw from where the camera looks.
+func throw_launch(strength: float = 1.0) -> Array:
+	var cam := _player.camera
+	var dir := -cam.global_basis.z
+	var origin := cam.global_position + dir * 0.4 + cam.global_basis.x * 0.15 - cam.global_basis.y * 0.1
+	var vel := dir * THROW_SPEED * strength + Vector3.UP * THROW_LIFT * strength + _player.velocity * INHERIT_VELOCITY
+	return [origin, vel]
+
+
+## Shows the predicted flight of the grenade in hand (hidden otherwise).
+func _update_arc() -> void:
+	var show := held_kind >= 0 and not wheel_open and not _player.health.is_dead and SettingsManager.grenade_arc
+	if not show:
+		if arc:
+			arc.visible = false
+		return
+	if arc == null:
+		arc = GrenadeArc.new()
+		arc.name = "GrenadeArc"
+		add_child(arc)
+	var launch := throw_launch(1.0)
+	arc.show_path(GrenadeArc.predict(_player.get_world_3d().direct_space_state, launch[0], launch[1], held_kind),
+		held_kind)
 
 
 @rpc("any_peer", "call_remote", "reliable")

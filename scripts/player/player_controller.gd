@@ -99,6 +99,14 @@ var weapons: Dictionary = {}
 var throwables: Throwables
 ## Seconds of flashbang blindness left (local player only; see GrenadeFx.flash).
 var blind_time: float = 0.0
+## Grenade wheel open (hold 4): the mouse points at a grenade instead of looking.
+var grenade_wheel_open: bool = false
+## Climbing onto a ledge (see Climb): true while pulling up.
+var is_climbing: bool = false
+var _climb_time: float = 0.0
+var _climb_duration: float = 0.0
+var _climb_from: Vector3
+var _climb_to: Vector3
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -177,7 +185,8 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			and not grenade_wheel_open:
 		var motion := event as InputEventMouseMotion
 		var sens := SettingsManager.mouse_sensitivity * 0.01
 		if current_weapon:
@@ -223,7 +232,7 @@ func _process(delta: float) -> void:
 		_lean_target = _local_lean_target()
 	lean = move_toward(lean, _lean_target, delta * 6.0)
 	_apply_lean()
-	if is_local and input_enabled and not health.is_dead:
+	if is_local and input_enabled and not health.is_dead and not grenade_wheel_open:
 		_pad_look(delta)
 	if not is_local and visible:
 		_model.animate(delta, is_crouching)
@@ -246,6 +255,18 @@ func _physics_process(delta: float) -> void:
 	_slide_cooldown_timer -= delta
 	if input_enabled and Match.can_move() and Input.is_action_just_pressed(&"jump"):
 		_jump_buffer_timer = jump_buffer_time
+
+	# --- Climbing -----------------------------------------------------------
+	if is_climbing:
+		_update_climb(delta)
+		return
+	if _jump_buffer_timer > 0.0 and _coyote_timer > 0.0 and _try_climb(Climb.MIN_HEIGHT):
+		_jump_buffer_timer = 0.0
+		return
+	# Jumped at something too high to jump onto: keep Jump held to pull up.
+	if not on_floor and velocity.y < 2.0 and input_enabled and Input.is_action_pressed(&"jump") \
+			and _try_climb(0.2):
+		return
 
 	# --- Gravity ------------------------------------------------------------
 	if not on_floor:
@@ -330,6 +351,57 @@ func _physics_process(delta: float) -> void:
 # -----------------------------------------------------------------------------
 # Public API
 # -----------------------------------------------------------------------------
+
+## Pulls the player up onto a climbable ledge in front (at least
+## `min_height` high). Returns false if there is none.
+func _try_climb(min_height: float) -> bool:
+	if not input_enabled or not Match.can_move() or is_sliding:
+		return false
+	var forward := -global_basis.z
+	var ledge := Climb.find_ledge(get_world_3d().direct_space_state, global_position, forward)
+	if ledge.is_empty() or not ledge.climbable or ledge.height < min_height:
+		return false
+	is_climbing = true
+	_climb_time = 0.0
+	_climb_duration = 0.3 + 0.16 * ledge.height
+	_climb_from = global_position
+	_climb_to = (ledge.top as Vector3) + Vector3.UP * 0.02
+	velocity = Vector3.ZERO
+	is_crouching = true
+	if current_weapon and not throwables.is_holding():
+		current_weapon.set_holstered(true)
+	_movement_sound(&"jump", -8.0, 14.0)
+	return true
+
+
+## Up first (hands on the edge), then forward onto the top.
+func _update_climb(delta: float) -> void:
+	_climb_time += delta
+	var t := clampf(_climb_time / _climb_duration, 0.0, 1.0)
+	var up := clampf(t / 0.7, 0.0, 1.0)
+	var over := clampf((t - 0.55) / 0.45, 0.0, 1.0)
+	var pos := _climb_from
+	pos.y = lerpf(_climb_from.y, _climb_to.y + 0.05, 1.0 - pow(1.0 - up, 2.0))
+	pos.x = lerpf(_climb_from.x, _climb_to.x, over * over)
+	pos.z = lerpf(_climb_from.z, _climb_to.z, over * over)
+	global_position = pos
+	velocity = Vector3.ZERO
+	is_crouching = true
+	_update_height(delta)
+	_update_camera(delta, false)
+	if t >= 1.0:
+		_end_climb()
+		_movement_sound(&"land", -12.0, 14.0)
+
+
+func _end_climb() -> void:
+	if not is_climbing:
+		return
+	is_climbing = false
+	is_crouching = _is_ceiling_blocked()
+	if current_weapon and not (throwables and throwables.is_holding()):
+		current_weapon.set_holstered(false)
+
 
 ## Weapons in slot order: [primary (null if none), secondary, knife].
 func loadout_weapons() -> Array[Weapon]:
@@ -452,6 +524,7 @@ func respawn_at(xform: Transform3D, primary: String, nades: Array = []) -> void:
 	_recoil = Vector2.ZERO
 	is_sliding = false
 	_fell_reported = false
+	_end_climb()
 	visible = true
 	_set_hitboxes_enabled(true)
 	is_walking = false
@@ -703,6 +776,7 @@ func _movement_sound(sound: StringName, volume_db: float, max_distance: float) -
 
 
 func _on_died(_source: Node) -> void:
+	_end_climb()
 	if is_local and Match.mode == GameConfig.Mode.BOMB:
 		Match.bomb.request_interact(false)
 	if throwables and throwables.is_holding():

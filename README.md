@@ -589,6 +589,8 @@ Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only 
 
 With armour (Bomb Defusal), the armour soaks `1 − armour penetration` of the hit and loses that much; the rest goes to health. A rifle bullet keeps 78 % of its damage against armour, a pistol bullet only half. Falls and the bomb ignore armour. Zones are worked out on the server from the rewound (lag-compensated) player shapes: `Hitbox.zone_at()` and `ZONE_MULTIPLIERS` in `scripts/core/hitbox.gd`, `armor_penetration` in each `WeaponData`.
 
+**Climbing** — only bodies in the `climbable` group can be climbed (`scripts/player/climb.gd`); `tools/greybox.py` puts crates, pallets, desks, stalls, barrels, drums, sacks, sandbags, cars, carts, forklifts, AC units, tarps and freight-car decks there (up to 2.3 m tall). Everything else is reached by jumping (ledges up to ~1.4 m) or by stairs and ramps. To keep jumping predictable no map has a non-climbable ledge between 1.25 and 1.55 m — the height where a jump only sometimes works; `godot --headless --path . --script res://tools/ledge_check.gd` lists any, and the smoke test checks every map.
+
 **Grenades** — everyone gets one **HE grenade** (`G`), one **Molotov** (`Q`), two **flashbangs** (`F`) and one **smoke** (`Z`) per life (bought in Bomb Defusal), thrown straight away without switching from the gun (`scripts/weapons/throwables.gd`):
 
 | Grenade | Goes off | Damage | Armour |
@@ -684,12 +686,12 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 | Sprint | hold `Shift` |
 | Crouch | `C` |
 | Slide (while sprinting) | `Left Ctrl` |
-| Jump | `Space` |
+| Jump / **climb** | `Space` — facing a climbable ledge up to 2.2 m (crates, cars, sandbags, low walls…) it pulls you up on top; after a jump, keep `Space` held to grab the ledge |
 | **Lean left / right** | hold `Q` / `E` — the head and view move sideways round a corner (not through walls); the server moves your head hitbox too |
 | **Walk / run toggle** | `Caps Lock` — slow, near-silent steps; `WALK` shows under the crosshair |
 | Primary / secondary weapon | `1` / `2` |
 | **Knife** | `3` — short reach (1.9 m), 50 damage, no ammo |
-| **Grenades** | `4` takes one in hand (press again for the next type), left click throws, right click lobs it short; `1`–`3` or the wheel put it away · `G` quick-throws the HE |
+| **Grenades** | **hold `4`** for the grenade wheel — move the mouse (or right stick) towards one and let go; a quick tap takes the next type. Left click throws, right click lobs it short; while one is in hand its **flight path and landing ring** are drawn (Settings → Gameplay to turn off). `1`–`3` or the mouse wheel put it away · `G` quick-throws the HE |
 | Reload | `R` |
 | Fire / aim down sights | `Left Mouse` / `Right Mouse` |
 | **Switch fire mode** | `B` — AR-7: auto / 3-round burst / semi, V-10: auto / semi (shown next to the weapon name) |

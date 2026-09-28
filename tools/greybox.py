@@ -12,6 +12,7 @@ Coordinates: metres, +Y up, -Z = north. Box position = centre.
 """
 import math
 import os
+import re
 
 ROOT = os.path.join(os.path.dirname(__file__), "..")
 
@@ -111,6 +112,13 @@ MATERIALS = {
              "roughness_value": 1.0, "grime": 0.0},
 }
 SITE_RADIUS = 3.5  # keep in sync with BombRules.SITE_RADIUS
+# Bodies players can climb onto (Jump facing them; see scripts/player/climb.gd)
+# go in the "climbable" group: props named with one of these prefixes, no
+# taller than CLIMB_MAX_HEIGHT. Everything else is only reached by jumping
+# (up to ~1.4 m) or by stairs and ramps.
+CLIMBABLE = ("Crate", "Pallet", "Desk", "Stall", "Barrel", "Drum", "Sack", "BagCollider", "Car", "Cart",
+             "Forklift", "ACUnit", "Tarp", "TankDeck", "Underframe", "LowWall", "Ledge")
+CLIMB_MAX_HEIGHT = 2.3
 
 
 class Map:
@@ -288,7 +296,10 @@ class Map:
                     subs.append(f'[sub_resource type="CylinderMesh" id="Mesh_{sid}"]\nmaterial = SubResource("Mat_{mat}")\n'
                             f'top_radius = {top:.3f}\nbottom_radius = {bottom:.3f}\nheight = {height:.3f}\nradial_segments = {segs}\nrings = 1\n')
             b = ", ".join(f"{v:.6f}" for v in basis)
-            nodes.append(f'[node name="{name}" type="StaticBody3D" parent="Geometry"]\ntransform = Transform3D({b}, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n')
+            tall = shape[1][1] if shape[0] == "box" else shape[3]
+            climb = collide and re.sub(r"\d+$", "", name) in CLIMBABLE and tall <= CLIMB_MAX_HEIGHT
+            groups = ' groups=["climbable"]' if climb else ""
+            nodes.append(f'[node name="{name}" type="StaticBody3D" parent="Geometry"{groups}]\ntransform = Transform3D({b}, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n')
             if mat is not None:
                 nodes.append(f'[node name="Mesh" type="MeshInstance3D" parent="Geometry/{name}"]\nmesh = SubResource("Mesh_{sid}")\n')
             if collide:
@@ -940,7 +951,8 @@ def _building(m, rng, x0, x1, z0, z1, h, mat, faces="nsew", roof=True):
 
 def _pot(m, x, z, y=0.0, scale=1.0):
     k = scale
-    m.cyl((x, y + 0.24 * k, z), 0.2 * k, 0.48 * k, "clay", "Pot", top=0.34 * k)
+    # Pots up on walls and terraces are decoration only (no awkward half-jumpable ledges).
+    m.cyl((x, y + 0.24 * k, z), 0.2 * k, 0.48 * k, "clay", "Pot", top=0.34 * k, collide=y <= 0.0)
     m.cyl((x, y + 0.63 * k, z), 0.34 * k, 0.3 * k, "clay", "PotTop", top=0.2 * k, collide=False)
     m.cyl((x, y + 0.81 * k, z), 0.22 * k, 0.06 * k, "clay", "PotRim", collide=False)
 

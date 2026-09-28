@@ -67,6 +67,8 @@ var _money_label: Label
 var _buy_hint: Label
 var _money_events: VBoxContainer
 var buy_menu: BuyMenu
+## Hold 4: pick a grenade.
+var grenade_wheel: GrenadeWheel
 var _feed_style_mine: StyleBoxFlat
 
 
@@ -101,6 +103,7 @@ func bind_player(player: PlayerController) -> void:
 		Audio.play_local(&"hurt", -4.0, randf_range(0.9, 1.1)))
 	_on_health_changed(player.health.current, player.health.max_health)
 	buy_menu.player = player
+	grenade_wheel.throwables = player.throwables
 	if player.throwables:
 		player.throwables.changed.connect(_update_weapon_slots)
 	_bind_weapon(player.current_weapon)
@@ -181,6 +184,8 @@ func _ready() -> void:
 	_walk_label.visible = false
 	add_child(_walk_label)
 	_build_money()
+	grenade_wheel = GrenadeWheel.new()
+	add_child(grenade_wheel)
 	var level := get_parent() as Level
 	_top_bar.level = level
 	if level and not level.preview_only:

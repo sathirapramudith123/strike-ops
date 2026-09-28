@@ -135,7 +135,8 @@ func _physics_process(delta: float) -> void:
 	if not _player.is_local:
 		return
 
-	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot() and not holstered
+	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot() and not holstered \
+		and not _player.grenade_wheel_open
 	var aim_input := Input.is_action_pressed(&"aim")
 	if SettingsManager.aim_toggle:
 		if can_act and Input.is_action_just_pressed(&"aim"):

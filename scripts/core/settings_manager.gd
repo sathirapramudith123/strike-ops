@@ -120,6 +120,8 @@ var vibration: bool = true
 var crosshair_color_name: String = "White"
 var crosshair_size: float = 1.0
 var crosshair_dot: bool = true
+## Draw the predicted flight of the grenade in hand (GrenadeArc).
+var grenade_arc: bool = true
 
 # Multiplayer
 var player_name: String = "Player"
@@ -421,6 +423,7 @@ func save() -> void:
 	_config.set_value("gameplay", "crosshair_color", crosshair_color_name)
 	_config.set_value("gameplay", "crosshair_size", crosshair_size)
 	_config.set_value("gameplay", "crosshair_dot", crosshair_dot)
+	_config.set_value("gameplay", "grenade_arc", grenade_arc)
 	_save_bindings()
 
 	_config.set_value("network", "player_name", player_name)
@@ -486,6 +489,7 @@ func _load_all(first_launch: bool) -> void:
 	crosshair_color_name = _config.get_value("gameplay", "crosshair_color", crosshair_color_name)
 	crosshair_size = _config.get_value("gameplay", "crosshair_size", crosshair_size)
 	crosshair_dot = _config.get_value("gameplay", "crosshair_dot", crosshair_dot)
+	grenade_arc = _config.get_value("gameplay", "grenade_arc", grenade_arc)
 	window_size = _config.get_value("display", "window_size", window_size)
 	brightness = _config.get_value("display", "brightness", brightness)
 	dynamic_resolution = _config.get_value("display", "dynamic_resolution", dynamic_resolution)

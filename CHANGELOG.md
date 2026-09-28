@@ -2,6 +2,20 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Climbing:** press Space facing a crate, car, sandbag wall, low wall or
+other climbable prop up to 2.2 m high and you pull yourself up on top (or
+keep Space held after a jump to grab the ledge). Only those props can be
+climbed — buildings and tall walls can't. Jumping is now predictable too:
+no map has a ledge in the 1.25–1.55 m "sometimes works" range any more
+(decorative pots on walls lost their collision), and a new check
+(`tools/ledge_check.gd`, also in the smoke test) keeps it that way.
+
+**Grenade wheel and throw path:** hold 4 to open a wheel with your
+grenades round the crosshair; move the mouse (or right stick) towards one
+and let go to take it (a quick tap still takes the next one). While a
+grenade is in hand, its flight is drawn ahead of time — bounces included —
+with a ring where it will go off (turn off in Settings → Gameplay).
+
 **Money and the buy menu (Bomb Defusal):** everyone starts a half with
 $800 and only the pistol and knife. Press **X** near your spawn during the
 freeze time and the first 20 s of a round to buy guns (AR-7 $2700, SMG

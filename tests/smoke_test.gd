@@ -26,6 +26,7 @@ func _run() -> void:
 
 	await _test_walk_and_sprint()
 	await _test_jump()
+	await _test_climbing()
 	await _test_crouch_and_slide()
 	await _test_shooting()
 	await _test_reload()
@@ -41,6 +42,7 @@ func _run() -> void:
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
 	await _test_grenades()
+	await _test_grenade_wheel_and_arc()
 	await _test_flash_and_smoke()
 	await _test_audio()
 	await _test_controller()
@@ -89,6 +91,76 @@ func _test_jump() -> void:
 	_check(peak > ground_y + 1.0, "jump reaches > 1 m (got %.2f)" % (peak - ground_y))
 	await _frames(40)
 	_check(_player.is_on_floor(), "player lands after jumping")
+
+
+## A box in front of the player (test map, open floor near the spawn).
+func _add_box(center: Vector3, size: Vector3, climbable: bool) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	if climbable:
+		body.add_to_group(Climb.GROUP)
+	_level.add_child(body)
+	body.global_position = center
+	return body
+
+
+func _test_climbing() -> void:
+	# A 1.8 m climbable crate: Jump facing it pulls the player up on top.
+	var crate := _add_box(Vector3(0, 0.9, 2), Vector3(2, 1.8, 1.5), true)
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 3.4))
+	await _frames(10)
+	var ledge := Climb.find_ledge(_player.get_world_3d().direct_space_state, _player.global_position, -_player.global_basis.z)
+	_check(not ledge.is_empty() and ledge.climbable and absf(ledge.height - 1.8) < 0.15,
+		"a 1.8 m crate in front is a climbable ledge (%s)" % str(ledge.get("height")))
+	_press_action(&"jump")
+	await _frames(3)
+	_check(_player.is_climbing, "Jump at the crate starts climbing")
+	await _frames(70)
+	_check(not _player.is_climbing and _player.global_position.y > 1.7 and _player.global_position.z < 2.6,
+		"climbed up on top of the crate (%s)" % _player.global_position.snappedf(0.01))
+	_check(_player.current_weapon and not _player.current_weapon.holstered, "gun back in hand after climbing")
+	crate.queue_free()
+
+	# The same box without the climbable mark: a jump doesn't get up there.
+	var wall := _add_box(Vector3(0, 0.9, 2), Vector3(2, 1.8, 1.5), false)
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 3.4))
+	await _frames(10)
+	Input.action_press(&"jump")
+	Input.action_press(&"move_forward")
+	await _frames(60)
+	_release_all()
+	await _frames(20)
+	_check(not _player.is_climbing and _player.global_position.y < 0.5, "a box that isn't climbable can't be climbed")
+	wall.queue_free()
+
+	# Jumping at a climbable ledge and holding Jump pulls up in the air.
+	var crate2 := _add_box(Vector3(0, 1.0, 2), Vector3(2, 2.0, 1.5), true)
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 5.5))
+	await _frames(5)
+	Input.action_press(&"move_forward")
+	await _frames(20)
+	Input.action_press(&"jump")
+	var climbed := false
+	for i in 60:
+		await _frames(1)
+		if _player.is_climbing:
+			climbed = true
+			Input.action_release(&"move_forward") # stay on top
+	await _frames(30)
+	_release_all()
+	_check(climbed, "holding Jump in the air grabs the ledge")
+	_check(_player.global_position.y > 1.9, "running jump + hold Jump climbs a 2 m crate (y %.2f)" % _player.global_position.y)
+	crate2.queue_free()
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 6))
+	await _frames(20)
 
 
 func _test_crouch_and_slide() -> void:
@@ -565,10 +637,10 @@ func _test_new_controls() -> void:
 
 	# Grenade slot (4): in hand, gun put away; 4 again switches; 1 puts it away.
 	var t := _player.throwables
-	_tap(&"weapon_4")
+	_press_action(&"weapon_4")
 	await _frames(2)
 	_check(t.held_kind == Throwables.Kind.HE and _player.current_weapon.holstered, "4 takes the HE grenade in hand")
-	_tap(&"weapon_4")
+	_press_action(&"weapon_4")
 	await _frames(2)
 	_check(t.held_kind == Throwables.Kind.FLASH, "4 again switches to the flashbang")
 	_tap(&"weapon_1")
@@ -781,6 +853,67 @@ func _throw_from_hand(kind: int) -> void:
 	Input.action_press(&"shoot")
 	await _frames(2)
 	Input.action_release(&"shoot")
+
+
+func _test_grenade_wheel_and_arc() -> void:
+	var t := _player.throwables
+	t.refill()
+	_reset_player(Vector3(0, 0.1, -12), PI)
+	_player.health.revive()
+	_player.health.protect(0.0)
+	await _frames(3)
+	# Hold 4: the wheel opens (look is locked); point left = Molotov; let go.
+	var down := InputEventAction.new()
+	down.action = &"weapon_4"
+	down.pressed = true
+	Input.parse_input_event(down)
+	await _frames(15)
+	await get_tree().process_frame
+	_check(t.wheel_open and _player.grenade_wheel_open and _level.hud.grenade_wheel.visible, "holding 4 opens the grenade wheel")
+	var yaw := _player.rotation.y
+	t._point_wheel(Vector2(-90, 5))
+	_check(t.wheel_choice == Throwables.Kind.MOLOTOV and is_equal_approx(_player.rotation.y, yaw),
+		"pointing left picks the Molotov; the view stays still")
+	_check(Throwables.wheel_kind_at(Vector2(0, -1)) == Throwables.Kind.HE and Throwables.wheel_kind_at(Vector2(1, 0)) == Throwables.Kind.FLASH
+		and Throwables.wheel_kind_at(Vector2(0, 1)) == Throwables.Kind.SMOKE, "wheel: HE top, flash right, smoke bottom")
+	var up := InputEventAction.new()
+	up.action = &"weapon_4"
+	Input.parse_input_event(up)
+	await _frames(2)
+	_check(not t.wheel_open and t.held_kind == Throwables.Kind.MOLOTOV, "letting go of 4 takes the Molotov in hand")
+	_press_action(&"weapon_4")
+	await _frames(2)
+	_check(t.held_kind == Throwables.Kind.HE, "a quick tap on 4 still takes the next grenade")
+	_press_action(&"weapon_2")
+	await _frames(2)
+
+	# Throw path: shown while a grenade is in hand; the Molotov lands in the ring.
+	_player.head.rotation.x = deg_to_rad(-12)
+	_press_action(&"weapon_4")
+	await _frames(1)
+	for i in 4:
+		if t.held_kind == Throwables.Kind.MOLOTOV:
+			break
+		_press_action(&"weapon_4")
+		await _frames(1)
+	await _frames(2)
+	await get_tree().process_frame
+	_check(t.arc != null and t.arc.visible, "the throw path is drawn while a grenade is in hand")
+	var launch := t.throw_launch(1.0)
+	var path := GrenadeArc.predict(_player.get_world_3d().direct_space_state, launch[0], launch[1], Throwables.Kind.MOLOTOV)
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(3)
+	_check(not t.arc.visible, "the path hides after the throw")
+	await _frames(120)
+	var fire := _level.find_child("Fire_*", true, false) as Node3D
+	var off := fire.global_position.distance_to(path.end) if fire else 99.0
+	_check(fire != null and off < 1.2, "the Molotov burns where the path said (%.2f m off)" % off)
+	for f in get_tree().get_nodes_in_group(FireZone.GROUP):
+		(f as FireZone).extinguish()
+	t.refill()
+	await _frames(10)
 
 
 func _test_flash_and_smoke() -> void:
@@ -1503,6 +1636,20 @@ func _test_maps() -> void:
 		var ok := lvl.blue_spawn_points.size() >= 3 and lvl.red_spawn_points.size() >= 3 and lvl.bomb_sites.size() == 2
 		lvl.free()
 		_check(ok, "%s: team spawns + bomb sites A/B" % m.name)
+
+	# No "sometimes jumpable" ledges: anything a jump only reaches with the
+	# right run-up (Climb.BORDERLINE_*) is climbable instead (tools/ledge_check.gd).
+	var ledge_check := preload("res://tools/ledge_check.gd")
+	for m: Dictionary in GameConfig.MAPS:
+		var lvl := (load(m.path) as PackedScene).instantiate() as Level
+		lvl.preview_only = true
+		lvl.position = Vector3(0, -500, 0) # away from the current map
+		get_tree().root.add_child(lvl)
+		await _frames(2)
+		var found: PackedStringArray = ledge_check.scan(lvl)
+		lvl.queue_free()
+		await _frames(1)
+		_check(found.is_empty(), "%s: no half-jumpable ledges %s" % [m.name, str(found.slice(0, 3))])
 
 
 ## Phase 3: sound effects, occlusion, voices, music, UI and feedback sounds.
