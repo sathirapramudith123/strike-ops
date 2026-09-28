@@ -40,8 +40,8 @@ const MAPS: Array[Dictionary] = [
 		"style": "Outdoor · lanes", "players": "6–16",
 		"description": "Container lanes on the quay and a ship deck reached by two gangways." },
 	{ "id": "bunker", "name": "Bunker", "path": "res://scenes/levels/bunker.tscn", "bomb": true,
-		"style": "Indoor · small", "players": "2–8",
-		"description": "Symmetric rooms around a pillared atrium. Fast rounds, great for 2v2." },
+		"style": "Indoor · 3 lanes", "players": "4–12",
+		"description": "Underground base: A Long up to a balcony over A, B one level down through the rock tunnel, a reactor hall in Mid." },
 	{ "id": "kasbah", "name": "Kasbah", "path": "res://scenes/levels/kasbah.tscn", "bomb": true,
 		"style": "Desert town · bomb defusal", "players": "6–16",
 		"description": "Sun-baked town: A Long, Mid and the covered B Apartments. A is a raised terrace, B a courtyard around a well." },
@@ -55,8 +55,8 @@ const MAPS: Array[Dictionary] = [
 		"style": "Underground · platforms", "players": "4–12",
 		"description": "Station with two platforms and an island, track beds to drop into, a parked train to walk through." },
 	{ "id": "trainyard", "name": "Train Yard", "path": "res://scenes/levels/trainyard.tscn", "bomb": true,
-		"style": "Outdoor · rail lanes", "players": "6–16",
-		"description": "Rows of freight cars to weave between, a maintenance shed (A) and a signal tower with a balcony (B)." },
+		"style": "Outdoor · 3 lanes", "players": "6–16",
+		"description": "Trains parked in Mid under a gantry crane. A inside a warehouse off the loading dock, B in a lower yard down the rail cut." },
 ]
 
 const TEAM_NONE := -1

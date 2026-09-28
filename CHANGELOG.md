@@ -2,6 +2,18 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Bunker and Train Yard rebuilt** from concept art as 3-lane bomb maps
+(T west, CT east, A north, B south). Bunker is an underground base on
+three levels: A Long climbs to an upper corridor and a balcony over A, B
+is a level down through the rock tunnel or the stairs from the reactor
+hall in Mid. Train Yard has trains parked in Mid under a gantry crane, A
+inside a warehouse off the raised loading dock, B in a lower yard at the
+end of the rail cut, and a water tower on the CT side.
+
+**Grippier movement:** you stop almost on the spot (about 0.2 m from a
+sprint instead of gliding), reversing brakes hard, and crouching while
+running no longer turns into a slide — only the Slide key (`C`) slides.
+
 **Flashbang and smoke grenade:** two flashes (`F`) and one smoke (`Z`)
 per life. A flash whites out the screen of anyone who sees it — up to 4 s
 looking straight at it, less further away or looking away, nothing
