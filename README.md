@@ -552,13 +552,24 @@ Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only 
 
 **Weapons** — loadout = one primary + the pistol. Switch with `1` / `2` / mouse wheel; pick your primary in the `Esc` menu (applies on your next spawn).
 
-| Weapon | Type | Damage | RPM | Mag | Notes |
-|--------|------|--------|-----|-----|-------|
-| AR-7 | Assault rifle | 24 | 650 | 30 | All-rounder |
-| V-10 | SMG | 17 | 900 | 32 | Fast, accurate while moving, short range |
-| M-12 | Shotgun | 9 × 13 | 70 | 6 | Pellets in one packet, deadly up close |
-| LR-50 | Sniper | 110 | 45 | 5 | One-shot body kill, **scope overlay** (4× zoom) |
-| P-9 | Pistol | 30 | 400 (semi) | 12 | Secondary for everyone |
+| Weapon | Type | Damage | Head | Armour pen. | RPM | Mag | Notes |
+|--------|------|--------|------|-------------|-----|-----|-------|
+| AR-7 | Assault rifle | 24 | ×2 | 78 % | 650 | 30 | All-rounder |
+| V-10 | SMG | 17 | ×1.6 | 60 % | 900 | 32 | Fast, accurate while moving, short range |
+| M-12 | Shotgun | 9 × 13 | ×1.5 | 45 % | 70 | 6 | Pellets in one packet, deadly up close |
+| LR-50 | Sniper | 110 | ×2 | 95 % | 45 | 5 | One-shot chest/stomach kill, **scope overlay** (4× zoom) |
+| P-9 | Pistol | 30 | ×2 | 50 % | 400 (semi) | 12 | Secondary for everyone |
+
+**Damage model** — `damage = base × distance falloff × hit zone`, then armour:
+
+| Hit zone | Multiplier | Armour covers it? |
+|----------|------------|-------------------|
+| Head | the weapon's headshot multiplier | yes (helmet) |
+| Chest | ×1.0 | yes |
+| Stomach | ×1.25 | yes |
+| Legs (lower half of the body) | ×0.75 | **no** |
+
+With armour (Bomb Defusal), the armour soaks `1 − armour penetration` of the hit and loses that much; the rest goes to health. A rifle bullet keeps 78 % of its damage against armour, a pistol bullet only half. Falls and the bomb ignore armour. Zones are worked out on the server from the rewound (lag-compensated) player shapes: `Hitbox.zone_at()` and `ZONE_MULTIPLIERS` in `scripts/core/hitbox.gd`, `armor_penetration` in each `WeaponData`.
 
 All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weapon: new `WeaponData` `.tres` + viewmodel scene using `weapon.gd`, register it in `scripts/core/game_config.gd`, and add an instance under the player's `WeaponHolder`.
 

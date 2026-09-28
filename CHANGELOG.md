@@ -19,6 +19,12 @@ Warehouse, Mid with a catwalk under the **Lanka Steel** building, Tunnels
 to Lower Mid and a Rail Yard along the east. Painted T / CT at the
 spawns, coconut palms, red-and-white chimneys and a Sri Lankan flag.
 
+**Hit locations and armour penetration:** where you hit matters — head
+(the weapon's headshot multiplier), chest ×1, stomach ×1.25, legs ×0.75.
+Each weapon has its own armour penetration: rifle 78 %, sniper 95 %, SMG
+60 %, pistol 50 %, shotgun 45 % (the rest is soaked by armour). Armour
+doesn't cover the legs.
+
 **Buildings you can enter:** two houses in Kasbah (one on A Long looking
 over A, one by B looking over Short and the B Apartments exit) and the
 Lanka Steel building in Factory (walk through it from Mid to A), the signal

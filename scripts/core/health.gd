@@ -23,6 +23,8 @@ const NET_GROUP := &"net_health"
 ## much; the rest hurts. Falls and the bomb ignore armour.
 @export var uses_armor: bool = false
 const MAX_ARMOR := 100.0
+## Share of a hit the armour soaks when the attacker gives no penetration
+## (weapons pass their own `armor_penetration`: absorbed = 1 - penetration).
 const ARMOR_ABSORB := 0.4
 
 var current: float
@@ -66,7 +68,8 @@ func _process(delta: float) -> void:
 
 
 ## Server only. Returns true if this hit killed the owner.
-func take_damage(amount: float, source: Node = null, is_headshot: bool = false, cause: String = "") -> bool:
+func take_damage(amount: float, source: Node = null, is_headshot: bool = false, cause: String = "",
+		armor_penetration: float = -1.0, armored: bool = true) -> bool:
 	if not multiplayer.is_server() or is_dead or amount <= 0.0:
 		return false
 	# Spawn protection (fall damage still applies so nobody gets stuck).
@@ -77,8 +80,9 @@ func take_damage(amount: float, source: Node = null, is_headshot: bool = false, 
 	last_cause = cause
 	silent_death = false
 	var hurt := amount
-	if armor > 0.0 and source != null:
-		var absorbed := minf(amount * ARMOR_ABSORB, armor)
+	if armor > 0.0 and source != null and armored:
+		var soak := ARMOR_ABSORB if armor_penetration < 0.0 else 1.0 - clampf(armor_penetration, 0.0, 1.0)
+		var absorbed := minf(amount * soak, armor)
 		armor -= absorbed
 		hurt = amount - absorbed
 	current = maxf(current - hurt, 0.0)

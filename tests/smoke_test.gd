@@ -217,6 +217,12 @@ func _test_lag_compensation() -> void:
 	_check((mid.pos as Vector3).is_equal_approx(Vector3(-4, 0, 20)), "history interpolates between snapshots")
 	var head := LagCompensation.trace(space, Vector3(-6, 1.6, 26), Vector3.FORWARD, 50.0, _player, players, t0)
 	_check(head.get("hitbox") == remote.head_hitbox, "head height hits the head hitbox")
+	# Body zones by hit height (the remote player is 1.8 m tall).
+	var zones := []
+	for y in [0.5, 1.0, 1.3, 1.6]:
+		zones.append(LagCompensation.trace(space, Vector3(-6, y, 26), Vector3.FORWARD, 50.0, _player, players, t0).get("zone"))
+	_check(zones == [&"legs", &"stomach", &"chest", &"head"], "hit zones: legs, stomach, chest, head (%s)" % str(zones))
+	_check(Hitbox.ZONE_MULTIPLIERS[&"legs"] < 1.0 and Hitbox.ZONE_MULTIPLIERS[&"stomach"] > 1.0, "legs do less damage, stomach more")
 	_level.despawn_player(99)
 
 
@@ -544,6 +550,21 @@ func _test_bomb_defusal() -> void:
 	_check(_level.hud._armor_label.text == "80" and _level.hud._armor_group.visible, "HUD shows the armour")
 	_player.health.take_damage(10.0, null, false, "Fall")
 	_check(is_equal_approx(_player.health.current, 60.0), "falls ignore armour")
+	_player.health.heal(100.0)
+	# Per-weapon penetration: a rifle bullet (78 %) loses little to armour, a
+	# pistol bullet (50 %) half; legs are not covered by armour.
+	var armour_before := _player.health.armor
+	_player.health.take_damage(20.0, defender, false, "", 0.78)
+	_check(is_equal_approx(_player.health.current, 100.0 - 15.6) and is_equal_approx(_player.health.armor, armour_before - 4.4),
+		"rifle penetrates armour (health %.1f, armour %.1f)" % [_player.health.current, _player.health.armor])
+	_player.health.heal(100.0)
+	_player.health.take_damage(20.0, defender, false, "", 0.5)
+	_check(is_equal_approx(_player.health.current, 90.0), "pistol loses half to armour (health %.1f)" % _player.health.current)
+	_player.health.heal(100.0)
+	armour_before = _player.health.armor
+	_player.health.take_damage(20.0, defender, false, "", 0.5, false)
+	_check(is_equal_approx(_player.health.current, 80.0) and is_equal_approx(_player.health.armor, armour_before),
+		"leg hits ignore armour")
 	_player.health.heal(100.0)
 
 	# Drop + pick up.

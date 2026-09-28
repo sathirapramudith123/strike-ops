@@ -13,6 +13,7 @@ headshot_multiplier = 1.6
 max_range = 80.0
 falloff_start = 15.0
 min_damage_multiplier = 0.5
+armor_penetration = 0.6
 magazine_size = 32
 starting_reserve = 160
 reload_time = 1.8

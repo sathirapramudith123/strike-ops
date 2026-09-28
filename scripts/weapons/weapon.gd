@@ -352,12 +352,15 @@ func _server_process_shot(origin: Vector3, dirs: PackedVector3Array, render_time
 			continue
 		var falloff := remap(hit.distance, data.falloff_start, data.max_range, 1.0, data.min_damage_multiplier)
 		var damage := data.damage * clampf(falloff, data.min_damage_multiplier, 1.0)
+		var zone: StringName = hit.get("zone", &"head" if hitbox.is_head else &"chest")
 		if hitbox.is_head:
 			# The weapon decides the headshot multiplier; cancel the hitbox's own one.
 			damage *= data.headshot_multiplier / maxf(hitbox.damage_multiplier, 0.001)
+		else:
+			damage *= Hitbox.ZONE_MULTIPLIERS.get(zone, 1.0)
 		any_hit = true
 		any_head = any_head or hitbox.is_head
-		any_kill = hitbox.apply_hit(damage, _player) or any_kill
+		any_kill = hitbox.apply_hit(damage, _player, data.armor_penetration, zone in Hitbox.ARMORED_ZONES) or any_kill
 
 	if any_hit:
 		if _player.is_local:
