@@ -2,8 +2,10 @@ class_name Throwables
 extends Node
 ## Grenades a player carries, refilled every life (every round in Bomb
 ## Defusal): one HE grenade, one Molotov, two flashbangs and one smoke.
-## Quick-throw — G HE, Q Molotov, F flash, Z smoke — without switching away
-## from the gun.
+## Key 4 takes one in hand (press again for the next type) — the gun is put
+## away — then left click throws it (right click: a short underhand lob) and
+## the gun comes back; 1 / 2 / 3 or the wheel put it away. G quick-throws
+## the one in hand, or the HE grenade, without the extra key press.
 ##
 ## Networking: the owner asks the server to throw (origin + velocity); the
 ## server checks the count, clamps the throw and tells every peer to spawn the
@@ -21,8 +23,11 @@ enum Kind { HE, MOLOTOV, FLASH, SMOKE }
 const ORDER: Array[int] = [Kind.HE, Kind.FLASH, Kind.SMOKE, Kind.MOLOTOV]
 const NAMES := { Kind.HE: "HE Grenade", Kind.MOLOTOV: "Molotov", Kind.FLASH: "Flashbang", Kind.SMOKE: "Smoke Grenade" }
 const SHORT_NAMES := { Kind.HE: "HE", Kind.MOLOTOV: "Molotov", Kind.FLASH: "Flash", Kind.SMOKE: "Smoke" }
-const ACTIONS := { Kind.HE: &"throw_grenade", Kind.MOLOTOV: &"throw_molotov",
-	Kind.FLASH: &"throw_flash", Kind.SMOKE: &"throw_smoke" }
+## The grenade slot key and the quick-throw key.
+const HOLD_ACTION := &"weapon_4"
+const QUICK_ACTION := &"throw_grenade"
+## Right click: underhand lob at this share of the speed.
+const LOB_STRENGTH := 0.45
 ## Grenades of each kind at spawn.
 const START_COUNTS := { Kind.HE: 1, Kind.MOLOTOV: 1, Kind.FLASH: 2, Kind.SMOKE: 1 }
 ## Fuse (s) for the kinds that go off on a timer (the Molotov breaks on impact).
@@ -43,12 +48,15 @@ const HE_ARMOR_PENETRATION := 0.5
 
 ## kind -> grenades left.
 var counts := START_COUNTS.duplicate()
+## The grenade in hand (Kind) or -1.
+var held_kind: int = -1
 
 var _player: PlayerController
 var _cooldown := 0.0
 var _next_id := 0
 ## Projectiles in flight: id -> GrenadeProjectile.
 var _live: Dictionary = {}
+var _hand_model: Node3D
 
 
 func _ready() -> void:
@@ -57,20 +65,95 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_cooldown -= delta
+	if held_kind < 0 or _player == null or not _player.is_local:
+		return
+	if not _player.input_enabled or _player.health.is_dead:
+		return
+	if Input.is_action_just_pressed(&"shoot"):
+		_throw_held(1.0)
+	elif Input.is_action_just_pressed(&"aim"):
+		_throw_held(LOB_STRENGTH)
 
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _player == null or not _player.is_local or not _player.input_enabled:
 		return
-	for kind: int in ACTIONS:
-		if InputMap.has_action(ACTIONS[kind]) and event.is_action_pressed(ACTIONS[kind]):
-			throw(kind)
-			get_viewport().set_input_as_handled()
-			return
+	if event.is_action_pressed(HOLD_ACTION):
+		hold_next()
+		get_viewport().set_input_as_handled()
+	elif event.is_action_pressed(QUICK_ACTION):
+		var kind := held_kind if held_kind >= 0 else Kind.HE
+		if kind >= 0 and throw(kind):
+			put_away()
+		get_viewport().set_input_as_handled()
+
+
+func is_holding() -> bool:
+	return held_kind >= 0
+
+
+## Key 4: take a grenade in hand, or switch to the next type you have.
+## Returns false if there is none left.
+func hold_next() -> bool:
+	if _player.health.is_dead:
+		return false
+	var start := ORDER.find(held_kind) + 1 if held_kind >= 0 else 0
+	for i in ORDER.size():
+		var kind: int = ORDER[(start + i) % ORDER.size()]
+		if counts.get(kind, 0) > 0:
+			_hold(kind)
+			return true
+	return false
+
+
+## Back to the gun (1 / 2 / 3, the wheel, after a throw, on death).
+func put_away() -> void:
+	if held_kind < 0:
+		return
+	held_kind = -1
+	if _hand_model:
+		_hand_model.queue_free()
+		_hand_model = null
+	if _player.current_weapon:
+		_player.current_weapon.set_holstered(false)
+	changed.emit()
+
+
+func _hold(kind: int) -> void:
+	var switching := held_kind >= 0
+	held_kind = kind
+	if _player.current_weapon:
+		_player.current_weapon.set_holstered(true)
+	if _hand_model:
+		_hand_model.queue_free()
+	_hand_model = GrenadeProjectile.build_model(kind)
+	_hand_model.name = "GrenadeInHand"
+	_hand_model.position = Vector3(0.2, -0.24, -0.42)
+	_hand_model.rotation = Vector3(0.3, 0.4, 0.0)
+	_hand_model.scale = Vector3.ONE * 1.4
+	_player.camera.add_child(_hand_model)
+	if not switching:
+		_player.play_equip_sound()
+	changed.emit()
+
+
+func _throw_held(strength: float) -> void:
+	var kind := held_kind
+	if can_throw(kind) and throw(kind, strength):
+		put_away()
+
+
+func _first_available() -> int:
+	for kind: int in ORDER:
+		if counts.get(kind, 0) > 0:
+			return kind
+	return -1
 
 
 ## Refill on (re)spawn — every peer does this, so no RPC is needed.
 func refill() -> void:
+	if held_kind >= 0:
+		put_away()
 	counts = START_COUNTS.duplicate()
 	changed.emit()
 
@@ -79,15 +162,16 @@ func can_throw(kind: int) -> bool:
 	return counts.get(kind, 0) > 0 and _cooldown <= 0.0 and not _player.health.is_dead and Match.can_shoot()
 
 
-## Local player: throw `kind` where the camera looks. Returns false if not allowed.
-func throw(kind: int) -> bool:
+## Local player: throw `kind` where the camera looks (`strength` < 1 for a
+## lob). Returns false if not allowed.
+func throw(kind: int, strength: float = 1.0) -> bool:
 	if not can_throw(kind):
 		return false
 	_cooldown = COOLDOWN
 	var cam := _player.camera
 	var dir := -cam.global_basis.z
 	var origin := cam.global_position + dir * 0.4 + cam.global_basis.x * 0.15 - cam.global_basis.y * 0.1
-	var vel := dir * THROW_SPEED + Vector3.UP * THROW_LIFT + _player.velocity * INHERIT_VELOCITY
+	var vel := dir * THROW_SPEED * strength + Vector3.UP * THROW_LIFT * strength + _player.velocity * INHERIT_VELOCITY
 	Audio.play_local(&"throw", -6.0, randf_range(0.95, 1.05))
 	_player.add_recoil(-1.5, 0.0)
 	if multiplayer.is_server():

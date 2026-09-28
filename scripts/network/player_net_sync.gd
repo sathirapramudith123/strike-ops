@@ -17,7 +17,8 @@ const MAX_RISE_SPEED := 12.0
 ## Seconds of invulnerability after (re)spawning.
 const SPAWN_PROTECTION := 1.5
 
-enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8, RELOADING = 16 }
+enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8, RELOADING = 16, LEAN_LEFT = 32,
+	LEAN_RIGHT = 64, WALKING = 128 }
 
 @onready var player: PlayerController = get_parent()
 
@@ -148,7 +149,7 @@ func send_slot(slot: int) -> void:
 func _server_slot(slot: int) -> void:
 	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != player.peer_id:
 		return
-	slot = clampi(slot, 0, 1)
+	slot = clampi(slot, 0, PlayerController.SLOT_COUNT - 1)
 	player._equip_slot(slot)
 	player.play_equip_sound()
 	NetworkManager.send_to_ready(self, &"_client_slot", [slot], [player.peer_id])
@@ -157,7 +158,7 @@ func _server_slot(slot: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _client_slot(slot: int) -> void:
 	if multiplayer.get_remote_sender_id() == 1 and not player.is_local:
-		player._equip_slot(clampi(slot, 0, 1))
+		player._equip_slot(clampi(slot, 0, PlayerController.SLOT_COUNT - 1))
 		player.play_equip_sound()
 
 
@@ -250,4 +251,7 @@ func _flags() -> int:
 	if player.is_sliding: f |= Flags.SLIDING
 	if player.current_weapon and player.current_weapon.is_aiming: f |= Flags.AIMING
 	if player.current_weapon and player.current_weapon.is_reloading: f |= Flags.RELOADING
+	if player.lean < -0.5: f |= Flags.LEAN_LEFT
+	if player.lean > 0.5: f |= Flags.LEAN_RIGHT
+	if player.is_walking: f |= Flags.WALKING
 	return f

@@ -76,6 +76,12 @@ func _run_host() -> void:
 	var smoke: Variant = await _wait_for(func() -> Variant:
 		return level.find_child("Smoke_*", true, false))
 	_check(smoke is SmokeCloud and (smoke as SmokeCloud).is_active(), "client's smoke grenade makes a cloud on the host")
+	var leaning: Variant = await _wait_for(func() -> Variant:
+		return true if client.lean > 0.8 and client.current_weapon and client.current_weapon.data.weapon_id == "knife" else null)
+	_check(leaning == true, "host sees the client lean and take out the knife")
+	# ...and wait until the client is done, so both reach the voice test together.
+	await _wait_for(func() -> Variant:
+		return true if client.lean < 0.1 and client.current_weapon and client.current_weapon.data.weapon_id != "knife" else null)
 
 	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_OPUS)
 
@@ -149,6 +155,13 @@ func _run_client() -> void:
 	# Wait for the cloud like the host does, so both reach the voice test together.
 	var cloud: Variant = await _wait_for(func() -> Variant: return level.find_child("Smoke_*", true, false))
 	_check(cloud is SmokeCloud, "client sees its smoke cloud")
+	# Knife out and lean right for a moment (the host checks it), then back.
+	me.select_slot(2)
+	Input.action_press(&"lean_right")
+	await _frames(90)
+	Input.action_release(&"lean_right")
+	me.select_slot(0)
+	await _frames(20)
 
 	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_OPUS)
 

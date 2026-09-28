@@ -518,7 +518,7 @@ Preset files themselves are only *suggested* — review and edit `resources/sett
 | **Display** | Window mode, window size, V-Sync, FPS limit, field of view, brightness, performance overlay |
 | **Audio** | Master, music, effects, voice chat and interface volume |
 | **Voice** | On/off, push-to-talk or voice activation, microphone, mic volume, activation level, live mic meter, noise suppression, proximity chat, "hear myself" test |
-| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 26 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
+| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 30 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
 | **Gameplay** | Player name, crosshair colour / size / centre dot with live preview |
 
 *Reset tab* restores that tab's defaults. Settings live in `user://settings.cfg` (key bindings in its `[bindings]` section, stored by physical key position so they work on any keyboard layout). Tests use a separate `settings_test.cfg`, so running them never changes your settings. `Esc`/Pause stays fixed so you can always reach the menu.
@@ -663,24 +663,29 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 
 | Action | Default key |
 |--------|-------------|
-| Move | `W` `A` `S` `D` |
+| Move forward / back / left / right | `W` / `S` / `A` / `D` |
+| Sprint | hold `Shift` |
+| Crouch | `C` |
+| Slide (while sprinting) | `Left Ctrl` |
 | Jump | `Space` |
-| Crouch / Slide | `Left Ctrl` / `C` (only the Slide key slides — crouching while running just slows you down) |
-| Sprint | `Left Shift` |
-| Shoot | `Left Mouse` |
-| Aim down sights | `Right Mouse` |
+| **Lean left / right** | hold `Q` / `E` — the head and view move sideways round a corner (not through walls); the server moves your head hitbox too |
+| **Walk / run toggle** | `Caps Lock` — slow, near-silent steps; `WALK` shows under the crosshair |
+| Primary / secondary weapon | `1` / `2` |
+| **Knife** | `3` — short reach (1.9 m), 50 damage, no ammo |
+| **Grenades** | `4` takes one in hand (press again for the next type), left click throws, right click lobs it short; `1`–`3` or the wheel put it away · `G` quick-throws the HE |
 | Reload | `R` |
-| Switch weapon | `1` primary / `2` pistol / `Mouse Wheel` |
-| Interact / plant / defuse (hold) | `E` |
-| Throw HE grenade / Molotov / flashbang / smoke | `G` / `Q` / `F` / `Z` |
-| **Push-to-talk (team)** | `V` |
-| **Push-to-talk (proximity)** | `B` |
+| Fire / aim down sights | `Left Mouse` / `Right Mouse` |
+| **Switch fire mode** | `B` — AR-7: auto / 3-round burst / semi, V-10: auto / semi (shown next to the weapon name) |
+| Use / pick up / plant / defuse (hold) | `F` |
+| **Map** | `M` — the whole level, north up, with area names |
+| Chat / team chat | `Y` / `T` |
+| Voice chat (team) / (proximity) | hold `U` / `V` |
+| Next / previous weapon, **scope zoom** | `Mouse Wheel` — while looking through the LR-50 scope it zooms (4× / 8×) instead |
 | Scoreboard | `Tab` |
-| Text chat | `T` / `Y` (team) |
 | Pause / Settings | `Esc` |
 | Performance overlay | `F3` |
 
-All keys (except `Esc`) can be remapped in **Settings → Controls**; aim and crouch can be set to *toggle*.
+All keys (except `Esc`) can be remapped in **Settings → Controls**; aim and crouch can be set to *toggle*. Only keys you change are saved, so a new default layout reaches everyone; a settings file from the old layout switches to this one once (controller bindings are kept).
 
 **Controller** (Xbox names — PlayStation: A = ✕, B = ○, X = □, Y = △, LB/RB = L1/R1, LT/RT = L2/R2):
 

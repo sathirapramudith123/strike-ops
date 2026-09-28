@@ -32,3 +32,4 @@ ads_fov_multiplier = 0.25
 ads_sensitivity_multiplier = 0.35
 ads_move_speed_multiplier = 0.5
 scoped = true
+zoom_levels = PackedFloat32Array(0.25, 0.12)

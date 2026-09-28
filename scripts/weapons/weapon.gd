@@ -39,6 +39,12 @@ var is_aiming: bool = false
 var ads_blend: float = 0.0
 ## Current total spread in degrees (read by the HUD crosshair).
 var current_spread: float = 0.0
+## Index into data.fire_modes (B cycles it).
+var fire_mode_index: int = 0
+## Index into data.zoom_levels while scoped (mouse wheel).
+var zoom_index: int = 0
+## Put away while a grenade is in hand (Throwables): hidden, can't fire.
+var holstered: bool = false
 
 var _player: PlayerController
 var _camera: Camera3D
@@ -61,6 +67,10 @@ var _left_arm: MeshInstance3D
 var _server_last_shot: float = -1.0
 var _server_reload_done_at: float = 0.0
 var _aim_toggled: bool = false
+var _burst_left: int = 0
+## Knife swing, 1 → 0 over SWING_TIME.
+var _swing: float = 0.0
+const SWING_TIME := 0.35
 
 
 func _ready() -> void:
@@ -105,6 +115,8 @@ func equip(player: PlayerController, camera: Camera3D) -> void:
 
 
 func unequip() -> void:
+	_burst_left = 0
+	zoom_index = 0
 	is_aiming = false
 	_aim_toggled = false
 	is_reloading = false
@@ -123,7 +135,7 @@ func _physics_process(delta: float) -> void:
 	if not _player.is_local:
 		return
 
-	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot()
+	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot() and not holstered
 	var aim_input := Input.is_action_pressed(&"aim")
 	if SettingsManager.aim_toggle:
 		if can_act and Input.is_action_just_pressed(&"aim"):
@@ -131,7 +143,9 @@ func _physics_process(delta: float) -> void:
 		if _player.is_sprinting or not can_act:
 			_aim_toggled = false
 		aim_input = _aim_toggled
-	is_aiming = can_act and aim_input and not is_reloading and not _player.is_sprinting
+	is_aiming = can_act and aim_input and not is_reloading and not _player.is_sprinting and not data.melee
+	if not is_aiming:
+		zoom_index = 0
 	ads_blend = move_toward(ads_blend, 1.0 if is_aiming else 0.0, delta / maxf(data.ads_time, 0.01))
 
 	if is_reloading:
@@ -141,21 +155,100 @@ func _physics_process(delta: float) -> void:
 			_finish_reload()
 
 	if can_act:
-		var trigger := Input.is_action_pressed("shoot") if data.automatic \
-			else Input.is_action_just_pressed("shoot")
-		if trigger:
-			try_fire()
+		_handle_trigger()
 		if Input.is_action_just_pressed("reload"):
 			reload()
+	else:
+		_burst_left = 0
 
 	current_spread = _compute_spread()
 	_update_viewmodel(delta)
+
+
+## Trigger by fire mode: auto (hold), semi (one per click), burst
+## (burst_count shots per click, fired at the weapon's fire rate).
+func _handle_trigger() -> void:
+	if _burst_left > 0:
+		if is_reloading or _player.is_sprinting or ammo_in_magazine <= 0:
+			_burst_left = 0
+		elif try_fire():
+			_burst_left -= 1
+		return
+	match fire_mode():
+		"auto":
+			if Input.is_action_pressed("shoot"):
+				try_fire()
+		"burst":
+			if Input.is_action_just_pressed("shoot") and try_fire():
+				_burst_left = maxi(data.burst_count - 1, 0)
+		_:
+			if Input.is_action_just_pressed("shoot"):
+				try_fire()
+
+
+## "auto", "burst" or "semi".
+func fire_mode() -> String:
+	if data.fire_modes.is_empty():
+		return "auto" if data.automatic else "semi"
+	return data.fire_modes[fire_mode_index % data.fire_modes.size()]
+
+
+## Next fire mode (B). Returns false if the weapon has only one.
+func cycle_fire_mode() -> bool:
+	if data.fire_modes.size() < 2:
+		return false
+	fire_mode_index = (fire_mode_index + 1) % data.fire_modes.size()
+	_burst_left = 0
+	_play(&"ui_click", -8.0, 1.4, 5.0)
+	ammo_changed.emit(ammo_in_magazine, ammo_reserve) # HUD refreshes the mode label
+	return true
+
+
+## Camera FOV multiplier when fully aimed (the scope's current zoom step).
+func current_ads_fov() -> float:
+	if data.scoped and zoom_index > 0 and zoom_index < data.zoom_levels.size():
+		return data.zoom_levels[zoom_index]
+	return data.ads_fov_multiplier
+
+
+## Mouse sensitivity multiplier when fully aimed (scales with the zoom).
+func current_ads_sensitivity() -> float:
+	return data.ads_sensitivity_multiplier * current_ads_fov() / maxf(data.ads_fov_multiplier, 0.01)
+
+
+## Mouse wheel while scoped: next / previous zoom step. False if not scoped
+## or the scope has one step (then the wheel switches weapons as usual).
+func cycle_zoom(direction: int) -> bool:
+	if not is_scoped() or data.zoom_levels.size() < 2:
+		return false
+	var n := clampi(zoom_index + direction, 0, data.zoom_levels.size() - 1)
+	if n != zoom_index:
+		zoom_index = n
+		_play(&"ui_click", -12.0, 0.8, 5.0)
+	return true
+
+
+## Hidden while a grenade is in hand (see Throwables.hold).
+func set_holstered(on: bool) -> void:
+	holstered = on
+	_burst_left = 0
+	if on:
+		is_aiming = false
+		_aim_toggled = false
 
 
 ## Fires one shot if possible. Returns true if a shot was fired.
 func try_fire() -> bool:
 	if _cooldown > 0.0 or is_reloading or _player.is_sprinting:
 		return false
+	if data.melee:
+		_cooldown = 60.0 / data.fire_rate
+		_swing = 1.0
+		_fire_ray()
+		_player.add_recoil(data.recoil_pitch * _rng.randf_range(-1.0, 1.0), data.recoil_yaw * _rng.randf_range(-1.0, 1.0))
+		_play_fire()
+		fired.emit()
+		return true
 	if ammo_in_magazine <= 0:
 		if Input.is_action_just_pressed("shoot"):
 			_play(dry_fire_sound if dry_fire_sound else &"dry_fire", -4.0, 1.0, 10.0)
@@ -310,10 +403,11 @@ func _server_fire(render_time: float, origin: Vector3, dirs: PackedVector3Array)
 			NetworkManager.report_violation(_player.peer_id, "fired while reloading")
 			return
 		_finish_reload()
-	if ammo_in_magazine <= 0:
-		NetworkManager.report_violation(_player.peer_id, "fired with an empty magazine")
-		return
-	ammo_in_magazine -= 1
+	if not data.melee:
+		if ammo_in_magazine <= 0:
+			NetworkManager.report_violation(_player.peer_id, "fired with an empty magazine")
+			return
+		ammo_in_magazine -= 1
 	_server_last_shot = now
 	# The shot must come from roughly where the server thinks the head is.
 	var eye := _player.global_position + Vector3.UP * (_player.current_height() - _player.eye_offset)
@@ -396,7 +490,7 @@ func _play_remote_fx(hit_positions: PackedVector3Array, hit_normals: PackedVecto
 	for i in mini(hit_positions.size(), hit_normals.size()):
 		_spawn_impact(hit_positions[i], hit_normals[i])
 	# Enemy bullets flying past your head crack.
-	if _player and not Match.is_friendly(_player.peer_id, multiplayer.get_unique_id()):
+	if _player and not data.melee and not Match.is_friendly(_player.peer_id, multiplayer.get_unique_id()):
 		for i in mini(hit_positions.size(), 3):
 			Audio.bullet_passed(global_position, hit_positions[i])
 
@@ -436,6 +530,11 @@ func _update_viewmodel(delta: float) -> void:
 	var target := _hip_position.lerp(ads_position, ads_blend)
 	target.z += _kick * 0.06
 	target.y += _kick * 0.01
+	# Knife: a slash from the right across to the left and back.
+	_swing = move_toward(_swing, 0.0, delta / SWING_TIME)
+	var slash := sin((1.0 - _swing) * PI) if _swing > 0.0 else 0.0
+	target += Vector3(-0.16, 0.04, -0.1) * slash
+	rotation.y = lerpf(rotation.y, 0.9 * slash, clampf(delta * 20.0, 0.0, 1.0))
 	var pose := _animate_reload(get_reload_progress() if is_reloading else -1.0)
 	target += pose.offset
 	# Lower the weapon while sprinting.
@@ -449,8 +548,9 @@ func _update_viewmodel(delta: float) -> void:
 	var k := clampf(delta * 14.0, 0.0, 1.0)
 	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch - _wall_pull * 0.8, k)
 	rotation.z = lerpf(rotation.z, pose.roll, k)
-	# Looking through a scope: the HUD draws the scope, hide the gun.
-	var show_model := not is_scoped()
+	# Looking through a scope: the HUD draws the scope, hide the gun (also
+	# while a grenade is in hand).
+	var show_model := not is_scoped() and not holstered
 	if _viewmodel_meshes and _viewmodel_meshes[0].visible != show_model:
 		for mesh in _viewmodel_meshes:
 			mesh.visible = show_model
@@ -555,6 +655,9 @@ func _reload_sound_step() -> void:
 
 
 func _spawn_impact(pos: Vector3, normal: Vector3) -> void:
+	if data.melee:
+		Audio.play_3d(&"knife_hit", pos, -4.0, 20.0, _rng.randf_range(0.9, 1.1), 3.0)
+		return
 	ImpactDecals.get_for(self).add(pos, normal)
 	# One impact sound per shot (a shotgun blast is 13 pellets).
 	var now := Time.get_ticks_msec()

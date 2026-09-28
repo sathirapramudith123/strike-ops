@@ -26,11 +26,14 @@ const HANDS := {
 		"mag": Vector3(0, -0.14, -0.02) },
 	"pistol": { "grip": Vector3(0, -0.07, 0.07), "grip_tilt": -15.0, "left": Vector3(-0.03, -0.075, 0.075), "left_kind": "support",
 		"mag": Vector3(0, -0.15, 0.1) },
+	# Knife: one hand only (left_kind "none").
+	"knife": { "grip": Vector3(0, -0.02, 0.04), "grip_tilt": -10.0, "left": Vector3.ZERO, "left_kind": "none",
+		"mag": Vector3.ZERO },
 }
 
 
 static func has_model(weapon_id: String) -> bool:
-	return weapon_id in ["rifle", "smg", "shotgun", "sniper", "pistol"]
+	return weapon_id in ["rifle", "smg", "shotgun", "sniper", "pistol", "knife"]
 
 
 ## The whole gun (third person). `with_magazine = false`: the viewmodel's
@@ -45,7 +48,8 @@ static func get_mesh(weapon_id: String, with_magazine: bool = true) -> ArrayMesh
 			"shotgun": _shotgun(b)
 			"sniper": _sniper(b)
 			"pistol": _pistol(b)
-		if with_magazine and weapon_id != "shotgun":
+			"knife": _knife(b)
+		if with_magazine and weapon_id != "shotgun" and weapon_id != "knife":
 			_magazine(b, weapon_id)
 		_cache[key] = b.build()
 	return _cache[key]
@@ -54,6 +58,8 @@ static func get_mesh(weapon_id: String, with_magazine: bool = true) -> ArrayMesh
 ## The magazine (shotgun: one shell), in weapon space where it sits in the gun.
 static func get_magazine_mesh(weapon_id: String) -> ArrayMesh:
 	var key := weapon_id + ":mag"
+	if weapon_id == "knife":
+		return null
 	if not _cache.has(key) and has_model(weapon_id):
 		var b := MeshBuilder.new()
 		_magazine(b, weapon_id)
@@ -95,6 +101,7 @@ static func get_arm_mesh(weapon_id: String, left: bool) -> ArrayMesh:
 			match h.left_kind:
 				"under": _left_hand_under(b, h.left)
 				"vertical": _left_hand_vertical(b, h.left)
+				"none": return null
 				_: _left_hand_support(b, h.left)
 		_arms_cache[key] = b.build()
 	return _arms_cache.get(key)
@@ -149,6 +156,18 @@ static func _left_hand_support(b: MeshBuilder, pos: Vector3) -> void:
 	b.limb(&"glove", pos + Vector3(-0.01, -0.02, 0.03), wrist, 0.032, 0.031)
 	b.limb(&"sleeve", wrist, elbow, 0.036, 0.05, 8)
 	b.limb(&"sleeve", elbow, elbow + Vector3(-0.08, -0.1, 0.22), 0.052, 0.06, 8)
+
+
+## Combat knife, held in a fist with the blade forward (-Z).
+static func _knife(b: MeshBuilder) -> void:
+	b.box(&"polymer", Vector3(0.028, 0.034, 0.11), Vector3(0, 0.0, 0.04)) # handle
+	for z in [0.0, 0.03, 0.06]:
+		b.box(&"gear", Vector3(0.03, 0.036, 0.008), Vector3(0, 0.0, z)) # grip ridges
+	b.box(&"steel", Vector3(0.07, 0.012, 0.012), Vector3(0, 0.0, -0.018)) # guard
+	b.box(&"steel", Vector3(0.03, 0.036, 0.016), Vector3(0, 0.0, 0.1)) # pommel
+	b.box(&"blade", Vector3(0.006, 0.032, 0.16), Vector3(0, 0.004, -0.1)) # blade
+	b.box(&"blade", Vector3(0.005, 0.02, 0.04), Vector3(0, -0.002, -0.19), Vector3(-18, 0, 0)) # point
+	b.box(&"steel", Vector3(0.007, 0.006, 0.12), Vector3(0, 0.02, -0.09)) # spine
 
 
 static func _iron_sights(b: MeshBuilder, rear_y: float, rear_z: float, front_y: float, front_z: float, gap: float = 0.009) -> void:

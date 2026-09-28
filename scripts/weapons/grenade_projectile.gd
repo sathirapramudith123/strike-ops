@@ -46,7 +46,7 @@ func _ready() -> void:
 	physics_material_override = mat
 	body_entered.connect(_on_body_entered)
 	if not NetworkManager.is_dedicated():
-		add_child(_build_model())
+		add_child(build_model(kind))
 
 
 func launch(origin: Vector3, vel: Vector3) -> void:
@@ -107,7 +107,7 @@ func _on_body_entered(_body: Node) -> void:
 ## Small low-poly model: an olive-drab frag with a lever, a bottle with a
 ## burning rag, or a can (flash: grey with a white top; smoke: green-grey
 ## with a dark band).
-func _build_model() -> Node3D:
+static func build_model(kind: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Model"
 	if kind == Throwables.Kind.FLASH or kind == Throwables.Kind.SMOKE:

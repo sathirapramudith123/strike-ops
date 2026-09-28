@@ -66,15 +66,27 @@ jump={
 }
 crouch={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":4194326)]
+"events": [Object(InputEventKey,"physical_keycode":67)]
 }
 slide={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":67)]
+"events": [Object(InputEventKey,"physical_keycode":4194326)]
 }
 sprint={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":4194325)]
+}
+lean_left={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":81)]
+}
+lean_right={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":69)]
+}
+walk_toggle={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194329)]
 }
 shoot={
 "deadzone": 0.2,
@@ -87,6 +99,10 @@ aim={
 reload={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":82)]
+}
+fire_mode={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":66)]
 }
 weapon_1={
 "deadzone": 0.2,
@@ -114,31 +130,23 @@ weapon_prev={
 }
 interact={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":69)]
+"events": [Object(InputEventKey,"physical_keycode":70)]
+}
+map={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":77)]
 }
 throw_grenade={
 "deadzone": 0.2,
 "events": [Object(InputEventKey,"physical_keycode":71)]
 }
-throw_molotov={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":81)]
-}
-throw_flash={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":70)]
-}
-throw_smoke={
-"deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":90)]
-}
 push_to_talk_team={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":86)]
+"events": [Object(InputEventKey,"physical_keycode":85)]
 }
 push_to_talk_proximity={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":66)]
+"events": [Object(InputEventKey,"physical_keycode":86)]
 }
 scoreboard={
 "deadzone": 0.2,
@@ -146,11 +154,11 @@ scoreboard={
 }
 chat_all={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":84)]
+"events": [Object(InputEventKey,"physical_keycode":89)]
 }
 chat_team={
 "deadzone": 0.2,
-"events": [Object(InputEventKey,"physical_keycode":89)]
+"events": [Object(InputEventKey,"physical_keycode":84)]
 }
 pause={
 "deadzone": 0.2,

@@ -7,6 +7,7 @@ script = ExtResource("1_data")
 display_name = "V-10 SMG"
 weapon_id = "smg"
 automatic = true
+fire_modes = PackedStringArray("auto", "semi")
 fire_rate = 900.0
 damage = 17.0
 headshot_multiplier = 1.6

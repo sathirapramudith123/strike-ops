@@ -56,6 +56,10 @@ const BANNER_TIME := 6.0
 var _feed_style: StyleBoxFlat
 ## Full-screen white-out while flashed (see PlayerController.blind_alpha).
 var _flash_overlay: ColorRect
+## Big map (M): the radar drawn north-up over the whole screen.
+var _big_map: Minimap
+## "WALK" under the crosshair while the walk toggle (Caps Lock) is on.
+var _walk_label: Label
 var _feed_style_mine: StyleBoxFlat
 
 
@@ -147,10 +151,32 @@ func _ready() -> void:
 	_feed_style_mine.border_color = Color(0.9, 0.2, 0.15)
 	_feed_style_mine.set_border_width_all(2)
 	_build_banner()
+	_big_map = Minimap.new()
+	_big_map.name = "BigMap"
+	_big_map.full_map = true
+	_big_map.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_big_map.offset_left = 120
+	_big_map.offset_right = -120
+	_big_map.offset_top = 60
+	_big_map.offset_bottom = -60
+	_big_map.visible = false
+	add_child(_big_map)
+	_walk_label = Label.new()
+	_walk_label.name = "WalkLabel"
+	_walk_label.text = "WALK"
+	_walk_label.set_anchors_preset(Control.PRESET_CENTER)
+	_walk_label.position = Vector2(-20, 34)
+	_walk_label.add_theme_font_size_override(&"font_size", 13)
+	_walk_label.add_theme_color_override(&"font_color", Color(1, 1, 1, 0.6))
+	_walk_label.add_theme_color_override(&"font_outline_color", Color.BLACK)
+	_walk_label.add_theme_constant_override(&"outline_size", 4)
+	_walk_label.visible = false
+	add_child(_walk_label)
 	var level := get_parent() as Level
 	_top_bar.level = level
 	if level and not level.preview_only:
 		_minimap.build.call_deferred(level)
+		_big_map.build.call_deferred(level)
 	else:
 		_minimap.visible = false
 
@@ -170,6 +196,10 @@ func _unhandled_input(event: InputEvent) -> void:
 			_refresh_vote()
 			get_viewport().set_input_as_handled()
 			return
+	if event.is_action_pressed(&"map") and _big_map.level:
+		_big_map.visible = not _big_map.visible
+		get_viewport().set_input_as_handled()
+		return
 	if event.is_action_pressed(&"toggle_perf_overlay"):
 		SettingsManager.show_perf_overlay = not SettingsManager.show_perf_overlay
 		SettingsManager.save()
@@ -190,6 +220,7 @@ func _process(delta: float) -> void:
 		_refresh_scoreboard()
 	_scoreboard.visible = show_scores
 	if _player:
+		_walk_label.visible = _player.is_walking and not _player.is_sprinting and not _player.health.is_dead
 		_dead_label.visible = _player.health.is_dead and Match.mode != GameConfig.Mode.BOMB
 		if _player.current_weapon != _weapon:
 			_bind_weapon(_player.current_weapon)
@@ -309,8 +340,19 @@ func _on_armor_changed(armor: float) -> void:
 
 func _on_ammo_changed(in_magazine: int, reserve: int) -> void:
 	_ammo_icons.queue_redraw()
+	_ammo_icons.visible = not (_weapon and _weapon.data.melee)
+	if _weapon and _weapon.data.melee:
+		_ammo_label.text = "—"
+		_reserve_label.text = ""
+		_ammo_label.modulate = Color.WHITE
+		_weapon_label.text = _weapon.data.display_name
+		return
 	_ammo_label.text = str(in_magazine)
 	_reserve_label.text = "/ %d" % reserve
+	if _weapon:
+		# Fire mode next to the name when the gun has more than one (B).
+		_weapon_label.text = _weapon.data.display_name + (
+			"  ·  %s" % _weapon.fire_mode().to_upper() if _weapon.data.fire_modes.size() > 1 else "")
 	var low := _weapon and in_magazine <= _weapon.data.magazine_size / 4
 	_ammo_label.modulate = Color(1, 0.35, 0.3) if low else Color.WHITE
 
@@ -410,7 +452,7 @@ func _update_weapon_slots() -> void:
 	var ws := _player.loadout_weapons()
 	for i in ws.size():
 		if ws[i]:
-			var current := i == _player.current_slot
+			var current := i == _player.current_slot and not (_player.throwables and _player.throwables.is_holding())
 			var l := Label.new()
 			l.text = "%s   %d" % [ws[i].data.display_name.get_slice(" ", 0), i + 1]
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -419,16 +461,20 @@ func _update_weapon_slots() -> void:
 			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
 			l.add_theme_constant_override(&"outline_size", 4)
 			_weapon_slots.add_child(l)
-	# Grenades under the guns, with their quick-throw keys.
+	# Grenades under the guns (key 4 takes one in hand; the one in hand is lit).
 	var t := _player.throwables
 	if t:
+		var first := true
 		for kind: int in Throwables.ORDER:
 			var l := Label.new()
 			var n: int = t.counts[kind]
-			l.text = "%s ×%d   %s" % [Throwables.SHORT_NAMES[kind], n, _key_name(Throwables.ACTIONS[kind])]
+			var held: bool = t.held_kind == kind
+			l.text = "%s ×%d   %s" % [Throwables.SHORT_NAMES[kind], n, _key_name(Throwables.HOLD_ACTION) if first else " "]
+			first = false
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			l.add_theme_font_size_override(&"font_size", 13)
-			l.add_theme_color_override(&"font_color", Color(0.75, 0.95, 0.6, 0.8) if n > 0 else Color(1, 1, 1, 0.25))
+			l.add_theme_font_size_override(&"font_size", 16 if held else 13)
+			l.add_theme_color_override(&"font_color", Color(1, 0.9, 0.55) if held
+				else (Color(0.75, 0.95, 0.6, 0.8) if n > 0 else Color(1, 1, 1, 0.25)))
 			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
 			l.add_theme_constant_override(&"outline_size", 4)
 			_weapon_slots.add_child(l)

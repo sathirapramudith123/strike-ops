@@ -2,6 +2,16 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**New control layout:** WASD, hold Shift to sprint, C crouch, Ctrl slide,
+Space jump, **Q / E lean**, **Caps Lock walk toggle**, 1 / 2 guns, **3 knife**,
+**4 grenades** (press again to switch, click to throw, right click to lob,
+G quick-throws the HE), R reload, **B fire mode** (AR-7 auto / burst / semi,
+V-10 auto / semi), **F use / plant / defuse**, **M big map**, Y / T chat,
+U / V voice, and the **mouse wheel zooms the sniper scope** (4× / 8×)
+while scoped. Leaning moves your head hitbox on the server too, and
+can't poke through walls. Settings now only save keys you changed; an old
+settings file picks up the new layout once.
+
 **The gun no longer goes through walls:** walking up stairs and ramps (or
 standing close to any wall or ceiling) used to push the first-person gun
 through it. Now it pulls back and dips down when something is in the way

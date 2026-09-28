@@ -37,6 +37,7 @@ func _run() -> void:
 	_test_voice_codec()
 	await _test_voice_loopback()
 	await _test_weapon_switching()
+	await _test_new_controls()
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
 	await _test_grenades()
@@ -413,6 +414,189 @@ func _test_voice_loopback() -> void:
 	VoiceChat.loopback = false
 
 
+## The PUBG-style layout: default keys, knife, fire modes, scope zoom,
+## lean, walk toggle, grenade slot, big map.
+func _test_new_controls() -> void:
+	var expect := { &"crouch": "C", &"slide": "Ctrl", &"lean_left": "Q", &"lean_right": "E",
+		&"walk_toggle": "CapsLock", &"weapon_3": "3", &"weapon_4": "4", &"fire_mode": "B", &"interact": "F",
+		&"map": "M", &"chat_all": "Y", &"push_to_talk_team": "U", &"reload": "R", &"sprint": "Shift" }
+	var wrong := PackedStringArray()
+	for action: StringName in expect:
+		var got := _key_of(action)
+		if got != expect[action]:
+			wrong.append("%s=%s" % [action, got])
+	_check(wrong.is_empty(), "default keys follow the new layout (%s)" % ", ".join(wrong))
+	var keys := {}
+	var dup := PackedStringArray()
+	for action: StringName in SettingsManager.REMAPPABLE_ACTIONS:
+		var k := _key_of(action)
+		if k != "" and keys.has(k):
+			dup.append("%s: %s + %s" % [k, keys[k], action])
+		keys[k] = action
+	_check(dup.is_empty(), "no key is used twice (%s)" % ", ".join(dup))
+	# Only changed keys are saved; a settings file from the old layout (every
+	# key saved, crouch on Ctrl) gets the new defaults.
+	SettingsManager.save()
+	_check(not SettingsManager._config.has_section_key("bindings", "crouch"), "default keys aren't written to the settings file")
+	var cfg := SettingsManager._config
+	cfg.set_value("bindings_meta", "layout", 1)
+	cfg.set_value("bindings", "crouch", { "type": "key", "code": KEY_CTRL, "physical": true })
+	SettingsManager.apply_bindings()
+	_check(_key_of(&"crouch") == "C" and not cfg.has_section("bindings")
+		and int(cfg.get_value("bindings_meta", "layout", 0)) == SettingsManager.BINDINGS_LAYOUT,
+		"an old settings file switches to the new layout (crouch %s)" % _key_of(&"crouch"))
+
+	# Knife (3): short reach, no ammo, hurts the dummy.
+	var target := _level.get_node("Targets/Target2") as TargetDummy
+	target.health.revive()
+	_reset_player(Vector3(0, 0.1, -20.6))
+	await _frames(3)
+	_aim_at(target.global_position + Vector3(0, 1.1, 0))
+	_tap(&"weapon_3")
+	await _frames(3)
+	var knife := _player.current_weapon
+	_check(knife.data.melee and knife.data.weapon_id == "knife", "key 3 takes out the knife")
+	Input.action_press(&"shoot")
+	await _frames(45)
+	Input.action_release(&"shoot")
+	_check(target.health.current < target.health.max_health or target.health.is_dead,
+		"knife hits at arm's length (%.0f hp left)" % target.health.current)
+	target.health.revive()
+	_reset_player(Vector3(0, 0.1, -17))
+	_aim_at(target.global_position + Vector3(0, 1.1, 0))
+	await _frames(3)
+	Input.action_press(&"shoot")
+	await _frames(30)
+	Input.action_release(&"shoot")
+	_check(target.health.current == target.health.max_health, "knife doesn't reach 5 m")
+	_tap(&"weapon_1")
+	await _frames(3)
+
+	# Fire modes (B): rifle auto → burst → semi → auto.
+	var rifle := _player.current_weapon
+	rifle.refill_ammo()
+	_player.head.rotation.x = deg_to_rad(80) # at the sky
+	_check(rifle.fire_mode() == "auto", "rifle starts on full auto")
+	_tap(&"fire_mode")
+	await _frames(2)
+	var shots := rifle.ammo_in_magazine
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(40)
+	_check(rifle.fire_mode() == "burst" and shots - rifle.ammo_in_magazine == 3,
+		"B → burst: one click fires 3 (%d)" % (shots - rifle.ammo_in_magazine))
+	_check(_level.hud._weapon_label.text.ends_with("BURST"), "HUD shows the fire mode (%s)" % _level.hud._weapon_label.text)
+	_tap(&"fire_mode")
+	await _frames(2)
+	shots = rifle.ammo_in_magazine
+	Input.action_press(&"shoot")
+	await _frames(40)
+	Input.action_release(&"shoot")
+	_check(rifle.fire_mode() == "semi" and shots - rifle.ammo_in_magazine == 1, "B → semi: one shot per click")
+	_tap(&"fire_mode")
+	await _frames(2)
+	_check(rifle.fire_mode() == "auto", "B → back to auto")
+
+	# Scope zoom: the wheel steps the sniper's zoom while scoped.
+	_player.apply_loadout("sniper", 0)
+	await _frames(3)
+	Input.action_press(&"aim")
+	await _frames(70)
+	var fov1 := _player.camera.fov
+	_tap(&"weapon_next")
+	await _frames(25)
+	_check(_player.current_weapon.data.weapon_id == "sniper" and _player.camera.fov < fov1 * 0.7,
+		"wheel zooms the scope in (%.0f → %.0f)" % [fov1, _player.camera.fov])
+	_tap(&"weapon_prev")
+	await _frames(60)
+	_check(absf(_player.camera.fov - fov1) < 1.0, "wheel zooms back out (%.0f)" % _player.camera.fov)
+	Input.action_release(&"aim")
+	_player.apply_loadout("rifle", 0)
+	await _frames(20)
+
+	# Lean (Q / E): the head moves sideways, the server's head moves too.
+	_reset_player(Vector3(0, 0.1, 6))
+	_player.head.rotation.x = 0.0
+	await _frames(3)
+	var eye_x := _player.camera.global_position.x
+	Input.action_press(&"lean_right")
+	await _frames(30)
+	var leaned := _player.camera.global_position.x - eye_x
+	_check(leaned > 0.3, "E leans right (eye moved %.2f m)" % leaned)
+	var head_y := _player.global_position.y + _player.current_height() - LagCompensation.HEAD_DROP
+	var from := Vector3(_player.global_position.x + PlayerController.LEAN_OFFSET, head_y, _player.global_position.z - 6)
+	var hit := LagCompensation.trace(_player.get_world_3d().direct_space_state, from, Vector3.BACK, 10.0, null,
+		[_player], NetworkManager.server_time())
+	_check(hit.get("hitbox") == _player.head_hitbox, "lag compensation moves the head with the lean")
+	Input.action_release(&"lean_right")
+	await _frames(30)
+	_check(absf(_player.camera.global_position.x - eye_x) < 0.02, "lean returns to the middle")
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.3, 4, 4)
+	shape.shape = box
+	wall.add_child(shape)
+	_level.add_child(wall)
+	wall.global_position = Vector3(_player.global_position.x - 0.5, 2, 6)
+	await _frames(2)
+	Input.action_press(&"lean_left")
+	await _frames(30)
+	Input.action_release(&"lean_left")
+	_check(eye_x - _player.camera.global_position.x < 0.15, "can't lean through a wall (%.2f m)"
+		% (eye_x - _player.camera.global_position.x))
+	wall.queue_free()
+	await _frames(20)
+
+	# Walk toggle (Caps Lock): slow and quiet.
+	_tap(&"walk_toggle")
+	await _frames(2)
+	Input.action_press(&"move_forward")
+	await _frames(40)
+	var walk := Vector2(_player.velocity.x, _player.velocity.z).length()
+	_release_all()
+	_check(_player.is_walking and absf(walk - _player.walk_speed * PlayerController.WALK_TOGGLE_SPEED) < 0.3,
+		"Caps Lock walks (%.2f m/s)" % walk)
+	_check(_level.hud._walk_label.visible, "HUD shows WALK")
+	_tap(&"walk_toggle")
+	await _frames(2)
+	_check(not _player.is_walking, "Caps Lock again runs")
+
+	# Grenade slot (4): in hand, gun put away; 4 again switches; 1 puts it away.
+	var t := _player.throwables
+	_tap(&"weapon_4")
+	await _frames(2)
+	_check(t.held_kind == Throwables.Kind.HE and _player.current_weapon.holstered, "4 takes the HE grenade in hand")
+	_tap(&"weapon_4")
+	await _frames(2)
+	_check(t.held_kind == Throwables.Kind.FLASH, "4 again switches to the flashbang")
+	_tap(&"weapon_1")
+	await _frames(2)
+	_check(not t.is_holding() and not _player.current_weapon.holstered and t.counts[Throwables.Kind.FLASH] == 2,
+		"1 puts the grenade away, nothing thrown")
+
+	# Big map (M).
+	_tap(&"map")
+	await _frames(3)
+	var big: Minimap = _level.hud._big_map
+	_check(big.visible and big._polys.size() > 10, "M opens the big map (%d shapes)" % big._polys.size())
+	_tap(&"map")
+	await _frames(2)
+	_check(not big.visible, "M closes it")
+
+
+## Keyboard key of `action` ("C", "Shift", "CapsLock") or "".
+func _key_of(action: StringName) -> String:
+	for e in InputMap.action_get_events(action):
+		if e is InputEventKey:
+			var k := e as InputEventKey
+			return OS.get_keycode_string(k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode)
+		if e is InputEventMouseButton:
+			return "Mouse%d" % (e as InputEventMouseButton).button_index
+	return ""
+
+
 func _test_weapon_switching() -> void:
 	_reset_player(Vector3(0, 0.1, 6))
 	await _frames(5)
@@ -562,9 +746,9 @@ func _test_grenades() -> void:
 	_player.health.revive()
 	_player.health.protect(0.0)
 	await _frames(3)
-	_press_action(&"throw_molotov")
+	await _throw_from_hand(Throwables.Kind.MOLOTOV)
 	await _frames(40)
-	_check(t.counts[Throwables.Kind.MOLOTOV] == 0, "Q throws the Molotov")
+	_check(t.counts[Throwables.Kind.MOLOTOV] == 0, "4 until the Molotov is in hand, then click throws it")
 	var fire := _level.find_child("Fire_*", true, false) as FireZone
 	_check(fire != null and fire.is_burning(), "Molotov breaks on the floor and starts a fire")
 	await _frames(60)
@@ -584,6 +768,19 @@ func _test_grenades() -> void:
 	await _frames(int(_player.respawn_delay * 60.0) + 15)
 	_check(not _player.health.is_dead and t.counts[Throwables.Kind.HE] == 1 and t.counts[Throwables.Kind.MOLOTOV] == 1,
 		"grenades refilled on respawn")
+
+
+## Key 4 until `kind` is in hand, then a left click throws it.
+func _throw_from_hand(kind: int) -> void:
+	var t := _player.throwables
+	for i in 5:
+		if t.held_kind == kind:
+			break
+		_press_action(&"weapon_4")
+		await _frames(1)
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
 
 
 func _test_flash_and_smoke() -> void:
@@ -618,9 +815,9 @@ func _test_flash_and_smoke() -> void:
 	_reset_player(Vector3(0, 0.1, -12), PI)
 	_player.head.rotation.x = deg_to_rad(-5)
 	await _frames(3)
-	_press_action(&"throw_flash")
+	await _throw_from_hand(Throwables.Kind.FLASH)
 	await _frames(2)
-	_check(t.counts[Throwables.Kind.FLASH] == 1, "F throws a flashbang")
+	_check(t.counts[Throwables.Kind.FLASH] == 1, "4 + click throws a flashbang")
 	await _frames(int(Throwables.FUSES[Throwables.Kind.FLASH] * 60.0) + 10)
 	_check(_player.blind_time > 0.5, "flashbang blinds the player looking at it (%.1f s)" % _player.blind_time)
 	await _frames(2)
@@ -632,9 +829,9 @@ func _test_flash_and_smoke() -> void:
 	_reset_player(Vector3(0, 0.1, -12), PI)
 	_player.head.rotation.x = deg_to_rad(-40)
 	await _frames(3)
-	_press_action(&"throw_smoke")
+	await _throw_from_hand(Throwables.Kind.SMOKE)
 	await _frames(int(Throwables.FUSES[Throwables.Kind.SMOKE] * 60.0) + 20)
-	_check(t.counts[Throwables.Kind.SMOKE] == 0, "Z throws a smoke grenade")
+	_check(t.counts[Throwables.Kind.SMOKE] == 0, "4 + click throws a smoke grenade")
 	var cloud := _level.find_child("Smoke_*", true, false) as SmokeCloud
 	_check(cloud != null and cloud.is_active(), "smoke grenade makes a cloud")
 	if cloud:
@@ -1136,8 +1333,8 @@ func _test_maps() -> void:
 		and radar.location(Vector3(-34, 0.1, 10)) == "B Apartments", "location names: Bombsite A, Mid, B Apartments")
 	_check(radar.location(Vector3(-28, 0.1, -20)) == "Bombsite B", "bomb site fallback / callout for B")
 	var armed := _player.loadout_weapons().all(func(w: Weapon) -> bool:
-		return w == null or (w.has_node(^"ArmL") and w.has_node(^"ArmR") and w.has_node(^"Magazine")))
-	_check(armed, "first-person weapons have gloved arms and a separate magazine")
+		return w == null or (w.has_node(^"ArmR") and (w.data.melee or (w.has_node(^"ArmL") and w.has_node(^"Magazine")))))
+	_check(armed, "first-person weapons have gloved arms and a separate magazine (the knife: one hand)")
 
 	# Reload animation: the left hand pulls the magazine out and puts it back.
 	var gun := _player.current_weapon
@@ -1409,7 +1606,7 @@ func _test_controller() -> void:
 	GamepadInput.using_pad = true
 	var pad_prompt := SettingsManager.prompt_text(&"interact")
 	GamepadInput.using_pad = false
-	_check(pad_prompt == "LB" and SettingsManager.prompt_text(&"interact") == "E", "button prompts follow the device (LB / E)")
+	_check(pad_prompt == "LB" and SettingsManager.prompt_text(&"interact") == "F", "button prompts follow the device (LB / F)")
 
 	# Remap a controller button (swaps, keeps the keyboard binding, survives a reload).
 	var key_jump := SettingsManager.binding_text(&"jump")

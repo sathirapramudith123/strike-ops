@@ -6,6 +6,8 @@ extends Control
 ## It turns with the player (forward = up); markers for teammates, the bomb
 ## sites and the bomb are drawn on top. `location()` names the area the
 ## player stands in (the map's "Callouts" boxes, or the bomb sites).
+## With `full_map` on it is the big map (M): north up, the whole level
+## fitted to the control, area names written on it.
 
 const PIXELS_PER_METRE := 2.4
 ## Shapes whose top is lower than this are floor; higher than WALL_HEIGHT
@@ -23,7 +25,13 @@ const COLOR_SITE := Color(1, 0.7, 0.2)
 const COLOR_BOMB := Color(1, 0.35, 0.2)
 
 var level: Level
+## Big map mode (see the class comment).
+var full_map := false
 var _layer: Control
+## Pixels per metre in use (PIXELS_PER_METRE on the radar, fitted on the big map).
+var _ppm := PIXELS_PER_METRE
+## Level outline bounds in metres (x, z).
+var _bounds := Rect2()
 var _overlay: Control
 var _polys: Array = [] # [PackedVector2Array (metres), Color]
 var _callouts: Array = [] # [label, AABB]
@@ -83,6 +91,14 @@ func build(l: Level) -> void:
 		_polys.append([p, COLOR_FLOOR])
 	for s in solids:
 		_polys.append([s[1], s[2]])
+	var first := true
+	for entry in _polys:
+		for pt: Vector2 in entry[0]:
+			if first:
+				_bounds = Rect2(pt, Vector2.ZERO)
+				first = false
+			else:
+				_bounds = _bounds.expand(pt)
 	var callouts := l.get_node_or_null("Callouts")
 	if callouts:
 		for c in callouts.get_children():
@@ -110,13 +126,25 @@ func location(pos: Vector3) -> String:
 func _process(_delta: float) -> void:
 	if level == null or not is_visible_in_tree():
 		return
+	var c := size * 0.5
+	if full_map:
+		_yaw = 0.0
+		_center_world = _bounds.get_center()
+		var span := _bounds.size + Vector2(8, 8)
+		_ppm = minf(size.x / maxf(span.x, 1.0), size.y / maxf(span.y, 1.0))
+		_layer.rotation = 0.0
+		_layer.scale = Vector2.ONE * (_ppm / PIXELS_PER_METRE)
+		_layer.position = c - _center_world * _ppm
+		_overlay.queue_redraw()
+		return
 	var viewer := _viewer()
 	if viewer:
 		var cam := viewer.camera
 		var fwd := -cam.global_basis.z
 		_yaw = atan2(-fwd.x, -fwd.z)
 		_center_world = Vector2(viewer.global_position.x, viewer.global_position.z)
-	var c := size * 0.5
+	_ppm = PIXELS_PER_METRE
+	_layer.scale = Vector2.ONE
 	_layer.rotation = _yaw
 	_layer.position = c - (_center_world * PIXELS_PER_METRE).rotated(_yaw)
 	_overlay.queue_redraw()
@@ -133,6 +161,9 @@ func _viewer() -> PlayerController:
 
 
 func _draw() -> void:
+	if full_map:
+		draw_rect(Rect2(Vector2.ZERO, size), Color(0.02, 0.03, 0.04, 0.9))
+		return
 	var r := size.x * 0.5
 	draw_circle(size * 0.5, r, COLOR_BACK)
 
@@ -151,10 +182,23 @@ func _draw_overlay() -> void:
 	if level == null:
 		return
 	var c := size * 0.5
-	var r := size.x * 0.5
+	var r := size.x * 0.5 if not full_map else 1e6
 	var font := get_theme_default_font()
 	var me := multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1
 	var viewer := _viewer()
+	if full_map:
+		# Area names (smallest boxes last, so they sit on top).
+		for i in range(_callouts.size() - 1, -1, -1):
+			var label: String = _callouts[i][0]
+			if label.begins_with("Bombsite"):
+				continue
+			var box: AABB = _callouts[i][1]
+			var at := _to_screen(box.get_center(), r)
+			var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			_overlay.draw_string_outline(font, at + Vector2(-w / 2, 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3,
+				Color(0, 0, 0, 0.7))
+			_overlay.draw_string(font, at + Vector2(-w / 2, 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
+				Color(1, 1, 1, 0.75))
 	# Bomb sites.
 	for site in level.bomb_sites:
 		if site == null:
@@ -192,16 +236,26 @@ func _draw_overlay() -> void:
 			_overlay.draw_rect(Rect2(bp - Vector2(4, 4), Vector2(8, 8)), Color.BLACK, false, 1.0)
 			if b.bomb_state == BombRules.BombState.PLANTED:
 				_overlay.draw_arc(bp, 8.0, 0.0, TAU, 16, COLOR_BOMB, 1.5)
-	# Me: an arrow pointing up, at the centre.
-	var arrow := PackedVector2Array([c + Vector2(0, -8), c + Vector2(6, 6), c + Vector2(0, 3), c + Vector2(-6, 6)])
+	# Me: an arrow — at the centre pointing up on the radar, at my position
+	# pointing where I look on the big map.
+	var at := c
+	var turn := 0.0
+	if full_map and viewer:
+		at = _to_screen(viewer.global_position, r)
+		var look := -viewer.camera.global_basis.z
+		turn = atan2(look.x, -look.z)
+	var arrow := PackedVector2Array()
+	for pt: Vector2 in [Vector2(0, -8), Vector2(6, 6), Vector2(0, 3), Vector2(-6, 6)]:
+		arrow.append(at + pt.rotated(turn))
 	_overlay.draw_colored_polygon(arrow, COLOR_ME)
 	_overlay.draw_polyline(arrow + PackedVector2Array([arrow[0]]), Color.BLACK, 1.0)
-	_overlay.draw_arc(c, r - 1.0, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 2.0)
+	if not full_map:
+		_overlay.draw_arc(c, r - 1.0, 0.0, TAU, 48, Color(1, 1, 1, 0.35), 2.0)
 
 
 ## World position -> radar pixels, clamped to `max_r` from the centre.
 func _to_screen(world: Vector3, max_r: float) -> Vector2:
-	var d := (Vector2(world.x, world.z) - _center_world) * PIXELS_PER_METRE
+	var d := (Vector2(world.x, world.z) - _center_world) * _ppm
 	d = d.rotated(_yaw)
 	if d.length() > max_r:
 		d = d.normalized() * max_r
