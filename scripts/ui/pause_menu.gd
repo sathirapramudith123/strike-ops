@@ -57,6 +57,8 @@ func open() -> void:
 		player.input_enabled = false
 	_build_mute_list()
 	%LoadoutOption.select(maxi(GameConfig.PRIMARY_WEAPONS.find(SettingsManager.preferred_primary), 0))
+	# Bomb Defusal guns are bought (X), not picked.
+	%LoadoutOption.get_parent().visible = Match.mode != GameConfig.Mode.BOMB
 	%TeamButton.visible = Match.is_team_mode()
 	%ResumeButton.grab_focus()
 

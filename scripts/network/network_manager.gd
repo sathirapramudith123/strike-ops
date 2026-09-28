@@ -24,7 +24,7 @@ signal kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: 
 
 enum Mode { OFFLINE, HOST, DEDICATED, CLIENT }
 
-const PROTOCOL_VERSION := 4
+const PROTOCOL_VERSION := 5
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
@@ -52,7 +52,7 @@ var local_name: String = "Player"
 var current_map: String = DEFAULT_MAP
 ## Shown by the main menu after being kicked back to it.
 var last_error: String = ""
-## peer_id -> { "name", "kills", "deaths", "ping", "team" (-1 = none), "primary" (weapon id) }
+## peer_id -> { "name", "kills", "deaths", "ping", "team" (-1 = none), "primary" (weapon id), "money" (Bomb Defusal) }
 var roster: Dictionary = {}
 ## Round-trip time to the server in milliseconds (clients only).
 var ping_ms: int = 0
@@ -447,6 +447,8 @@ func _server_spawn(peer_id: int) -> void:
 	var xform := _level.next_spawn_transform(peer_id)
 	var player_name := get_player_name(peer_id)
 	var primary: String = roster.get(peer_id, {}).get("primary", GameConfig.DEFAULT_PRIMARY)
+	if Match.mode == GameConfig.Mode.BOMB:
+		primary = "" # pistol + knife until something is bought (Economy)
 	var p := _level.spawn_player(peer_id, player_name, xform, primary, 0)
 	send_to_ready(self, &"_spawn_player", [peer_id, player_name, xform, primary, 0])
 	# Bomb Defusal: joining mid-round means waiting (spectating) for the next round.
@@ -479,7 +481,7 @@ func _new_entry(player_name: String, primary: String = GameConfig.DEFAULT_PRIMAR
 		primary = GameConfig.DEFAULT_PRIMARY
 	return {
 		"name": player_name, "kills": 0, "deaths": 0, "ping": 0,
-		"team": GameConfig.TEAM_NONE, "primary": primary, "opus": opus,
+		"team": GameConfig.TEAM_NONE, "primary": primary, "opus": opus, "money": Economy.START_MONEY,
 	}
 
 

@@ -2,6 +2,48 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Climbing:** press Space facing a crate, car, sandbag wall, low wall or
+other climbable prop up to 2.2 m high and you pull yourself up on top (or
+keep Space held after a jump to grab the ledge). Only those props can be
+climbed — buildings and tall walls can't. Jumping is now predictable too:
+no map has a ledge in the 1.25–1.55 m "sometimes works" range any more
+(decorative pots on walls lost their collision), and a new check
+(`tools/ledge_check.gd`, also in the smoke test) keeps it that way.
+
+**Grenade wheel and throw path:** hold 4 to open a wheel with your
+grenades round the crosshair; move the mouse (or right stick) towards one
+and let go to take it (a quick tap still takes the next one). While a
+grenade is in hand, its flight is drawn ahead of time — bounces included —
+with a ring where it will go off (turn off in Settings → Gameplay).
+
+**Money and the buy menu (Bomb Defusal):** everyone starts a half with
+$800 and only the pistol and knife. Press **X** near your spawn during the
+freeze time and the first 20 s of a round to buy guns (AR-7 $2700, SMG
+$1250, shotgun $1100, sniper $4750), armour ($650, with helmet $1000) and
+grenades (HE $300, flash $200, smoke $300, Molotov $400). Earn money for
+kills ($300; knife $1500, shotgun $900, SMG $600, sniper $100), plants and
+defuses ($300), round wins ($3250, $3500 by the bomb) and losses ($1400,
+growing by $500 per loss in a row up to $3400, +$800 for attackers who
+planted). Survivors keep their gun, armour and grenades into the next
+round; halftime resets everything. Armour is no longer free, and head hits
+only hit armour with a helmet. Money shows over your health, with a line
+for every reward. The other modes keep free loadouts.
+
+**New control layout:** WASD, hold Shift to sprint, C crouch, Ctrl slide,
+Space jump, **Q / E lean**, **Caps Lock walk toggle**, 1 / 2 guns, **3 knife**,
+**4 grenades** (press again to switch, click to throw, right click to lob,
+G quick-throws the HE), R reload, **B fire mode** (AR-7 auto / burst / semi,
+V-10 auto / semi), **F use / plant / defuse**, **M big map**, Y / T chat,
+U / V voice, and the **mouse wheel zooms the sniper scope** (4× / 8×)
+while scoped. Leaning moves your head hitbox on the server too, and
+can't poke through walls. Settings now only save keys you changed; an old
+settings file picks up the new layout once.
+
+**The gun no longer goes through walls:** walking up stairs and ramps (or
+standing close to any wall or ceiling) used to push the first-person gun
+through it. Now it pulls back and dips down when something is in the way
+and comes back when there's room.
+
 **Bunker and Train Yard rebuilt** from concept art as 3-lane bomb maps
 (T west, CT east, A north, B south). Bunker is an underground base on
 three levels: A Long climbs to an upper corridor and a balcony over A, B

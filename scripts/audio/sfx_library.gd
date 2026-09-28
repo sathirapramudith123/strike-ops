@@ -9,7 +9,7 @@ extends RefCounted
 
 const NAMES: Array[StringName] = [
 	# Weapons (fire_<weapon_id>)
-	&"fire_rifle", &"fire_smg", &"fire_shotgun", &"fire_sniper", &"fire_pistol",
+	&"fire_rifle", &"fire_smg", &"fire_shotgun", &"fire_sniper", &"fire_pistol", &"fire_knife", &"knife_hit",
 	&"dry_fire", &"mag_out", &"mag_in", &"bolt", &"equip",
 	# Movement
 	&"step1", &"step2", &"step3", &"step4", &"land", &"jump", &"slide",
@@ -106,6 +106,15 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			PS.add_tone(b, 0.0, 0.14, 0.7, 210.0, 85.0, 30.0)
 			PS.add_noise(b, 0.0, 0.1, 0.8, 0.8, 0.03, 45.0, 0.001, 51)
 			PS.add_noise(b, 0.01, 0.39, 0.25, 0.15, 0.0, 10.0, 0.01, 52)
+		&"fire_knife":
+			# Swish: band-passed noise rising then falling.
+			b = PS.buffer(0.3)
+			PS.add_noise(b, 0.0, 0.3, 0.7, 0.55, 0.35, 9.0, 0.08, 57)
+		&"knife_hit":
+			b = PS.buffer(0.2)
+			PS.add_noise(b, 0.0, 0.12, 0.8, 0.3, 0.0, 30.0, 0.001, 58)
+			PS.add_tone(b, 0.0, 0.08, 0.4, 180.0, 90.0, 40.0)
+			PS.add_tone(b, 0.0, 0.15, 0.25, 3200.0, -1.0, 35.0)
 		# --- Weapon handling: metallic clicks ---
 		&"dry_fire":
 			b = PS.buffer(0.07)

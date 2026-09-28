@@ -76,6 +76,12 @@ func _run_host() -> void:
 	var smoke: Variant = await _wait_for(func() -> Variant:
 		return level.find_child("Smoke_*", true, false))
 	_check(smoke is SmokeCloud and (smoke as SmokeCloud).is_active(), "client's smoke grenade makes a cloud on the host")
+	var leaning: Variant = await _wait_for(func() -> Variant:
+		return true if client.lean > 0.8 and client.current_weapon and client.current_weapon.data.weapon_id == "knife" else null)
+	_check(leaning == true, "host sees the client lean and take out the knife")
+	# ...and wait until the client is done, so both reach the voice test together.
+	await _wait_for(func() -> Variant:
+		return true if client.lean < 0.1 and client.current_weapon and client.current_weapon.data.weapon_id != "knife" else null)
 
 	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_OPUS)
 
@@ -149,6 +155,13 @@ func _run_client() -> void:
 	# Wait for the cloud like the host does, so both reach the voice test together.
 	var cloud: Variant = await _wait_for(func() -> Variant: return level.find_child("Smoke_*", true, false))
 	_check(cloud is SmokeCloud, "client sees its smoke cloud")
+	# Knife out and lean right for a moment (the host checks it), then back.
+	me.select_slot(2)
+	Input.action_press(&"lean_right")
+	await _frames(90)
+	Input.action_release(&"lean_right")
+	me.select_slot(0)
+	await _frames(20)
 
 	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_OPUS)
 
@@ -241,11 +254,15 @@ func _run_bomb_host() -> void:
 	var defused: Variant = await _wait_for(func() -> Variant: return true if b.bomb_state == BombRules.BombState.DEFUSED else null)
 	_press(&"interact", false)
 	_check(defused == true and b.round_winner == 0, "host defuses → Blue wins round 1")
+	_check(Economy.money_of(1) == 800 + Economy.DEFUSE_REWARD + Economy.BOMB_WIN_REWARD,
+		"host: defuse + bomb win money ($%d)" % Economy.money_of(1))
 	b.bomb_time = 3.0
 
 	# R2: stand still at spawn and get eliminated.
 	var r2: Variant = await _wait_for(func() -> Variant: return true if b.round_number == 2 else null)
 	_check(r2 == true and not me.health.is_dead, "round 2: host revived")
+	var client_smg: Variant = await _wait_for(func() -> Variant: return true if client.primary_id == "smg" else null)
+	_check(client_smg == true, "host sees the client's bought SMG")
 	var r2_end: Variant = await _wait_for(func() -> Variant: return true if b.phase == BombRules.Phase.ROUND_END else null)
 	_check(r2_end == true and b.round_reason == "Defenders eliminated" and b.round_winner == 1, "client eliminates the host → Red wins round 2")
 
@@ -274,7 +291,16 @@ func _run_bomb_client() -> void:
 	var live: Variant = await _wait_for(func() -> Variant:
 		return true if b.phase == BombRules.Phase.LIVE and b.bomb_carrier == me.peer_id else null)
 	_check(live == true, "client carries the bomb when round 1 goes live")
-	_check(is_equal_approx(me.health.armor, 100.0), "client gets its armour from the server (%.0f)" % me.health.armor)
+	# Buy a vest through the buy menu (still at the spawn, inside the buy time).
+	_check(is_zero_approx(me.health.armor) and me.primary_id == "" and Economy.money_of(me.peer_id) == Economy.START_MONEY,
+		"round 1: $800, pistol, no armour")
+	var menu := level.hud.buy_menu
+	_check(menu.try_open(), "client opens the buy menu")
+	menu._buttons["vest"].pressed.emit()
+	var vest: Variant = await _wait_for(func() -> Variant: return true if me.health.armor >= 100.0 else null)
+	menu.close()
+	_check(vest == true and Economy.money_of(me.peer_id) == Economy.START_MONEY - 650,
+		"client buys a vest over the network ($%d left)" % Economy.money_of(me.peer_id))
 
 	# R1: walk to site B and plant with the Interact key.
 	await _plant_at_b(me)
@@ -286,6 +312,14 @@ func _run_bomb_client() -> void:
 	var r2: Variant = await _wait_for(func() -> Variant:
 		return true if b.round_number == 2 and b.phase == BombRules.Phase.LIVE else null)
 	_check(r2 == true, "round 2 live")
+	var money := Economy.money_of(me.peer_id)
+	_check(money == 800 - 650 + Economy.PLANT_REWARD + Economy.LOSS_REWARD + Economy.PLANTED_LOSS_BONUS,
+		"client got plant + loss + planted bonus money ($%d)" % money)
+	_check(me.health.armor > 0.0, "client kept its vest into round 2")
+	Match.economy.request_buy("smg")
+	var smg: Variant = await _wait_for(func() -> Variant: return true if me.primary_id == "smg" else null)
+	_check(smg == true and me.current_weapon.data.weapon_id == "smg" and Economy.money_of(me.peer_id) == money - 1250,
+		"client buys the SMG")
 	Input.action_press(&"aim")
 	var t := 0.0
 	while not host.health.is_dead and t < 15.0:
@@ -301,6 +335,7 @@ func _run_bomb_client() -> void:
 	var r3: Variant = await _wait_for(func() -> Variant:
 		return true if b.round_number == 3 and b.phase == BombRules.Phase.LIVE and b.bomb_carrier == me.peer_id else null)
 	_check(r3 == true, "round 3 live with the bomb")
+	_check(me.primary_id == "smg", "the survivor keeps the SMG into round 3")
 	await _plant_at_b(me)
 	var over: Variant = await _wait_for(func() -> Variant: return true if Match.is_ended() else null)
 	_check(over == true and Match.winner_text == "Red team wins!", "client sees Red win the match")

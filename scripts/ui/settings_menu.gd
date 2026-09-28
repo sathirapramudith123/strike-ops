@@ -385,6 +385,9 @@ func _build_gameplay() -> void:
 	_add_check(t, "Centre dot", SettingsManager.crosshair_dot, func(on: bool) -> void:
 		SettingsManager.crosshair_dot = on
 		SettingsManager.save())
+	_add_check(t, "Show grenade throw path", SettingsManager.grenade_arc, func(on: bool) -> void:
+		SettingsManager.grenade_arc = on
+		SettingsManager.save())
 	var frame := ColorRect.new()
 	frame.color = Color(0.25, 0.28, 0.32)
 	frame.custom_minimum_size = Vector2(160, 90)
@@ -543,7 +546,7 @@ func _reset_current_tab() -> void:
 				SettingsManager.set(p, defaults.get(p))
 			SettingsManager.reset_bindings()
 		"Gameplay":
-			for p in ["crosshair_color_name", "crosshair_size", "crosshair_dot"]:
+			for p in ["crosshair_color_name", "crosshair_size", "crosshair_dot", "grenade_arc"]:
 				SettingsManager.set(p, defaults.get(p))
 	defaults.free()
 	SettingsManager.save()

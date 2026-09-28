@@ -38,15 +38,16 @@ enum VoiceMode { PUSH_TO_TALK, VOICE_ACTIVATION }
 const REMAPPABLE_ACTIONS := {
 	&"move_forward": "Move forward", &"move_back": "Move back",
 	&"move_left": "Move left", &"move_right": "Move right",
-	&"jump": "Jump", &"crouch": "Crouch", &"slide": "Slide", &"sprint": "Sprint",
-	&"shoot": "Shoot", &"aim": "Aim down sights", &"reload": "Reload",
-	&"weapon_1": "Primary weapon", &"weapon_2": "Secondary weapon",
-	&"weapon_next": "Next weapon", &"weapon_prev": "Previous weapon",
-	&"interact": "Interact / plant / defuse", &"throw_grenade": "Throw HE grenade", &"throw_molotov": "Throw Molotov",
-	&"throw_flash": "Throw flashbang", &"throw_smoke": "Throw smoke grenade",
-	&"push_to_talk_team": "Push-to-talk (team)", &"push_to_talk_proximity": "Push-to-talk (proximity)",
-	&"scoreboard": "Scoreboard", &"chat_all": "Chat (all)", &"chat_team": "Chat (team)",
-	&"toggle_perf_overlay": "Performance overlay",
+	&"sprint": "Sprint (hold)", &"crouch": "Crouch", &"jump": "Jump", &"slide": "Slide",
+	&"lean_left": "Lean left", &"lean_right": "Lean right", &"walk_toggle": "Walk / run toggle",
+	&"weapon_1": "Primary weapon", &"weapon_2": "Secondary weapon", &"weapon_3": "Knife",
+	&"weapon_4": "Grenades (press again to switch)", &"throw_grenade": "Quick-throw grenade",
+	&"weapon_next": "Next weapon / scope zoom in", &"weapon_prev": "Previous weapon / scope zoom out",
+	&"reload": "Reload", &"shoot": "Fire", &"aim": "Aim down sights", &"fire_mode": "Switch fire mode",
+	&"interact": "Use / pick up / plant / defuse", &"map": "Map", &"buy_menu": "Buy menu (Bomb Defusal)",
+	&"chat_all": "Chat (all)", &"chat_team": "Chat (team)",
+	&"push_to_talk_team": "Voice chat (team)", &"push_to_talk_proximity": "Voice chat (proximity)",
+	&"scoreboard": "Scoreboard", &"toggle_perf_overlay": "Performance overlay",
 }
 
 const CROSSHAIR_COLORS := {
@@ -119,6 +120,8 @@ var vibration: bool = true
 var crosshair_color_name: String = "White"
 var crosshair_size: float = 1.0
 var crosshair_dot: bool = true
+## Draw the predicted flight of the grenade in hand (GrenadeArc).
+var grenade_arc: bool = true
 
 # Multiplayer
 var player_name: String = "Player"
@@ -134,6 +137,11 @@ var settings_path: String = SETTINGS_PATH
 var _config := ConfigFile.new()
 ## action -> Array[InputEvent] as defined in project.godot (for "Reset").
 var _default_bindings: Dictionary = {}
+## Version of the default key layout. Settings files from an older layout
+## saved every key; their keyboard keys are dropped once so the new defaults
+## apply (controller bindings are kept). Since layout 2 only keys that
+## differ from the defaults are saved.
+const BINDINGS_LAYOUT := 2
 
 
 func _ready() -> void:
@@ -415,6 +423,7 @@ func save() -> void:
 	_config.set_value("gameplay", "crosshair_color", crosshair_color_name)
 	_config.set_value("gameplay", "crosshair_size", crosshair_size)
 	_config.set_value("gameplay", "crosshair_dot", crosshair_dot)
+	_config.set_value("gameplay", "grenade_arc", grenade_arc)
 	_save_bindings()
 
 	_config.set_value("network", "player_name", player_name)
@@ -480,6 +489,7 @@ func _load_all(first_launch: bool) -> void:
 	crosshair_color_name = _config.get_value("gameplay", "crosshair_color", crosshair_color_name)
 	crosshair_size = _config.get_value("gameplay", "crosshair_size", crosshair_size)
 	crosshair_dot = _config.get_value("gameplay", "crosshair_dot", crosshair_dot)
+	grenade_arc = _config.get_value("gameplay", "grenade_arc", grenade_arc)
 	window_size = _config.get_value("display", "window_size", window_size)
 	brightness = _config.get_value("display", "brightness", brightness)
 	dynamic_resolution = _config.get_value("display", "dynamic_resolution", dynamic_resolution)
@@ -652,6 +662,10 @@ func reset_bindings() -> void:
 
 ## Re-applies the saved bindings to the InputMap (startup).
 func apply_bindings() -> void:
+	if int(_config.get_value("bindings_meta", "layout", 1)) < BINDINGS_LAYOUT:
+		if _config.has_section("bindings"):
+			_config.erase_section("bindings")
+		_config.set_value("bindings_meta", "layout", BINDINGS_LAYOUT)
 	for action: StringName in REMAPPABLE_ACTIONS:
 		# (has_section_key first: get_value(..., null) counts as "no default"
 		# and logs an error for actions newer than the saved settings file.)
@@ -667,13 +681,35 @@ func apply_bindings() -> void:
 			_set_binding(action, true, GamepadInput.deserialize(data))
 
 
+## Saves only the keys and buttons that differ from the defaults, so a new
+## default layout reaches everyone who didn't change that action.
 func _save_bindings() -> void:
+	_config.set_value("bindings_meta", "layout", BINDINGS_LAYOUT)
 	for action: StringName in REMAPPABLE_ACTIONS:
 		var e := get_binding(action)
-		if e:
-			_config.set_value("bindings", String(action), _serialize_event(e))
+		var key: Dictionary = _serialize_event(e) if e else {}
+		var def_key := _default_of_kind(action, false)
+		if key == (_serialize_event(def_key) if def_key else {}):
+			if _config.has_section_key("bindings", String(action)):
+				_config.erase_section_key("bindings", String(action))
+		else:
+			_config.set_value("bindings", String(action), key)
 		var p := get_pad_binding(action)
-		_config.set_value("pad_bindings", String(action), GamepadInput.serialize(p) if p else {})
+		var pad: Dictionary = GamepadInput.serialize(p) if p else {}
+		var def := _default_of_kind(action, true)
+		if pad == (GamepadInput.serialize(def) if def else {}):
+			if _config.has_section_key("pad_bindings", String(action)):
+				_config.erase_section_key("pad_bindings", String(action))
+		else:
+			_config.set_value("pad_bindings", String(action), pad)
+
+
+## The default (project.godot / GamepadInput) keyboard or controller event of `action`.
+func _default_of_kind(action: StringName, pad: bool) -> InputEvent:
+	for e: InputEvent in _default_bindings.get(action, []):
+		if GamepadInput.is_pad_event(e) == pad:
+			return e
+	return null
 
 
 static func _serialize_event(e: InputEvent) -> Dictionary:

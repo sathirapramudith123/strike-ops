@@ -17,7 +17,8 @@ const MAX_RISE_SPEED := 12.0
 ## Seconds of invulnerability after (re)spawning.
 const SPAWN_PROTECTION := 1.5
 
-enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8, RELOADING = 16 }
+enum Flags { SPRINTING = 1, CROUCHING = 2, SLIDING = 4, AIMING = 8, RELOADING = 16, LEAN_LEFT = 32,
+	LEAN_RIGHT = 64, WALKING = 128 }
 
 @onready var player: PlayerController = get_parent()
 
@@ -128,10 +129,24 @@ func _server_fell() -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _respawn(xform: Transform3D, primary: String) -> void:
+func _respawn(xform: Transform3D, primary: String, nades: Array) -> void:
 	if multiplayer.get_remote_sender_id() != 1:
 		return
-	_apply_respawn(xform, primary)
+	_apply_respawn(xform, primary, nades)
+
+
+## Server: a primary bought in the buy menu, on every peer.
+func server_give_primary(primary: String) -> void:
+	if not multiplayer.is_server():
+		return
+	player.give_primary(primary)
+	NetworkManager.send_to_ready(self, &"_client_give_primary", [primary])
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _client_give_primary(primary: String) -> void:
+	if multiplayer.get_remote_sender_id() == 1:
+		player.give_primary(primary)
 
 
 ## Owner → server → everyone: weapon slot changes.
@@ -148,7 +163,7 @@ func send_slot(slot: int) -> void:
 func _server_slot(slot: int) -> void:
 	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != player.peer_id:
 		return
-	slot = clampi(slot, 0, 1)
+	slot = clampi(slot, 0, PlayerController.SLOT_COUNT - 1)
 	player._equip_slot(slot)
 	player.play_equip_sound()
 	NetworkManager.send_to_ready(self, &"_client_slot", [slot], [player.peer_id])
@@ -157,7 +172,7 @@ func _server_slot(slot: int) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func _client_slot(slot: int) -> void:
 	if multiplayer.get_remote_sender_id() == 1 and not player.is_local:
-		player._equip_slot(clampi(slot, 0, 1))
+		player._equip_slot(clampi(slot, 0, PlayerController.SLOT_COUNT - 1))
 		player.play_equip_sound()
 
 
@@ -191,19 +206,27 @@ func _server_respawn() -> void:
 	var level := player.get_parent().get_parent() as Level
 	var xform := level.next_spawn_transform(player.peer_id) if level else player.global_transform
 	var primary: String = NetworkManager.roster.get(player.peer_id, {}).get("primary", player.primary_id)
-	player.health.revive()
+	var nades := []
+	if Match.mode == GameConfig.Mode.BOMB:
+		# Bomb Defusal: what the player bought / kept (Economy).
+		var gear := Match.economy.gear_for(player.peer_id)
+		primary = gear.primary
+		nades = gear.nades
+		player.health.revive(gear.armor, gear.helmet)
+	else:
+		player.health.revive()
 	# Bomb Defusal has freeze time instead of spawn protection.
 	if Match.mode != GameConfig.Mode.BOMB:
 		player.health.protect(SPAWN_PROTECTION)
-	_apply_respawn(xform, primary)
-	NetworkManager.send_to_ready(self, &"_respawn", [xform, primary])
+	_apply_respawn(xform, primary, nades)
+	NetworkManager.send_to_ready(self, &"_respawn", [xform, primary, nades])
 
 
-func _apply_respawn(xform: Transform3D, primary: String) -> void:
+func _apply_respawn(xform: Transform3D, primary: String, nades: Array) -> void:
 	_snapshots.clear()
 	_last_valid_pos = xform.origin
 	_last_valid_time = NetworkManager.server_time()
-	player.respawn_at(xform, primary)
+	player.respawn_at(xform, primary, nades)
 
 
 func _push_snapshot(t: float, pos: Vector3, yaw: float, pitch: float, height: float, flags: int) -> void:
@@ -250,4 +273,7 @@ func _flags() -> int:
 	if player.is_sliding: f |= Flags.SLIDING
 	if player.current_weapon and player.current_weapon.is_aiming: f |= Flags.AIMING
 	if player.current_weapon and player.current_weapon.is_reloading: f |= Flags.RELOADING
+	if player.lean < -0.5: f |= Flags.LEAN_LEFT
+	if player.lean > 0.5: f |= Flags.LEAN_RIGHT
+	if player.is_walking: f |= Flags.WALKING
 	return f

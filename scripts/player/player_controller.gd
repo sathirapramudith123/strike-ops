@@ -29,6 +29,11 @@ const STRIDE_CROUCH := 1.6
 const STEP_WALK := [-6.0, 25.0]
 const STEP_SPRINT := [0.0, 40.0]
 const STEP_CROUCH := [-18.0, 8.0]
+## Lean (Q / E): the head moves this far sideways and the view rolls.
+const LEAN_OFFSET := 0.35
+const LEAN_ROLL_DEGREES := 12.0
+## Walking (Caps Lock toggle): this share of walk_speed, near-silent steps.
+const WALK_TOGGLE_SPEED := 0.55
 
 @export_group("Movement")
 @export var walk_speed: float = 5.0
@@ -77,16 +82,31 @@ var is_sprinting: bool = false
 var is_crouching: bool = false
 var is_sliding: bool = false
 var current_weapon: Weapon
-## Loadout: primary weapon id (GameConfig.PRIMARY_WEAPONS) + the pistol.
+## Loadout: primary weapon id (GameConfig.PRIMARY_WEAPONS; "" = none, Bomb
+## Defusal before buying one) + the pistol + the knife.
 var primary_id: String = GameConfig.DEFAULT_PRIMARY
-## 0 = primary, 1 = secondary.
+## 0 = primary, 1 = secondary (pistol), 2 = knife.
 var current_slot: int = 0
+const SLOT_COUNT := 3
+## Walk toggle (Caps Lock): slow and quiet.
+var is_walking: bool = false
+## Lean -1 (left) .. 1 (right), smoothed; remote players get it from NetSync.
+var lean: float = 0.0
+var _lean_target: float = 0.0
 ## weapon_id -> Weapon (every weapon exists on every player; see GameConfig.WEAPONS).
 var weapons: Dictionary = {}
 ## Grenades (quick-throw: G HE, Q Molotov, F flash, Z smoke).
 var throwables: Throwables
 ## Seconds of flashbang blindness left (local player only; see GrenadeFx.flash).
 var blind_time: float = 0.0
+## Grenade wheel open (hold 4): the mouse points at a grenade instead of looking.
+var grenade_wheel_open: bool = false
+## Climbing onto a ledge (see Climb): true while pulling up.
+var is_climbing: bool = false
+var _climb_time: float = 0.0
+var _climb_duration: float = 0.0
+var _climb_from: Vector3
+var _climb_to: Vector3
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -165,11 +185,12 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not input_enabled:
 		return
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED \
+			and not grenade_wheel_open:
 		var motion := event as InputEventMouseMotion
 		var sens := SettingsManager.mouse_sensitivity * 0.01
 		if current_weapon:
-			sens *= lerpf(1.0, current_weapon.data.ads_sensitivity_multiplier * SettingsManager.ads_sensitivity_scale,
+			sens *= lerpf(1.0, current_weapon.current_ads_sensitivity() * SettingsManager.ads_sensitivity_scale,
 				current_weapon.ads_blend)
 		var invert := -1.0 if SettingsManager.invert_y else 1.0
 		rotate_y(-motion.relative.x * sens)
@@ -183,8 +204,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		select_slot(0)
 	elif event.is_action_pressed(&"weapon_2"):
 		select_slot(1)
+	elif event.is_action_pressed(&"weapon_3"):
+		select_slot(2)
 	elif event.is_action_pressed(&"weapon_next") or event.is_action_pressed(&"weapon_prev"):
-		select_slot(1 - current_slot)
+		var step := 1 if event.is_action_pressed(&"weapon_next") else -1
+		# Looking through a scope, the wheel zooms instead of switching.
+		if current_weapon and current_weapon.cycle_zoom(step):
+			return
+		if throwables and throwables.is_holding():
+			select_slot(current_slot, true)
+		else:
+			select_slot(_next_slot(current_slot, step))
+	elif event.is_action_pressed(&"fire_mode"):
+		if current_weapon:
+			current_weapon.cycle_fire_mode()
+	elif event.is_action_pressed(&"walk_toggle"):
+		is_walking = not is_walking
 	elif event is InputEventMouseButton and event.pressed \
 			and Input.mouse_mode != Input.MOUSE_MODE_CAPTURED:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -193,7 +228,11 @@ func _unhandled_input(event: InputEvent) -> void:
 ## Controller look runs every rendered frame (smooth at any FPS).
 func _process(delta: float) -> void:
 	blind_time = maxf(blind_time - delta, 0.0)
-	if is_local and input_enabled and not health.is_dead:
+	if is_local and not health.is_dead:
+		_lean_target = _local_lean_target()
+	lean = move_toward(lean, _lean_target, delta * 6.0)
+	_apply_lean()
+	if is_local and input_enabled and not health.is_dead and not grenade_wheel_open:
 		_pad_look(delta)
 	if not is_local and visible:
 		_model.animate(delta, is_crouching)
@@ -216,6 +255,18 @@ func _physics_process(delta: float) -> void:
 	_slide_cooldown_timer -= delta
 	if input_enabled and Match.can_move() and Input.is_action_just_pressed(&"jump"):
 		_jump_buffer_timer = jump_buffer_time
+
+	# --- Climbing -----------------------------------------------------------
+	if is_climbing:
+		_update_climb(delta)
+		return
+	if _jump_buffer_timer > 0.0 and _coyote_timer > 0.0 and _try_climb(Climb.MIN_HEIGHT):
+		_jump_buffer_timer = 0.0
+		return
+	# Jumped at something too high to jump onto: keep Jump held to pull up.
+	if not on_floor and velocity.y < 2.0 and input_enabled and Input.is_action_pressed(&"jump") \
+			and _try_climb(0.2):
+		return
 
 	# --- Gravity ------------------------------------------------------------
 	if not on_floor:
@@ -257,6 +308,10 @@ func _physics_process(delta: float) -> void:
 			speed = crouch_speed
 		elif is_sprinting:
 			speed = sprint_speed
+		elif is_walking:
+			speed = walk_speed * WALK_TOGGLE_SPEED
+		if absf(lean) > 0.3:
+			speed = minf(speed, walk_speed * 0.7)
 		if current_weapon:
 			speed *= lerpf(1.0, current_weapon.data.ads_move_speed_multiplier, current_weapon.ads_blend)
 
@@ -297,26 +352,113 @@ func _physics_process(delta: float) -> void:
 # Public API
 # -----------------------------------------------------------------------------
 
-## Weapons in slot order: [primary, secondary].
+## Pulls the player up onto a climbable ledge in front (at least
+## `min_height` high). Returns false if there is none.
+func _try_climb(min_height: float) -> bool:
+	if not input_enabled or not Match.can_move() or is_sliding:
+		return false
+	var forward := -global_basis.z
+	var ledge := Climb.find_ledge(get_world_3d().direct_space_state, global_position, forward)
+	if ledge.is_empty() or not ledge.climbable or ledge.height < min_height:
+		return false
+	is_climbing = true
+	_climb_time = 0.0
+	_climb_duration = 0.3 + 0.16 * ledge.height
+	_climb_from = global_position
+	_climb_to = (ledge.top as Vector3) + Vector3.UP * 0.02
+	velocity = Vector3.ZERO
+	is_crouching = true
+	if current_weapon and not throwables.is_holding():
+		current_weapon.set_holstered(true)
+	_movement_sound(&"jump", -8.0, 14.0)
+	return true
+
+
+## Up first (hands on the edge), then forward onto the top.
+func _update_climb(delta: float) -> void:
+	_climb_time += delta
+	var t := clampf(_climb_time / _climb_duration, 0.0, 1.0)
+	var up := clampf(t / 0.7, 0.0, 1.0)
+	var over := clampf((t - 0.55) / 0.45, 0.0, 1.0)
+	var pos := _climb_from
+	pos.y = lerpf(_climb_from.y, _climb_to.y + 0.05, 1.0 - pow(1.0 - up, 2.0))
+	pos.x = lerpf(_climb_from.x, _climb_to.x, over * over)
+	pos.z = lerpf(_climb_from.z, _climb_to.z, over * over)
+	global_position = pos
+	velocity = Vector3.ZERO
+	is_crouching = true
+	_update_height(delta)
+	_update_camera(delta, false)
+	if t >= 1.0:
+		_end_climb()
+		_movement_sound(&"land", -12.0, 14.0)
+
+
+func _end_climb() -> void:
+	if not is_climbing:
+		return
+	is_climbing = false
+	is_crouching = _is_ceiling_blocked()
+	if current_weapon and not (throwables and throwables.is_holding()):
+		current_weapon.set_holstered(false)
+
+
+## Weapons in slot order: [primary (null if none), secondary, knife].
 func loadout_weapons() -> Array[Weapon]:
-	var primary: Weapon = weapons.get(primary_id, weapons.get(GameConfig.DEFAULT_PRIMARY))
-	return [primary, weapons.get(GameConfig.SECONDARY_WEAPON)]
+	var primary: Weapon = weapons.get(primary_id) if primary_id != "" else null
+	return [primary, weapons.get(GameConfig.SECONDARY_WEAPON), weapons.get(GameConfig.MELEE_WEAPON)]
 
 
-## Sets the primary weapon, refills ammo and equips `slot` (spawn / respawn).
+## Sets the primary weapon, refills ammo and equips `slot` (spawn / respawn);
+## the pistol if there is no primary.
 func apply_loadout(primary: String, slot: int = 0) -> void:
-	primary_id = primary if weapons.has(primary) else GameConfig.DEFAULT_PRIMARY
+	primary_id = primary if primary == "" or weapons.has(primary) else GameConfig.DEFAULT_PRIMARY
 	# No health regeneration in Bomb Defusal (damage carries through a round).
 	health.regen_per_second = 0.0 if Match.mode == GameConfig.Mode.BOMB else _default_regen
 	for w: Weapon in weapons.values():
 		w.refill_ammo()
 	current_slot = -1
-	_equip_slot(clampi(slot, 0, 1))
+	slot = clampi(slot, 0, SLOT_COUNT - 1)
+	if loadout_weapons()[slot] == null:
+		slot = 1
+	_equip_slot(slot)
 
 
-## Local player switches weapon (keys 1/2, mouse wheel); replicated via NetSync.
-func select_slot(slot: int) -> void:
-	if slot == current_slot or health.is_dead:
+## A bought primary (Bomb Defusal): replaces the old one, full ammo, in hand.
+func give_primary(primary: String) -> void:
+	if not weapons.has(primary):
+		return
+	if throwables and throwables.is_holding():
+		throwables.put_away()
+	primary_id = primary
+	(weapons[primary] as Weapon).refill_ammo()
+	_equip_slot(0)
+	play_equip_sound()
+
+
+## The next slot that holds a weapon, going `step` from `slot`.
+func _next_slot(slot: int, step: int) -> int:
+	var ws := loadout_weapons()
+	for i in range(1, SLOT_COUNT + 1):
+		var s := posmod(slot + step * i, SLOT_COUNT)
+		if ws[s] != null:
+			return s
+	return slot
+
+
+## Local player switches weapon (keys 1/2/3, mouse wheel); replicated via
+## NetSync. Also puts a grenade in hand away (`force`: even to the same slot).
+func select_slot(slot: int, force: bool = false) -> void:
+	if health.is_dead:
+		return
+	if throwables and throwables.is_holding():
+		throwables.put_away()
+		if slot == current_slot:
+			play_equip_sound()
+			return
+	if slot == current_slot and not force:
+		return
+	if loadout_weapons()[slot] == null:
 		return
 	_equip_slot(slot)
 	play_equip_sound()
@@ -370,10 +512,11 @@ func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 	_recoil.y += deg_to_rad(yaw_degrees)
 
 
-## Called on every peer by PlayerNetSync when the server respawns this player.
-func respawn_at(xform: Transform3D, primary: String) -> void:
+## Called on every peer by PlayerNetSync when the server respawns this
+## player. `nades`: grenade counts carried into the round (Bomb Defusal).
+func respawn_at(xform: Transform3D, primary: String, nades: Array = []) -> void:
 	apply_loadout(primary, 0)
-	throwables.refill()
+	throwables.refill(nades)
 	blind_time = 0.0
 	global_transform = xform
 	head.rotation = Vector3.ZERO
@@ -381,8 +524,12 @@ func respawn_at(xform: Transform3D, primary: String) -> void:
 	_recoil = Vector2.ZERO
 	is_sliding = false
 	_fell_reported = false
+	_end_climb()
 	visible = true
 	_set_hitboxes_enabled(true)
+	is_walking = false
+	lean = 0.0
+	_lean_target = 0.0
 	respawned.emit()
 
 
@@ -395,6 +542,9 @@ func apply_remote_state(pos: Vector3, yaw: float, pitch: float, height: float, f
 	is_sprinting = flags & PlayerNetSync.Flags.SPRINTING != 0
 	is_crouching = flags & PlayerNetSync.Flags.CROUCHING != 0
 	is_sliding = flags & PlayerNetSync.Flags.SLIDING != 0
+	is_walking = flags & PlayerNetSync.Flags.WALKING != 0
+	_lean_target = (1.0 if flags & PlayerNetSync.Flags.LEAN_RIGHT != 0 else 0.0) \
+		- (1.0 if flags & PlayerNetSync.Flags.LEAN_LEFT != 0 else 0.0)
 	# Others see the reload: the model swaps the magazine, with sound.
 	var reloading := flags & PlayerNetSync.Flags.RELOADING != 0
 	if reloading and not _remote_reloading and current_weapon:
@@ -510,14 +660,14 @@ func _update_camera(delta: float, on_floor: bool) -> void:
 
 	# Recoil recovers back to centre.
 	_recoil = _recoil.lerp(Vector2.ZERO, clampf(delta * recoil_recovery, 0.0, 1.0))
-	camera.rotation = Vector3(_recoil.x, _recoil.y, -0.05 if is_sliding else 0.0)
+	camera.rotation = Vector3(_recoil.x, _recoil.y, (-0.05 if is_sliding else 0.0) - lean * deg_to_rad(LEAN_ROLL_DEGREES))
 
 	# FOV: sprint widens, ADS zooms.
 	var fov := SettingsManager.field_of_view
 	if is_sprinting or is_sliding:
 		fov += sprint_fov_boost
 	if current_weapon:
-		fov *= lerpf(1.0, current_weapon.data.ads_fov_multiplier, current_weapon.ads_blend)
+		fov *= lerpf(1.0, current_weapon.current_ads_fov(), current_weapon.ads_blend)
 	camera.fov = lerpf(camera.fov, fov, clampf(delta * 10.0, 0.0, 1.0))
 
 
@@ -528,13 +678,14 @@ func _advance_footsteps(moved: float, grounded: bool) -> void:
 	if not grounded or is_sliding or moved <= 0.0 or not Audio.is_active():
 		return
 	_step_distance += moved
-	var stride := STRIDE_CROUCH if is_crouching else (STRIDE_SPRINT if is_sprinting else STRIDE_WALK)
+	var quiet := is_crouching or (is_walking and not is_sprinting)
+	var stride := STRIDE_CROUCH if quiet else (STRIDE_SPRINT if is_sprinting else STRIDE_WALK)
 	if _step_distance < stride:
 		return
 	_step_distance = 0.0
 	if not is_local and not _ground_below():
 		return
-	var loudness: Array = STEP_CROUCH if is_crouching else (STEP_SPRINT if is_sprinting else STEP_WALK)
+	var loudness: Array = STEP_CROUCH if quiet else (STEP_SPRINT if is_sprinting else STEP_WALK)
 	_movement_sound(StringName("step%d" % randi_range(1, 4)), loudness[0], loudness[1])
 
 
@@ -549,7 +700,7 @@ func _pad_look(delta: float) -> void:
 		return
 	var speed := deg_to_rad(SettingsManager.pad_sensitivity) * delta
 	if current_weapon:
-		speed *= lerpf(1.0, current_weapon.data.ads_sensitivity_multiplier * SettingsManager.ads_sensitivity_scale,
+		speed *= lerpf(1.0, current_weapon.current_ads_sensitivity() * SettingsManager.ads_sensitivity_scale,
 			current_weapon.ads_blend)
 	speed *= aim_assist_factor()
 	var invert := -1.0 if SettingsManager.pad_invert_y else 1.0
@@ -625,13 +776,43 @@ func _movement_sound(sound: StringName, volume_db: float, max_distance: float) -
 
 
 func _on_died(_source: Node) -> void:
+	_end_climb()
 	if is_local and Match.mode == GameConfig.Mode.BOMB:
 		Match.bomb.request_interact(false)
+	if throwables and throwables.is_holding():
+		throwables.put_away()
+	_lean_target = 0.0
 	velocity = Vector3.ZERO
 	is_sliding = false
 	_set_hitboxes_enabled(false)
 	if not is_local:
 		visible = false
+
+
+## Q / E held: -1 / 1, shortened when a wall is in the way; 0 while
+## sprinting, sliding or in the air.
+func _local_lean_target() -> float:
+	if not input_enabled or is_sprinting or is_sliding or not Match.can_move():
+		return 0.0
+	var want := Input.get_action_strength(&"lean_right") - Input.get_action_strength(&"lean_left")
+	if is_zero_approx(want):
+		return 0.0
+	var side := global_basis.x * signf(want)
+	var from := global_position + Vector3.UP * head.position.y
+	var reach := LEAN_OFFSET + 0.25
+	var q := PhysicsRayQueryParameters3D.create(from, from + side * reach, 1, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if not hit.is_empty():
+		var room := maxf(from.distance_to(hit.position) - 0.25, 0.0)
+		want = signf(want) * minf(absf(want), room / LEAN_OFFSET)
+	return clampf(want, -1.0, 1.0)
+
+
+## Head (camera, head hitbox) slides sideways; the third-person body tilts
+## so its head ends up in the same place.
+func _apply_lean() -> void:
+	head.position.x = lean * LEAN_OFFSET
+	_third_person.rotation.z = -lean * asin(LEAN_OFFSET / maxf(_height - LagCompensation.HEAD_DROP, 1.0))
 
 
 func _set_hitboxes_enabled(enabled: bool) -> void:

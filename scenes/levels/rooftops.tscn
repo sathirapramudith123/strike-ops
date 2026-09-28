@@ -2145,7 +2145,7 @@ mesh = SubResource("Mesh_91")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Parapet6"]
 shape = SubResource("Shape_91")
 
-[node name="ACUnit1" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit1" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -11.000, 4.600, -16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit1"]
@@ -2154,7 +2154,7 @@ mesh = SubResource("Mesh_92")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/ACUnit1"]
 shape = SubResource("Shape_92")
 
-[node name="ACUnit2" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit2" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -16.000, 4.600, -11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit2"]
@@ -2190,7 +2190,7 @@ mesh = SubResource("Mesh_96")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Parapet8"]
 shape = SubResource("Shape_96")
 
-[node name="ACUnit3" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit3" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -11.000, 4.600, 16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit3"]
@@ -2199,7 +2199,7 @@ mesh = SubResource("Mesh_97")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/ACUnit3"]
 shape = SubResource("Shape_97")
 
-[node name="ACUnit4" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit4" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -16.000, 4.600, 11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit4"]
@@ -2244,7 +2244,7 @@ mesh = SubResource("Mesh_102")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Parapet10"]
 shape = SubResource("Shape_102")
 
-[node name="ACUnit5" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit5" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 11.000, 4.600, -16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit5"]
@@ -2253,7 +2253,7 @@ mesh = SubResource("Mesh_103")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/ACUnit5"]
 shape = SubResource("Shape_103")
 
-[node name="ACUnit6" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit6" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 16.000, 4.600, -11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit6"]
@@ -2952,7 +2952,7 @@ mesh = SubResource("Mesh_191")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Parapet16"]
 shape = SubResource("Shape_191")
 
-[node name="ACUnit7" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit7" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 11.000, 4.600, 16.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit7"]
@@ -2961,7 +2961,7 @@ mesh = SubResource("Mesh_192")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/ACUnit7"]
 shape = SubResource("Shape_192")
 
-[node name="ACUnit8" type="StaticBody3D" parent="Geometry"]
+[node name="ACUnit8" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 16.000, 4.600, 11.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/ACUnit8"]
@@ -3024,7 +3024,7 @@ mesh = SubResource("Mesh_199")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Ramp6"]
 shape = SubResource("Shape_199")
 
-[node name="Car1" type="StaticBody3D" parent="Geometry"]
+[node name="Car1" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -3.000, 0.700, -3.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car1"]
@@ -3033,7 +3033,7 @@ mesh = SubResource("Mesh_200")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Car1"]
 shape = SubResource("Shape_200")
 
-[node name="Car2" type="StaticBody3D" parent="Geometry"]
+[node name="Car2" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 4.000, 0.700, 3.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car2"]
@@ -3042,7 +3042,7 @@ mesh = SubResource("Mesh_201")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Car2"]
 shape = SubResource("Shape_201")
 
-[node name="Car3" type="StaticBody3D" parent="Geometry"]
+[node name="Car3" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000, 0.700, -18.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car3"]
@@ -3051,7 +3051,7 @@ mesh = SubResource("Mesh_202")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Car3"]
 shape = SubResource("Shape_202")
 
-[node name="Car4" type="StaticBody3D" parent="Geometry"]
+[node name="Car4" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 2.000, 0.700, 20.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car4"]
@@ -3060,7 +3060,7 @@ mesh = SubResource("Mesh_203")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Car4"]
 shape = SubResource("Shape_203")
 
-[node name="Car5" type="StaticBody3D" parent="Geometry"]
+[node name="Car5" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -24.000, 0.700, -12.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car5"]
@@ -3069,7 +3069,7 @@ mesh = SubResource("Mesh_204")
 [node name="Collision" type="CollisionShape3D" parent="Geometry/Car5"]
 shape = SubResource("Shape_204")
 
-[node name="Car6" type="StaticBody3D" parent="Geometry"]
+[node name="Car6" type="StaticBody3D" parent="Geometry" groups=["climbable"]]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 24.000, 0.700, 12.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Car6"]

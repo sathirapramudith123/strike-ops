@@ -8,6 +8,13 @@ extends Resource
 
 @export_group("Firing")
 @export var automatic: bool = true
+## Fire modes B cycles through ("auto", "burst", "semi"); empty = only the
+## mode `automatic` gives. The first one is the default.
+@export var fire_modes: PackedStringArray = []
+## Shots per trigger pull in "burst" mode.
+@export var burst_count: int = 3
+## Melee weapon (knife): no ammo, no spread, no aiming, short reach.
+@export var melee: bool = false
 ## Rounds per minute.
 @export var fire_rate: float = 600.0
 ## Damage per pellet.
@@ -52,3 +59,6 @@ extends Resource
 @export_range(0.1, 1.0, 0.05) var ads_move_speed_multiplier: float = 0.6
 ## Sniper scope: hides the viewmodel and shows a scope overlay while aiming.
 @export var scoped: bool = false
+## Extra zoom steps (FOV multipliers) the mouse wheel steps through while
+## scoped; ads_fov_multiplier is the first step.
+@export var zoom_levels: PackedFloat32Array = []

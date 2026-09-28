@@ -29,6 +29,7 @@ const MATERIALS := {
 	&"sleeve": [Color(0.42, 0.41, 0.32), 0.0],
 	&"shell": [Color(0.72, 0.12, 0.08), 0.0],
 	&"brass": [Color(0.78, 0.6, 0.25), 0.8],
+	&"blade": [Color(0.6, 0.62, 0.64), 0.85],
 }
 const TINTED := &"armor"
 

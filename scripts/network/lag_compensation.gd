@@ -57,6 +57,13 @@ static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector
 		var feet: Vector3 = state.pos
 		var height: float = state.height
 		var head_center := feet + Vector3.UP * (height - HEAD_DROP)
+		# Leaning moves the head sideways (PlayerController.LEAN_OFFSET).
+		var flags: int = state.get("flags", 0)
+		var lean_dir := (1.0 if flags & PlayerNetSync.Flags.LEAN_RIGHT else 0.0) \
+			- (1.0 if flags & PlayerNetSync.Flags.LEAN_LEFT else 0.0)
+		if lean_dir != 0.0:
+			var yaw: float = state.get("yaw", 0.0)
+			head_center += Vector3(cos(yaw), 0.0, -sin(yaw)) * lean_dir * PlayerController.LEAN_OFFSET
 
 		var t := ray_sphere(origin, dir, head_center, HEAD_RADIUS)
 		var hitbox: Hitbox = p.head_hitbox

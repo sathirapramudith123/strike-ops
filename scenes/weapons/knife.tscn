@@ -1,0 +1,14 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/weapons/weapon.gd" id="1_weapon"]
+[ext_resource type="Resource" path="res://resources/weapons/knife.tres" id="2_data"]
+
+[node name="Knife" type="Node3D" node_paths=PackedStringArray("muzzle")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.22, -0.3)
+script = ExtResource("1_weapon")
+data = ExtResource("2_data")
+muzzle = NodePath("Muzzle")
+ads_position = Vector3(0.2, -0.22, -0.3)
+
+[node name="Muzzle" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.004, -0.2)

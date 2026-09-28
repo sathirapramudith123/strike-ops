@@ -26,9 +26,11 @@ func _run() -> void:
 
 	await _test_walk_and_sprint()
 	await _test_jump()
+	await _test_climbing()
 	await _test_crouch_and_slide()
 	await _test_shooting()
 	await _test_reload()
+	await _test_gun_against_wall()
 	await _test_ramps()
 	await _test_pause_disables_input()
 	await _test_fall_death_and_respawn()
@@ -36,9 +38,11 @@ func _run() -> void:
 	_test_voice_codec()
 	await _test_voice_loopback()
 	await _test_weapon_switching()
+	await _test_new_controls()
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
 	await _test_grenades()
+	await _test_grenade_wheel_and_arc()
 	await _test_flash_and_smoke()
 	await _test_audio()
 	await _test_controller()
@@ -87,6 +91,76 @@ func _test_jump() -> void:
 	_check(peak > ground_y + 1.0, "jump reaches > 1 m (got %.2f)" % (peak - ground_y))
 	await _frames(40)
 	_check(_player.is_on_floor(), "player lands after jumping")
+
+
+## A box in front of the player (test map, open floor near the spawn).
+func _add_box(center: Vector3, size: Vector3, climbable: bool) -> StaticBody3D:
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	body.add_child(shape)
+	if climbable:
+		body.add_to_group(Climb.GROUP)
+	_level.add_child(body)
+	body.global_position = center
+	return body
+
+
+func _test_climbing() -> void:
+	# A 1.8 m climbable crate: Jump facing it pulls the player up on top.
+	var crate := _add_box(Vector3(0, 0.9, 2), Vector3(2, 1.8, 1.5), true)
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 3.4))
+	await _frames(10)
+	var ledge := Climb.find_ledge(_player.get_world_3d().direct_space_state, _player.global_position, -_player.global_basis.z)
+	_check(not ledge.is_empty() and ledge.climbable and absf(ledge.height - 1.8) < 0.15,
+		"a 1.8 m crate in front is a climbable ledge (%s)" % str(ledge.get("height")))
+	_press_action(&"jump")
+	await _frames(3)
+	_check(_player.is_climbing, "Jump at the crate starts climbing")
+	await _frames(70)
+	_check(not _player.is_climbing and _player.global_position.y > 1.7 and _player.global_position.z < 2.6,
+		"climbed up on top of the crate (%s)" % _player.global_position.snappedf(0.01))
+	_check(_player.current_weapon and not _player.current_weapon.holstered, "gun back in hand after climbing")
+	crate.queue_free()
+
+	# The same box without the climbable mark: a jump doesn't get up there.
+	var wall := _add_box(Vector3(0, 0.9, 2), Vector3(2, 1.8, 1.5), false)
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 3.4))
+	await _frames(10)
+	Input.action_press(&"jump")
+	Input.action_press(&"move_forward")
+	await _frames(60)
+	_release_all()
+	await _frames(20)
+	_check(not _player.is_climbing and _player.global_position.y < 0.5, "a box that isn't climbable can't be climbed")
+	wall.queue_free()
+
+	# Jumping at a climbable ledge and holding Jump pulls up in the air.
+	var crate2 := _add_box(Vector3(0, 1.0, 2), Vector3(2, 2.0, 1.5), true)
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 5.5))
+	await _frames(5)
+	Input.action_press(&"move_forward")
+	await _frames(20)
+	Input.action_press(&"jump")
+	var climbed := false
+	for i in 60:
+		await _frames(1)
+		if _player.is_climbing:
+			climbed = true
+			Input.action_release(&"move_forward") # stay on top
+	await _frames(30)
+	_release_all()
+	_check(climbed, "holding Jump in the air grabs the ledge")
+	_check(_player.global_position.y > 1.9, "running jump + hold Jump climbs a 2 m crate (y %.2f)" % _player.global_position.y)
+	crate2.queue_free()
+	await _frames(2)
+	_reset_player(Vector3(0, 0.1, 6))
+	await _frames(20)
 
 
 func _test_crouch_and_slide() -> void:
@@ -147,6 +221,29 @@ func _test_shooting() -> void:
 	_check(weapon.ammo_in_magazine < ammo_before, "shooting uses ammo (%d → %d)" % [ammo_before, weapon.ammo_in_magazine])
 	_check(hits[0] > 0, "shots hit the target (%d hits)" % hits[0])
 	_check(target.health.current < target.health.max_health or target.health.is_dead, "target takes damage")
+
+
+func _test_gun_against_wall() -> void:
+	# A wall 0.5 m in front: the gun is pulled back instead of poking through.
+	_reset_player(Vector3(0, 0.1, 6))
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4, 4, 0.3)
+	shape.shape = box
+	wall.add_child(shape)
+	_level.add_child(wall)
+	wall.global_position = Vector3(0, 2, 6 - 0.55 - 0.15) # front face 0.55 m from the eye
+	_player.select_slot(0) # the rifle: muzzle ~0.9 m in front of the eye
+	var gun := _player.current_weapon
+	await _frames(40)
+	var pulled := gun._wall_pull
+	var tip := _player.camera.to_local(gun.muzzle.global_position)
+	_check(pulled > 0.2 and -tip.z < 0.62,
+		"gun pulls back at a wall (pull %.2f m, muzzle %.2f m ahead, wall at 0.55 m)" % [pulled, -tip.z])
+	wall.queue_free()
+	await _frames(40)
+	_check(gun._wall_pull < 0.01, "gun back in place away from walls (%.2f)" % gun._wall_pull)
 
 
 func _test_reload() -> void:
@@ -389,6 +486,189 @@ func _test_voice_loopback() -> void:
 	VoiceChat.loopback = false
 
 
+## The PUBG-style layout: default keys, knife, fire modes, scope zoom,
+## lean, walk toggle, grenade slot, big map.
+func _test_new_controls() -> void:
+	var expect := { &"crouch": "C", &"slide": "Ctrl", &"lean_left": "Q", &"lean_right": "E",
+		&"walk_toggle": "CapsLock", &"weapon_3": "3", &"weapon_4": "4", &"fire_mode": "B", &"interact": "F",
+		&"map": "M", &"chat_all": "Y", &"push_to_talk_team": "U", &"reload": "R", &"sprint": "Shift" }
+	var wrong := PackedStringArray()
+	for action: StringName in expect:
+		var got := _key_of(action)
+		if got != expect[action]:
+			wrong.append("%s=%s" % [action, got])
+	_check(wrong.is_empty(), "default keys follow the new layout (%s)" % ", ".join(wrong))
+	var keys := {}
+	var dup := PackedStringArray()
+	for action: StringName in SettingsManager.REMAPPABLE_ACTIONS:
+		var k := _key_of(action)
+		if k != "" and keys.has(k):
+			dup.append("%s: %s + %s" % [k, keys[k], action])
+		keys[k] = action
+	_check(dup.is_empty(), "no key is used twice (%s)" % ", ".join(dup))
+	# Only changed keys are saved; a settings file from the old layout (every
+	# key saved, crouch on Ctrl) gets the new defaults.
+	SettingsManager.save()
+	_check(not SettingsManager._config.has_section_key("bindings", "crouch"), "default keys aren't written to the settings file")
+	var cfg := SettingsManager._config
+	cfg.set_value("bindings_meta", "layout", 1)
+	cfg.set_value("bindings", "crouch", { "type": "key", "code": KEY_CTRL, "physical": true })
+	SettingsManager.apply_bindings()
+	_check(_key_of(&"crouch") == "C" and not cfg.has_section("bindings")
+		and int(cfg.get_value("bindings_meta", "layout", 0)) == SettingsManager.BINDINGS_LAYOUT,
+		"an old settings file switches to the new layout (crouch %s)" % _key_of(&"crouch"))
+
+	# Knife (3): short reach, no ammo, hurts the dummy.
+	var target := _level.get_node("Targets/Target2") as TargetDummy
+	target.health.revive()
+	_reset_player(Vector3(0, 0.1, -20.6))
+	await _frames(3)
+	_aim_at(target.global_position + Vector3(0, 1.1, 0))
+	_tap(&"weapon_3")
+	await _frames(3)
+	var knife := _player.current_weapon
+	_check(knife.data.melee and knife.data.weapon_id == "knife", "key 3 takes out the knife")
+	Input.action_press(&"shoot")
+	await _frames(45)
+	Input.action_release(&"shoot")
+	_check(target.health.current < target.health.max_health or target.health.is_dead,
+		"knife hits at arm's length (%.0f hp left)" % target.health.current)
+	target.health.revive()
+	_reset_player(Vector3(0, 0.1, -17))
+	_aim_at(target.global_position + Vector3(0, 1.1, 0))
+	await _frames(3)
+	Input.action_press(&"shoot")
+	await _frames(30)
+	Input.action_release(&"shoot")
+	_check(target.health.current == target.health.max_health, "knife doesn't reach 5 m")
+	_tap(&"weapon_1")
+	await _frames(3)
+
+	# Fire modes (B): rifle auto → burst → semi → auto.
+	var rifle := _player.current_weapon
+	rifle.refill_ammo()
+	_player.head.rotation.x = deg_to_rad(80) # at the sky
+	_check(rifle.fire_mode() == "auto", "rifle starts on full auto")
+	_tap(&"fire_mode")
+	await _frames(2)
+	var shots := rifle.ammo_in_magazine
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(40)
+	_check(rifle.fire_mode() == "burst" and shots - rifle.ammo_in_magazine == 3,
+		"B → burst: one click fires 3 (%d)" % (shots - rifle.ammo_in_magazine))
+	_check(_level.hud._weapon_label.text.ends_with("BURST"), "HUD shows the fire mode (%s)" % _level.hud._weapon_label.text)
+	_tap(&"fire_mode")
+	await _frames(2)
+	shots = rifle.ammo_in_magazine
+	Input.action_press(&"shoot")
+	await _frames(40)
+	Input.action_release(&"shoot")
+	_check(rifle.fire_mode() == "semi" and shots - rifle.ammo_in_magazine == 1, "B → semi: one shot per click")
+	_tap(&"fire_mode")
+	await _frames(2)
+	_check(rifle.fire_mode() == "auto", "B → back to auto")
+
+	# Scope zoom: the wheel steps the sniper's zoom while scoped.
+	_player.apply_loadout("sniper", 0)
+	await _frames(3)
+	Input.action_press(&"aim")
+	await _frames(70)
+	var fov1 := _player.camera.fov
+	_tap(&"weapon_next")
+	await _frames(25)
+	_check(_player.current_weapon.data.weapon_id == "sniper" and _player.camera.fov < fov1 * 0.7,
+		"wheel zooms the scope in (%.0f → %.0f)" % [fov1, _player.camera.fov])
+	_tap(&"weapon_prev")
+	await _frames(60)
+	_check(absf(_player.camera.fov - fov1) < 1.0, "wheel zooms back out (%.0f)" % _player.camera.fov)
+	Input.action_release(&"aim")
+	_player.apply_loadout("rifle", 0)
+	await _frames(20)
+
+	# Lean (Q / E): the head moves sideways, the server's head moves too.
+	_reset_player(Vector3(0, 0.1, 6))
+	_player.head.rotation.x = 0.0
+	await _frames(3)
+	var eye_x := _player.camera.global_position.x
+	Input.action_press(&"lean_right")
+	await _frames(30)
+	var leaned := _player.camera.global_position.x - eye_x
+	_check(leaned > 0.3, "E leans right (eye moved %.2f m)" % leaned)
+	var head_y := _player.global_position.y + _player.current_height() - LagCompensation.HEAD_DROP
+	var from := Vector3(_player.global_position.x + PlayerController.LEAN_OFFSET, head_y, _player.global_position.z - 6)
+	var hit := LagCompensation.trace(_player.get_world_3d().direct_space_state, from, Vector3.BACK, 10.0, null,
+		[_player], NetworkManager.server_time())
+	_check(hit.get("hitbox") == _player.head_hitbox, "lag compensation moves the head with the lean")
+	Input.action_release(&"lean_right")
+	await _frames(30)
+	_check(absf(_player.camera.global_position.x - eye_x) < 0.02, "lean returns to the middle")
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.3, 4, 4)
+	shape.shape = box
+	wall.add_child(shape)
+	_level.add_child(wall)
+	wall.global_position = Vector3(_player.global_position.x - 0.5, 2, 6)
+	await _frames(2)
+	Input.action_press(&"lean_left")
+	await _frames(30)
+	Input.action_release(&"lean_left")
+	_check(eye_x - _player.camera.global_position.x < 0.15, "can't lean through a wall (%.2f m)"
+		% (eye_x - _player.camera.global_position.x))
+	wall.queue_free()
+	await _frames(20)
+
+	# Walk toggle (Caps Lock): slow and quiet.
+	_tap(&"walk_toggle")
+	await _frames(2)
+	Input.action_press(&"move_forward")
+	await _frames(40)
+	var walk := Vector2(_player.velocity.x, _player.velocity.z).length()
+	_release_all()
+	_check(_player.is_walking and absf(walk - _player.walk_speed * PlayerController.WALK_TOGGLE_SPEED) < 0.3,
+		"Caps Lock walks (%.2f m/s)" % walk)
+	_check(_level.hud._walk_label.visible, "HUD shows WALK")
+	_tap(&"walk_toggle")
+	await _frames(2)
+	_check(not _player.is_walking, "Caps Lock again runs")
+
+	# Grenade slot (4): in hand, gun put away; 4 again switches; 1 puts it away.
+	var t := _player.throwables
+	_press_action(&"weapon_4")
+	await _frames(2)
+	_check(t.held_kind == Throwables.Kind.HE and _player.current_weapon.holstered, "4 takes the HE grenade in hand")
+	_press_action(&"weapon_4")
+	await _frames(2)
+	_check(t.held_kind == Throwables.Kind.FLASH, "4 again switches to the flashbang")
+	_tap(&"weapon_1")
+	await _frames(2)
+	_check(not t.is_holding() and not _player.current_weapon.holstered and t.counts[Throwables.Kind.FLASH] == 2,
+		"1 puts the grenade away, nothing thrown")
+
+	# Big map (M).
+	_tap(&"map")
+	await _frames(3)
+	var big: Minimap = _level.hud._big_map
+	_check(big.visible and big._polys.size() > 10, "M opens the big map (%d shapes)" % big._polys.size())
+	_tap(&"map")
+	await _frames(2)
+	_check(not big.visible, "M closes it")
+
+
+## Keyboard key of `action` ("C", "Shift", "CapsLock") or "".
+func _key_of(action: StringName) -> String:
+	for e in InputMap.action_get_events(action):
+		if e is InputEventKey:
+			var k := e as InputEventKey
+			return OS.get_keycode_string(k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode)
+		if e is InputEventMouseButton:
+			return "Mouse%d" % (e as InputEventMouseButton).button_index
+	return ""
+
+
 func _test_weapon_switching() -> void:
 	_reset_player(Vector3(0, 0.1, 6))
 	await _frames(5)
@@ -538,9 +818,9 @@ func _test_grenades() -> void:
 	_player.health.revive()
 	_player.health.protect(0.0)
 	await _frames(3)
-	_press_action(&"throw_molotov")
+	await _throw_from_hand(Throwables.Kind.MOLOTOV)
 	await _frames(40)
-	_check(t.counts[Throwables.Kind.MOLOTOV] == 0, "Q throws the Molotov")
+	_check(t.counts[Throwables.Kind.MOLOTOV] == 0, "4 until the Molotov is in hand, then click throws it")
 	var fire := _level.find_child("Fire_*", true, false) as FireZone
 	_check(fire != null and fire.is_burning(), "Molotov breaks on the floor and starts a fire")
 	await _frames(60)
@@ -560,6 +840,80 @@ func _test_grenades() -> void:
 	await _frames(int(_player.respawn_delay * 60.0) + 15)
 	_check(not _player.health.is_dead and t.counts[Throwables.Kind.HE] == 1 and t.counts[Throwables.Kind.MOLOTOV] == 1,
 		"grenades refilled on respawn")
+
+
+## Key 4 until `kind` is in hand, then a left click throws it.
+func _throw_from_hand(kind: int) -> void:
+	var t := _player.throwables
+	for i in 5:
+		if t.held_kind == kind:
+			break
+		_press_action(&"weapon_4")
+		await _frames(1)
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+
+
+func _test_grenade_wheel_and_arc() -> void:
+	var t := _player.throwables
+	t.refill()
+	_reset_player(Vector3(0, 0.1, -12), PI)
+	_player.health.revive()
+	_player.health.protect(0.0)
+	await _frames(3)
+	# Hold 4: the wheel opens (look is locked); point left = Molotov; let go.
+	var down := InputEventAction.new()
+	down.action = &"weapon_4"
+	down.pressed = true
+	Input.parse_input_event(down)
+	await _frames(15)
+	await get_tree().process_frame
+	_check(t.wheel_open and _player.grenade_wheel_open and _level.hud.grenade_wheel.visible, "holding 4 opens the grenade wheel")
+	var yaw := _player.rotation.y
+	t._point_wheel(Vector2(-90, 5))
+	_check(t.wheel_choice == Throwables.Kind.MOLOTOV and is_equal_approx(_player.rotation.y, yaw),
+		"pointing left picks the Molotov; the view stays still")
+	_check(Throwables.wheel_kind_at(Vector2(0, -1)) == Throwables.Kind.HE and Throwables.wheel_kind_at(Vector2(1, 0)) == Throwables.Kind.FLASH
+		and Throwables.wheel_kind_at(Vector2(0, 1)) == Throwables.Kind.SMOKE, "wheel: HE top, flash right, smoke bottom")
+	var up := InputEventAction.new()
+	up.action = &"weapon_4"
+	Input.parse_input_event(up)
+	await _frames(2)
+	_check(not t.wheel_open and t.held_kind == Throwables.Kind.MOLOTOV, "letting go of 4 takes the Molotov in hand")
+	_press_action(&"weapon_4")
+	await _frames(2)
+	_check(t.held_kind == Throwables.Kind.HE, "a quick tap on 4 still takes the next grenade")
+	_press_action(&"weapon_2")
+	await _frames(2)
+
+	# Throw path: shown while a grenade is in hand; the Molotov lands in the ring.
+	_player.head.rotation.x = deg_to_rad(-12)
+	_press_action(&"weapon_4")
+	await _frames(1)
+	for i in 4:
+		if t.held_kind == Throwables.Kind.MOLOTOV:
+			break
+		_press_action(&"weapon_4")
+		await _frames(1)
+	await _frames(2)
+	await get_tree().process_frame
+	_check(t.arc != null and t.arc.visible, "the throw path is drawn while a grenade is in hand")
+	var launch := t.throw_launch(1.0)
+	var path := GrenadeArc.predict(_player.get_world_3d().direct_space_state, launch[0], launch[1], Throwables.Kind.MOLOTOV)
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(3)
+	_check(not t.arc.visible, "the path hides after the throw")
+	await _frames(120)
+	var fire := _level.find_child("Fire_*", true, false) as Node3D
+	var off := fire.global_position.distance_to(path.end) if fire else 99.0
+	_check(fire != null and off < 1.2, "the Molotov burns where the path said (%.2f m off)" % off)
+	for f in get_tree().get_nodes_in_group(FireZone.GROUP):
+		(f as FireZone).extinguish()
+	t.refill()
+	await _frames(10)
 
 
 func _test_flash_and_smoke() -> void:
@@ -594,9 +948,9 @@ func _test_flash_and_smoke() -> void:
 	_reset_player(Vector3(0, 0.1, -12), PI)
 	_player.head.rotation.x = deg_to_rad(-5)
 	await _frames(3)
-	_press_action(&"throw_flash")
+	await _throw_from_hand(Throwables.Kind.FLASH)
 	await _frames(2)
-	_check(t.counts[Throwables.Kind.FLASH] == 1, "F throws a flashbang")
+	_check(t.counts[Throwables.Kind.FLASH] == 1, "4 + click throws a flashbang")
 	await _frames(int(Throwables.FUSES[Throwables.Kind.FLASH] * 60.0) + 10)
 	_check(_player.blind_time > 0.5, "flashbang blinds the player looking at it (%.1f s)" % _player.blind_time)
 	await _frames(2)
@@ -608,9 +962,9 @@ func _test_flash_and_smoke() -> void:
 	_reset_player(Vector3(0, 0.1, -12), PI)
 	_player.head.rotation.x = deg_to_rad(-40)
 	await _frames(3)
-	_press_action(&"throw_smoke")
+	await _throw_from_hand(Throwables.Kind.SMOKE)
 	await _frames(int(Throwables.FUSES[Throwables.Kind.SMOKE] * 60.0) + 20)
-	_check(t.counts[Throwables.Kind.SMOKE] == 0, "Z throws a smoke grenade")
+	_check(t.counts[Throwables.Kind.SMOKE] == 0, "4 + click throws a smoke grenade")
 	var cloud := _level.find_child("Smoke_*", true, false) as SmokeCloud
 	_check(cloud != null and cloud.is_active(), "smoke grenade makes a cloud")
 	if cloud:
@@ -702,6 +1056,54 @@ func await_safe_cleanup(mate: PlayerController, enemy: PlayerController) -> void
 	Match.start_match()
 
 
+## Round 1 freeze time at the red spawn: money, the buy menu and its limits.
+func _test_buying() -> void:
+	var eco := Match.economy
+	var hud := _level.hud
+	_check(Economy.money_of(1) == Economy.START_MONEY, "start with $%d" % Economy.START_MONEY)
+	_check(_player.primary_id == "" and _player.current_weapon.data.weapon_id == "pistol"
+		and is_zero_approx(_player.health.armor) and _player.throwables.counts_array() == [0, 0, 0, 0],
+		"first round: pistol and knife, no armour, no grenades")
+	_check(Economy.buy_block_reason(_player) == "", "can buy at the spawn in freeze time")
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(hud._buy_hint.visible and "Buy" in hud._buy_hint.text and hud._money_label.text == "$800",
+		"HUD shows the money and the buy key (%s / %s)" % [hud._money_label.text, hud._buy_hint.text])
+	_press_action(&"buy_menu")
+	await _frames(2)
+	await get_tree().process_frame
+	var menu := hud.buy_menu
+	_check(menu.visible and not _player.input_enabled, "X opens the buy menu")
+	_check(not menu._buttons["vest"].disabled and menu._buttons["sniper"].disabled
+		and menu._buttons["sniper"].tooltip_text == "Not enough money", "unaffordable items are greyed out")
+	menu._buttons["vest"].pressed.emit()
+	await _frames(1)
+	_check(is_equal_approx(_player.health.armor, 100.0) and not _player.health.helmet
+		and Economy.money_of(1) == Economy.START_MONEY - 650, "bought a vest for $650")
+	var refused := []
+	eco.buy_refused.connect(func(r: String) -> void: refused.append(r))
+	eco.request_buy("rifle")
+	_check(_player.primary_id == "" and refused == ["Not enough money"], "can't buy without the money")
+	_press_action(&"buy_menu")
+	await _frames(2)
+	_check(not menu.visible and _player.input_enabled, "X closes it again")
+
+	NetworkManager.roster[1].money = 10000
+	eco.request_buy("rifle")
+	_check(_player.primary_id == "rifle" and _player.current_weapon.data.weapon_id == "rifle"
+		and Economy.money_of(1) == 10000 - 2700, "bought the AR-7: in hand, $2700 taken")
+	eco.request_buy("rifle")
+	_check(refused.back() == "You already have it", "no second copy of the same gun")
+	_check(Economy.price_of("vest_helmet", _player) == Economy.HELMET_PRICE, "full vest: the helmet alone costs $%d" % Economy.HELMET_PRICE)
+	eco.request_buy("vest_helmet")
+	_check(_player.health.helmet and Economy.money_of(1) == 10000 - 2700 - Economy.HELMET_PRICE, "bought the helmet")
+	for item: String in ["flash", "flash", "flash", "he", "smoke", "molotov"]:
+		eco.request_buy(item)
+	_check(_player.throwables.counts_array() == [1, 0, 2, 1], "2 flashes, 1 HE, 1 smoke (%s)" % str(_player.throwables.counts_array()))
+	_check(refused.slice(-2) == ["You can't carry more", "You can't carry more grenades"], "grenade limits (%s)" % str(refused))
+	NetworkManager.roster[1].money = 400
+
+
 ## Full Bomb Defusal match offline: us (attacker, red) vs a scripted defender.
 func _test_bomb_defusal() -> void:
 	var b := Match.bomb
@@ -720,6 +1122,7 @@ func _test_bomb_defusal() -> void:
 	await _frames(2)
 	_check(b.round_number == 1 and b.phase == BombRules.Phase.FREEZE, "round 1 starts in freeze time")
 	_check(b.is_attacker(1) and not b.is_attacker(402), "red attacks, blue defends")
+	await _test_buying()
 	var start := _player.global_position
 	Input.action_press(&"move_forward")
 	await _frames(15)
@@ -729,8 +1132,8 @@ func _test_bomb_defusal() -> void:
 	await _frames(30)
 	_check(b.phase == BombRules.Phase.LIVE, "round goes live after freeze")
 	_check(b.bomb_carrier == 1 and b.bomb_state == BombRules.BombState.CARRIED, "the attacker gets the bomb when the round goes live")
-	# Armour: full each Bomb Defusal round; soaks 40 % of a weapon hit.
-	_check(is_equal_approx(_player.health.armor, 100.0), "bomb round starts with 100 armour")
+	# Armour (bought above): soaks 40 % of a weapon hit.
+	_check(is_equal_approx(_player.health.armor, 100.0), "bought armour is full")
 	_player.health.take_damage(50.0, defender)
 	_check(is_equal_approx(_player.health.current, 70.0) and is_equal_approx(_player.health.armor, 80.0),
 		"armour takes 40 %% of a hit (health %.0f, armour %.0f)" % [_player.health.current, _player.health.armor])
@@ -753,6 +1156,19 @@ func _test_bomb_defusal() -> void:
 	_check(is_equal_approx(_player.health.current, 80.0) and is_equal_approx(_player.health.armor, armour_before),
 		"leg hits ignore armour")
 	_player.health.heal(100.0)
+	# The helmet makes armour cover head hits too.
+	armour_before = _player.health.armor
+	_player.health.take_damage(20.0, defender, true, "", 0.5)
+	_check(is_equal_approx(_player.health.current, 90.0) and _player.health.armor < armour_before,
+		"helmet: armour soaks a head hit (health %.1f)" % _player.health.current)
+	_player.health.heal(100.0)
+	_player.health.helmet = false
+	armour_before = _player.health.armor
+	_player.health.take_damage(20.0, defender, true, "", 0.5)
+	_check(is_equal_approx(_player.health.current, 80.0) and is_equal_approx(_player.health.armor, armour_before),
+		"no helmet: head hits ignore armour")
+	_player.health.helmet = true
+	_player.health.heal(100.0)
 
 	# Drop + pick up.
 	b.on_player_down(1, _player.global_position + Vector3(0.5, 0, 0))
@@ -761,6 +1177,9 @@ func _test_bomb_defusal() -> void:
 	_check(b.bomb_state == BombRules.BombState.CARRIED and b.bomb_carrier == 1, "attacker picks the dropped bomb up")
 
 	# Round 1: plant at B, the defender defuses.
+	var money_before := Economy.money_of(1)
+	var defender_money := Economy.money_of(402)
+	var armour_kept := _player.health.armor
 	_reset_player(Vector3(9, 0.1, 0))
 	await _frames(5)
 	_check(b.site_at(_player.global_position) == "B", "standing inside site B")
@@ -769,6 +1188,7 @@ func _test_bomb_defusal() -> void:
 	b.request_interact(false)
 	_check(b.bomb_state == BombRules.BombState.PLANTED and b.bomb_site == "B" and b.phase == BombRules.Phase.PLANTED,
 		"bomb planted at B after holding interact")
+	_check(Economy.money_of(1) == money_before + Economy.PLANT_REWARD, "planting pays $%d" % Economy.PLANT_REWARD)
 	b.bomb_time = 30.0 # give the defender time in this round
 	b.phase_time_left = 30.0
 	defender.global_position = b.bomb_position + Vector3(1.0, 0, 0)
@@ -778,11 +1198,20 @@ func _test_bomb_defusal() -> void:
 	_check(b.bomb_state == BombRules.BombState.DEFUSED and b.round_winner == 0 and b.round_reason == "Bomb defused",
 		"defender defuses → Blue wins the round")
 	_check(Match.team_scores[0] == 1 and Match.team_scores[1] == 0, "round score 1–0")
+	_check(Economy.money_of(402) == defender_money + Economy.DEFUSE_REWARD + Economy.BOMB_WIN_REWARD,
+		"defuser gets the defuse and bomb win money ($%d)" % Economy.money_of(402))
+	_check(Economy.money_of(1) == money_before + Economy.PLANT_REWARD + Economy.LOSS_REWARD + Economy.PLANTED_LOSS_BONUS,
+		"losing attackers get the loss bonus + $%d for the plant ($%d)" % [Economy.PLANTED_LOSS_BONUS, Economy.money_of(1)])
+	var rewards := _level.hud._money_events.get_children().map(func(l: Label) -> String: return l.text)
+	_check(rewards.any(func(x: String) -> bool: return "Round lost" in x), "HUD shows the round money (%s)" % str(rewards))
 
 	# Round 2: plant at A and let it explode (we stay next to it).
 	b.bomb_time = 2.0
 	await _frames(45)
 	_check(b.round_number == 2 and not _player.health.is_dead and not defender.health.is_dead, "round 2: everyone revived")
+	_check(_player.primary_id == "rifle" and is_equal_approx(_player.health.armor, armour_kept) and _player.health.helmet
+		and _player.throwables.counts[Throwables.Kind.FLASH] == 2 and _player.throwables.counts[Throwables.Kind.SMOKE] == 1,
+		"a survivor keeps gun, armour, helmet and grenades (%s, %.0f)" % [_player.primary_id, _player.health.armor])
 	await _frames(35)
 	_reset_player(Vector3(-16, 0.1, -4))
 	await _frames(3)
@@ -798,11 +1227,23 @@ func _test_bomb_defusal() -> void:
 
 	# Round 3: eliminate the defender → Red reaches 2 round wins.
 	await _frames(45)
+	_check(b.round_number == 3 and _player.primary_id == "" and _player.current_weapon.data.weapon_id == "pistol"
+		and is_zero_approx(_player.health.armor) and _player.throwables.counts_array() == [0, 0, 0, 0],
+		"after dying: pistol and knife only, no armour, no grenades")
 	await _frames(35)
 	_check(b.phase == BombRules.Phase.LIVE and b.round_number == 3, "round 3 live")
+	_check(Economy.buy_block_reason(_player) == "", "buying stays open just after the freeze time")
+	_reset_player(Vector3(-16, 0.1, -4)) # site A, well away from the red spawn
+	await _frames(2)
+	_check(Economy.buy_block_reason(_player) == "Go back to your spawn to buy", "no buying away from your spawn")
+	b.phase_time_left = b.round_time - Economy.BUY_TIME - 1.0
+	_check(Economy.buy_time_left() <= 0.0, "buy time closes %ds into the round" % Economy.BUY_TIME)
+	money_before = Economy.money_of(1)
 	defender.health.take_damage(500.0, _player)
 	await _frames(2)
 	_check(b.round_reason == "Defenders eliminated", "eliminating the defenders wins the round")
+	_check(Economy.money_of(1) == money_before + Economy.KILL_REWARD + Economy.WIN_REWARD,
+		"pistol kill $%d + round win $%d ($%d)" % [Economy.KILL_REWARD, Economy.WIN_REWARD, Economy.money_of(1)])
 	_check(Match.is_ended() and Match.winner_text == "Red team wins!", "match ends at the round limit (%s)" % Match.winner_text)
 
 	# Halftime: sides swap after the configured number of rounds.
@@ -813,6 +1254,8 @@ func _test_bomb_defusal() -> void:
 	b._end_round(0, "test")
 	b._start_round()
 	_check(b.attacking_team != first and b.sides_swapped, "sides swap at halftime")
+	_check(Economy.money_of(1) == Economy.START_MONEY and Economy.money_of(402) == Economy.START_MONEY,
+		"halftime resets the money")
 
 	_level.despawn_player(402)
 	NetworkManager.roster.erase(402)
@@ -1112,8 +1555,8 @@ func _test_maps() -> void:
 		and radar.location(Vector3(-34, 0.1, 10)) == "B Apartments", "location names: Bombsite A, Mid, B Apartments")
 	_check(radar.location(Vector3(-28, 0.1, -20)) == "Bombsite B", "bomb site fallback / callout for B")
 	var armed := _player.loadout_weapons().all(func(w: Weapon) -> bool:
-		return w == null or (w.has_node(^"ArmL") and w.has_node(^"ArmR") and w.has_node(^"Magazine")))
-	_check(armed, "first-person weapons have gloved arms and a separate magazine")
+		return w == null or (w.has_node(^"ArmR") and (w.data.melee or (w.has_node(^"ArmL") and w.has_node(^"Magazine")))))
+	_check(armed, "first-person weapons have gloved arms and a separate magazine (the knife: one hand)")
 
 	# Reload animation: the left hand pulls the magazine out and puts it back.
 	var gun := _player.current_weapon
@@ -1193,6 +1636,20 @@ func _test_maps() -> void:
 		var ok := lvl.blue_spawn_points.size() >= 3 and lvl.red_spawn_points.size() >= 3 and lvl.bomb_sites.size() == 2
 		lvl.free()
 		_check(ok, "%s: team spawns + bomb sites A/B" % m.name)
+
+	# No "sometimes jumpable" ledges: anything a jump only reaches with the
+	# right run-up (Climb.BORDERLINE_*) is climbable instead (tools/ledge_check.gd).
+	var ledge_check := preload("res://tools/ledge_check.gd")
+	for m: Dictionary in GameConfig.MAPS:
+		var lvl := (load(m.path) as PackedScene).instantiate() as Level
+		lvl.preview_only = true
+		lvl.position = Vector3(0, -500, 0) # away from the current map
+		get_tree().root.add_child(lvl)
+		await _frames(2)
+		var found: PackedStringArray = ledge_check.scan(lvl)
+		lvl.queue_free()
+		await _frames(1)
+		_check(found.is_empty(), "%s: no half-jumpable ledges %s" % [m.name, str(found.slice(0, 3))])
 
 
 ## Phase 3: sound effects, occlusion, voices, music, UI and feedback sounds.
@@ -1385,7 +1842,7 @@ func _test_controller() -> void:
 	GamepadInput.using_pad = true
 	var pad_prompt := SettingsManager.prompt_text(&"interact")
 	GamepadInput.using_pad = false
-	_check(pad_prompt == "LB" and SettingsManager.prompt_text(&"interact") == "E", "button prompts follow the device (LB / E)")
+	_check(pad_prompt == "LB" and SettingsManager.prompt_text(&"interact") == "F", "button prompts follow the device (LB / F)")
 
 	# Remap a controller button (swaps, keeps the keyboard binding, survives a reload).
 	var key_jump := SettingsManager.binding_text(&"jump")
