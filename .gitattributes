@@ -52,3 +52,7 @@
 *.lmbake filter=lfs diff=lfs merge=lfs -text
 *.res    filter=lfs diff=lfs merge=lfs -text
 *.scn    filter=lfs diff=lfs merge=lfs -text
+# Generated detail textures (tools/make_textures.py, ~1 MB each) are stored
+# as ordinary files, not LFS pointers — keep them out of the LFS rule above,
+# or clones with Git LFS see them as permanently modified.
+assets/textures/surfaces_*.png -filter -diff -merge binary
