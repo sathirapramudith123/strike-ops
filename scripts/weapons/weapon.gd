@@ -52,6 +52,10 @@ var _reload_sounds_left: int = 0
 var _last_impact_sound_ms: int = 0
 var _rng := RandomNumberGenerator.new()
 var _viewmodel_meshes: Array[Node] = []
+## Gun pulled back from a wall right in front (m), see _wall_distance_pull.
+var _wall_pull := 0.0
+const WALL_MARGIN := 0.08
+const MAX_WALL_PULL := 0.45
 var _magazine: MeshInstance3D
 var _left_arm: MeshInstance3D
 var _server_last_shot: float = -1.0
@@ -408,6 +412,25 @@ func _show_muzzle_flash() -> void:
 		_flash_timer = 0.04
 
 
+## How far (m) to pull the gun back so it doesn't poke through the world:
+## rays from the eye along the barrel and straight ahead (world layer only).
+func _wall_distance_pull(target: Vector3) -> float:
+	if _camera == null or not is_inside_tree():
+		return 0.0
+	var muzzle_z := muzzle.position.z if muzzle else -0.5
+	var tip_local := Vector3(target.x, target.y, target.z + muzzle_z - WALL_MARGIN)
+	var eye := _camera.global_position
+	var space := get_world_3d().direct_space_state
+	var pull := 0.0
+	for local: Vector3 in [tip_local, Vector3(0.0, 0.0, tip_local.z)]:
+		var reach := local.length()
+		var to := _camera.global_transform * local
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(eye, to, 1))
+		if not hit.is_empty():
+			pull = maxf(pull, reach - eye.distance_to(hit.position))
+	return clampf(pull, 0.0, MAX_WALL_PULL)
+
+
 func _update_viewmodel(delta: float) -> void:
 	_kick = move_toward(_kick, 0.0, delta * 12.0)
 	var target := _hip_position.lerp(ads_position, ads_blend)
@@ -418,9 +441,13 @@ func _update_viewmodel(delta: float) -> void:
 	# Lower the weapon while sprinting.
 	if _player.is_sprinting and not is_reloading:
 		target += Vector3(-0.05, -0.08, 0.05)
+	# Up against a wall, ceiling or slab (typically on stairs and ramps):
+	# pull the gun back and tip it down instead of pushing it through.
+	_wall_pull = move_toward(_wall_pull, _wall_distance_pull(target), delta * 3.0)
+	target += Vector3(0.0, -_wall_pull * 0.2, _wall_pull)
 	position = position.lerp(target, clampf(delta * 18.0, 0.0, 1.0))
 	var k := clampf(delta * 14.0, 0.0, 1.0)
-	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch, k)
+	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch - _wall_pull * 0.8, k)
 	rotation.z = lerpf(rotation.z, pose.roll, k)
 	# Looking through a scope: the HUD draws the scope, hide the gun.
 	var show_model := not is_scoped()

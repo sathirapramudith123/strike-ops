@@ -2,6 +2,11 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**The gun no longer goes through walls:** walking up stairs and ramps (or
+standing close to any wall or ceiling) used to push the first-person gun
+through it. Now it pulls back and dips down when something is in the way
+and comes back when there's room.
+
 **Bunker and Train Yard rebuilt** from concept art as 3-lane bomb maps
 (T west, CT east, A north, B south). Bunker is an underground base on
 three levels: A Long climbs to an upper corridor and a balcony over A, B

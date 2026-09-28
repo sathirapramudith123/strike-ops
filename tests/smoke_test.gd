@@ -29,6 +29,7 @@ func _run() -> void:
 	await _test_crouch_and_slide()
 	await _test_shooting()
 	await _test_reload()
+	await _test_gun_against_wall()
 	await _test_ramps()
 	await _test_pause_disables_input()
 	await _test_fall_death_and_respawn()
@@ -147,6 +148,29 @@ func _test_shooting() -> void:
 	_check(weapon.ammo_in_magazine < ammo_before, "shooting uses ammo (%d → %d)" % [ammo_before, weapon.ammo_in_magazine])
 	_check(hits[0] > 0, "shots hit the target (%d hits)" % hits[0])
 	_check(target.health.current < target.health.max_health or target.health.is_dead, "target takes damage")
+
+
+func _test_gun_against_wall() -> void:
+	# A wall 0.5 m in front: the gun is pulled back instead of poking through.
+	_reset_player(Vector3(0, 0.1, 6))
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(4, 4, 0.3)
+	shape.shape = box
+	wall.add_child(shape)
+	_level.add_child(wall)
+	wall.global_position = Vector3(0, 2, 6 - 0.55 - 0.15) # front face 0.55 m from the eye
+	_player.select_slot(0) # the rifle: muzzle ~0.9 m in front of the eye
+	var gun := _player.current_weapon
+	await _frames(40)
+	var pulled := gun._wall_pull
+	var tip := _player.camera.to_local(gun.muzzle.global_position)
+	_check(pulled > 0.2 and -tip.z < 0.62,
+		"gun pulls back at a wall (pull %.2f m, muzzle %.2f m ahead, wall at 0.55 m)" % [pulled, -tip.z])
+	wall.queue_free()
+	await _frames(40)
+	_check(gun._wall_pull < 0.01, "gun back in place away from walls (%.2f)" % gun._wall_pull)
 
 
 func _test_reload() -> void:
