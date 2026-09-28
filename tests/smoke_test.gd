@@ -65,9 +65,12 @@ func _test_walk_and_sprint() -> void:
 	await _frames(30)
 	var sprint_speed := Vector2(_player.velocity.x, _player.velocity.z).length()
 	_check(_player.is_sprinting and sprint_speed > walk_speed + 2.0, "sprinting is faster (got %.2f)" % sprint_speed)
+	var at_release := _player.global_position
 	_release_all()
 	await _frames(30)
 	_check(Vector2(_player.velocity.x, _player.velocity.z).length() < 0.1, "player decelerates to a stop")
+	var glide := Vector2(_player.global_position.x - at_release.x, _player.global_position.z - at_release.z).length()
+	_check(glide < 0.5, "no ice-sliding: stops within %.2f m of letting go at sprint speed" % glide)
 
 
 func _test_jump() -> void:
@@ -113,7 +116,12 @@ func _test_crouch_and_slide() -> void:
 	await _frames(40)
 	Input.action_press(&"crouch")
 	await _frames(3)
-	_check(_player.is_sliding, "crouch while sprinting starts a slide")
+	_check(not _player.is_sliding, "crouch while sprinting doesn't slide (no slipping)")
+	Input.action_release(&"crouch")
+	await _frames(20)
+	Input.action_press(&"slide")
+	await _frames(3)
+	_check(_player.is_sliding, "the Slide key while sprinting starts a slide")
 	await _frames(100)
 	_check(not _player.is_sliding, "slide ends by itself")
 	_release_all()
@@ -1063,13 +1071,6 @@ func _test_maps() -> void:
 	_check(_player.global_position.y > 2.95 and _player.global_position.z < -16.0,
 		"docks: gangway leads onto the deck (y=%.2f, z=%.1f)" % [_player.global_position.y, _player.global_position.z])
 
-	# Bunker: walk from a south room door through the atrium to the north side.
-	await _load_map("res://scenes/levels/bunker.tscn")
-	await _frames(40)
-	_check(_player.is_on_floor(), "bunker: player lands")
-	_reset_player(Vector3(0, 0.1, 9))
-	await _walk_forward_max_y(200)
-	_check(_player.global_position.z < -7.0, "bunker: atrium doors are passable (z=%.1f)" % _player.global_position.z)
 
 	# Kasbah: A ramp onto the terrace, Mid doors, the covered B Apartments.
 	await _load_map("res://scenes/levels/kasbah.tscn")
@@ -1150,15 +1151,31 @@ func _test_maps() -> void:
 			["subway", Vector3(-15, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "west platform"],
 			["subway", Vector3(6, -1.1, -20), 0.0, func(p: Vector3) -> bool: return p.y > -0.1 and p.z < -30.0, "climb out of the track bed"],
 			["subway", Vector3(-10, 0.1, 4.7), -PI / 2, func(p: Vector3) -> bool: return p.x > -3.0, "walk through the train"],
-			["trainyard", Vector3(-27, 0.1, -10), PI / 2, func(p: Vector3) -> bool: return p.x < -33.0, "door into the signal tower"],
-			["trainyard", Vector3(-36.9, 0.1, -5.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "tower stairs to the upper room"],
-			["trainyard", Vector3(-27.5, 4.1, -8.2), PI / 2, func(p: Vector3) -> bool: return p.x < -32.0 and p.y > 3.9, "balcony door into the upper room"],
 			["rooftops", Vector3(-4, 0.1, -17.1), PI / 2, func(p: Vector3) -> bool: return p.x < -9.0, "door into the north-west building"],
 			["rooftops", Vector3(-19.9, 0.1, -19.85), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.9, "stairs up to its roof"],
 			["docks", Vector3(16, 0.1, 16.8), -PI / 2, func(p: Vector3) -> bool: return p.x > 21.0, "door into the harbour office"],
 			["docks", Vector3(20.1, 0.1, 13.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 3.4, "harbour office stairs"],
-			["trainyard", Vector3(0, 0.1, 20), 0.0, func(p: Vector3) -> bool: return p.z < 0.0, "lane between the cars"],
-			["trainyard", Vector3(-28.9, 0.1, 7), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the tower balcony"]]:
+			# Bunker: A Long up to the balcony over A, B Long down the tunnel, Mid.
+			["bunker", Vector3(-41, 0.1, -8.5), 0.0, func(p: Vector3) -> bool: return p.y > 2.4 and p.z < -24.0, "A Long ramp up to the upper corridor"],
+			["bunker", Vector3(-30, 2.6, -31), -PI / 2, func(p: Vector3) -> bool: return p.x > -13.0, "A Long Upper onto the balcony over A"],
+			["bunker", Vector3(-11, 2.6, -30), PI, func(p: Vector3) -> bool: return p.z > -21.0, "balcony stairs down into A"],
+			["bunker", Vector3(-41, 0.1, 8.5), PI, func(p: Vector3) -> bool: return p.z > 24.0, "B Long ramp down into the tunnel"],
+			["bunker", Vector3(-34, -2.9, 25), -PI / 2, func(p: Vector3) -> bool: return p.x > -12.0, "tunnel into B"],
+			["bunker", Vector3(0, 0.1, 10), PI, func(p: Vector3) -> bool: return p.z > 21.0, "B stairs from Mid"],
+			["bunker", Vector3(0, 0.1, -5), 0.0, func(p: Vector3) -> bool: return p.z < -21.0, "A Short from Mid"],
+			["bunker", Vector3(-34, 0.1, 0), -PI / 2, func(p: Vector3) -> bool: return p.x > -12.0, "T Mid into Mid"],
+			["bunker", Vector3(-26, 0.1, 0), 0.0, func(p: Vector3) -> bool: return p.z < -6.0, "door into Storage"],
+			["bunker", Vector3(-16.5, 0.1, -1), 0.0, func(p: Vector3) -> bool: return p.y > 3.3, "ramp up to the Mid catwalk"],
+			# Train Yard: dock (A Long), warehouse A, A Main, B stairs, B Long, CT routes.
+			["trainyard", Vector3(-43, 0.1, -9), 0.0, func(p: Vector3) -> bool: return p.y > 1.1 and p.z < -24.0, "ramp up onto the A Long dock"],
+			["trainyard", Vector3(-30, 1.3, -28), -PI / 2, func(p: Vector3) -> bool: return p.x > -18.0, "dock door into the A warehouse"],
+			["trainyard", Vector3(-4, 1.3, -26), PI, func(p: Vector3) -> bool: return p.z > -8.0, "A Main ramp down into Mid"],
+			["trainyard", Vector3(-1, 0.1, 5), PI, func(p: Vector3) -> bool: return p.z > 24.0, "B stairs down into B"],
+			["trainyard", Vector3(-43, 0.1, 9), PI, func(p: Vector3) -> bool: return p.z > 30.0, "B Long down into the rail cut"],
+			["trainyard", Vector3(-34, -2.4, 31), -PI / 2, func(p: Vector3) -> bool: return p.x > -14.0, "rail cut into B"],
+			["trainyard", Vector3(-2, 1.3, -37), -PI / 2, func(p: Vector3) -> bool: return p.x > 12.0, "warehouse east door down to the water tower"],
+			["trainyard", Vector3(42, 0.1, 7), PI, func(p: Vector3) -> bool: return p.z > 29.0, "CT ramp down towards B"],
+			["trainyard", Vector3(-34, 0.1, 1), -PI / 2, func(p: Vector3) -> bool: return p.x > -20.0, "T Mid into the rail yard"]]:
 		if _level.name.to_lower() != route[0]:
 			await _load_map("res://scenes/levels/%s.tscn" % route[0])
 			await _frames(30)
@@ -1202,6 +1219,9 @@ func _test_audio() -> void:
 
 	# Gunfire, footsteps, hit / kill / hurt feedback.
 	_reset_player(Vector3(0, 0.1, 10))
+	# Shoot at the sky: a real hit on a (strafing) target would add a hit
+	# marker of its own and make the counts below timing-dependent.
+	_player.head.rotation.x = deg_to_rad(80)
 	await _frames(5)
 	_player.select_slot(0)
 	var rifle := _player.current_weapon
@@ -1222,7 +1242,8 @@ func _test_audio() -> void:
 	rifle.hit_confirmed.emit(false, true)
 	rifle.hit_confirmed.emit(true, false)
 	_check(_stat_delta(before, "ui:hitmarker") == 1 and _stat_delta(before, "ui:headshot") == 1
-		and _stat_delta(before, "ui:kill") == 1, "hit marker, headshot and kill sounds")
+		and _stat_delta(before, "ui:kill") == 1, "hit marker, headshot and kill sounds (%d / %d / %d)"
+		% [_stat_delta(before, "ui:hitmarker"), _stat_delta(before, "ui:headshot"), _stat_delta(before, "ui:kill")])
 	SettingsManager.hit_sounds = false
 	rifle.hit_confirmed.emit(false, false)
 	SettingsManager.hit_sounds = true

@@ -66,12 +66,18 @@ func build(l: Level) -> void:
 			continue
 		var top: float = info.top
 		var bottom: float = info.bottom
+		# Multi-level maps (tools/greybox.py _rooms): upper and lower floors
+		# are named Floor*, ceilings Ceiling* — draw floors as floor at any
+		# height, never draw ceilings.
+		var body := String(cs.get_parent().name)
+		if body.begins_with("Ceiling"):
+			continue
+		if body.begins_with("Floor") or top < FLOOR_HEIGHT:
+			floors.append(info.poly)
+			continue
 		if bottom > HEAD_HEIGHT:
 			continue
-		if top < FLOOR_HEIGHT:
-			floors.append(info.poly)
-		else:
-			solids.append([top, info.poly, COLOR_WALL if top > WALL_HEIGHT else COLOR_COVER])
+		solids.append([top, info.poly, COLOR_WALL if top > WALL_HEIGHT else COLOR_COVER])
 	solids.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 	for p in floors:
 		_polys.append([p, COLOR_FLOOR])

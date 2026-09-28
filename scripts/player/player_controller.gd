@@ -35,7 +35,9 @@ const STEP_CROUCH := [-18.0, 8.0]
 @export var sprint_speed: float = 8.0
 @export var crouch_speed: float = 2.6
 @export var ground_acceleration: float = 12.0
-@export var ground_deceleration: float = 14.0
+## Braking on the ground (also used when reversing direction), so the
+## player stops almost on the spot instead of gliding.
+@export var ground_deceleration: float = 22.0
 @export var air_acceleration: float = 2.5
 @export var jump_velocity: float = 5.0
 ## Grace period after walking off a ledge where jumping is still allowed.
@@ -221,7 +223,8 @@ func _physics_process(delta: float) -> void:
 
 	# --- Crouch / slide state -------------------------------------------------
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	var crouch_pressed := input_enabled and (Input.is_action_just_pressed(&"crouch") or Input.is_action_just_pressed(&"slide"))
+	# Only the Slide key slides — crouching while running just slows you down.
+	var crouch_pressed := input_enabled and Input.is_action_just_pressed(&"slide")
 	if SettingsManager.crouch_toggle:
 		# Toggle mode: press crouch to switch; sprint or jump stands you up.
 		if input_enabled and Input.is_action_just_pressed(&"crouch"):
@@ -260,7 +263,9 @@ func _physics_process(delta: float) -> void:
 		var target := wish_dir * speed
 		var accel := air_acceleration
 		if on_floor:
-			accel = ground_acceleration if wish_dir != Vector3.ZERO else ground_deceleration
+			# Brake hard when letting go or pushing against the current motion.
+			var braking := wish_dir == Vector3.ZERO or horizontal.dot(wish_dir) < 0.0
+			accel = ground_deceleration if braking else ground_acceleration
 		horizontal = horizontal.move_toward(target, accel * speed * delta)
 		velocity.x = horizontal.x
 		velocity.z = horizontal.z

@@ -387,7 +387,7 @@ Everything goes through the **`Audio`** autoload (`scripts/audio/audio_manager.g
 | **Bullets** | Impact sound where bullets hit; enemy bullets flying within 3 m of your head **whiz** past |
 | **Feedback** | Hit marker, headshot "ding", kill confirm (can be turned off), hurt thump when you take damage |
 | **Occlusion** | A ray from your ears to each sound: if a wall is in between, the sound goes to the `SFXOccluded` bus (low-pass + quieter). Long sounds re-check while they play (High quality) |
-| **Reverb zones** | `Area3D`s on physics layer 7 (`audio_zone`) send indoor sounds to `ReverbRoom` or `ReverbHall`: Warehouse hall + drier offices, Courtyard buildings, Bunker rooms + atrium. Add one in `tools/greybox.py` with `m.reverb(pos, size, "room"/"hall", amount)` |
+| **Reverb zones** | `Area3D`s on physics layer 7 (`audio_zone`) send indoor sounds to `ReverbRoom` or `ReverbHall`: Warehouse hall + drier offices, Courtyard buildings, Bunker rooms, reactor hall and tunnel. Add one in `tools/greybox.py` with `m.reverb(pos, size, "room"/"hall", amount)` |
 | **Music** | Menu theme (calm, A minor) and a quiet tense drone in matches (can be turned off); cross-fades between them; results screen plays a **win or lose sting**. Bomb Defusal: round start, bomb planted, defused, round won/lost stings |
 | **UI** | Every button clicks and ticks on hover |
 | **Voices** | Pooled players — Low: 16 at once, High: 40; when all are busy the oldest is reused. Sounds out of range aren't played at all. Nothing plays on a dedicated server |
@@ -468,7 +468,8 @@ Measured on the software renderer (Low, 12 bots, back-to-back runs): average **3
 | **Armour** | `Health.uses_armor` (players): 100 at each Bomb Defusal round (and spawn), absorbs `ARMOR_ABSORB` = 40 % of weapon damage; synced with health; falls/bomb ignore it |
 | **HUD details** | Health + armour row with bars, ammo bullet marks, drawn faces on top-bar cards (`TopBar._draw_face`), map name banner (`Hud.show_banner`, 6 s), radar with boxed sites and teammate view ticks |
 | **Detail textures** | `tools/make_textures.py` (numpy + Pillow) writes two tileable 512² texture arrays, 7 layers each: `assets/textures/surfaces_albedo.png` (colour around mid-grey + roughness) and `surfaces_normal.png`. They are global shader uniforms (`surface_albedo`, `surface_normal`); `prototype_grid.gdshader` picks a layer by surface kind and projects it in world space, only when *Surface detail* is on (Medium+). To use photo textures instead, replace a layer keeping size and order |
-| **Enterable buildings** | `_house(m, x0, x1, z0, z1, mat, floors, fh, doors, windows, stair_side)` in `tools/greybox.py`: walls with real door/window openings per floor (`_wall_openings`), a ramp stair along one wall, upper floor slabs with a railed stair hole, roof, lights and a reverb zone. Options: doors on upper floors (`(face, offset, width, floor)`), `stair_angle`, `roof_access`. Used for Kasbah's A House and B House, Factory's Lanka Steel, Train Yard's signal tower, two Rooftops buildings and the Docks harbour office |
+| **Enterable buildings** | `_house(m, x0, x1, z0, z1, mat, floors, fh, doors, windows, stair_side)` in `tools/greybox.py`: walls with real door/window openings per floor (`_wall_openings`), a ramp stair along one wall, upper floor slabs with a railed stair hole, roof, lights and a reverb zone. Options: doors on upper floors (`(face, offset, width, floor)`), `stair_angle`, `roof_access`. Used for Kasbah's A House and B House, Factory's Lanka Steel, two Rooftops buildings and the Docks harbour office |
+| **Multi-level room maps** | `_rooms(m, rooms, trim, windows)` in `tools/greybox.py`: list rooms as rectangles on a 1 m grid with a floor height (upper, ground or lower level) and an optional ceiling; walls go wherever a room meets empty space, lintels where ceilings step, floors are solid blocks. A 1 m gap between rooms is a wall; a small room across it is a doorway. Used for Bunker and Train Yard. The radar draws any `Floor*` body as floor at every level and skips `Ceiling*` |
 | **Wall signs** | `m.sign(pos, face, "A", toward=(x, z))` in `tools/greybox.py`: a painted Label3D letter + arrow boxes pointing towards a place; plus `_rug()`, `_tower()`, fruit crates on stalls |
 
 Draw calls at the worst view on Low (after batching): Courtyard ~120, Kasbah ~185, Factory ~190, Office / Train Yard ~205, Subway ~235 — still well within what the minimum-spec GPUs handle.
@@ -593,12 +594,12 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Courtyard | Outdoor, mid-range | Fountain plaza, pillars, low walls, two 2-storey buildings with roof access |
 | Rooftops | Vertical, long range | Four flat roofs linked by two bridges, ramps up from the street, parked cars as cover, sites A/B in the street |
 | Docks | Outdoor, lanes | Container stacks on a quay, a moored ship (Red spawns on its deck) with two gangways, a crane |
-| Bunker | Indoor, small (2–8 players) | Central atrium with four doors, four corner rooms, tight corridors — fast rounds |
+| Bunker | Indoor, 3 lanes, bomb defusal | Underground base on three levels: A Long rises to an upper corridor and a balcony over A (north); B is one level down (south), reached by the B Long ramp and the rock-walled Tunnel (B2) or the stairs from Mid; Mid is a tall hall round a red-lit reactor with a catwalk; Storage / Utility flank; T west, CT east |
 | Kasbah | Desert town, bomb defusal | Three lanes (A Long, Mid with doors, covered B Apartments), Connector and Short; A is a raised terrace, B a courtyard round a well |
 | Factory | Industrial, 3 lanes | A under a gantry crane next to two silos with a flat roof overlooking it; B in a walled yard; West Lane past the Warehouse, Mid with a catwalk under the Lanka Steel building, Tunnels to Lower Mid, the Rail Yard along the east; painted T / CT spawns, coconut palms, a Sri Lankan flag |
 | Office | Indoor, two floors | Lobby with reception, open-plan office (A), conference + server room (B), break room and storage under a mezzanine reached by two stairs, side alleys |
 | Subway | Underground | Two side platforms and an island, track beds to drop into (climb out at the ends), a two-car train to walk through, ticket halls with turnstiles |
-| Train Yard | Outdoor, rail lanes | Six tracks of box, tank and hopper cars, a maintenance shed with a locomotive (A), a signal tower with a balcony and containers (B) |
+| Train Yard | Outdoor, 3 lanes, bomb defusal | Mid is the rail yard: freight cars and a locomotive on three tracks under a gantry crane, the C1 warehouse along its side; A is inside a warehouse on a raised floor, reached along the A Long loading dock (upper) or A Main; B is a lower yard at the end of the B Long rail cut or down the B stairs; a water tower on the CT side; T west, CT east |
 
 **Map selection screen** — main menu → **Map: … ▸** opens a grid of map cards with a live top-down **preview** (rendered once from the real map and cached), players, style, supported modes and a description. Maps without bomb sites are greyed out in Bomb Defusal. The choice is saved in your settings. Map metadata lives in `GameConfig.MAPS` (`scripts/core/game_config.gd`); the screen is `scenes/ui/map_select.tscn` + `scripts/ui/map_select.gd`, previews come from `scripts/ui/map_preview.gd`.
 
@@ -664,7 +665,7 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 |--------|-------------|
 | Move | `W` `A` `S` `D` |
 | Jump | `Space` |
-| Crouch / Slide | `Left Ctrl` / `C` |
+| Crouch / Slide | `Left Ctrl` / `C` (only the Slide key slides — crouching while running just slows you down) |
 | Sprint | `Left Shift` |
 | Shoot | `Left Mouse` |
 | Aim down sights | `Right Mouse` |
