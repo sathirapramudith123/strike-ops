@@ -656,6 +656,8 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 
 ---
 
+> **After a `git pull`, open the project in the Godot editor once before pressing Play** (or run `godot --headless --path . --editor --quit`). Godot keeps a list of every `class_name` script in `.godot/global_script_class_cache.cfg`; new scripts from a pull (e.g. `Throwables`) aren't in it until the editor rescans, and running the game with a stale list fails with *"Could not find type … in the current scope"* in many scripts. If the editor is already open and still shows it, use **Project → Reload Current Project**, or close Godot and delete the `.godot` folder.
+
 ## 🎮 Controls
 
 | Action | Default key |

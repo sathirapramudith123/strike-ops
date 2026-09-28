@@ -653,10 +653,15 @@ func reset_bindings() -> void:
 ## Re-applies the saved bindings to the InputMap (startup).
 func apply_bindings() -> void:
 	for action: StringName in REMAPPABLE_ACTIONS:
-		var e := _deserialize_event(_config.get_value("bindings", String(action), null))
-		if e:
-			_set_binding(action, false, e)
-		var data: Variant = _config.get_value("pad_bindings", String(action), null)
+		# (has_section_key first: get_value(..., null) counts as "no default"
+		# and logs an error for actions newer than the saved settings file.)
+		if _config.has_section_key("bindings", String(action)):
+			var e := _deserialize_event(_config.get_value("bindings", String(action)))
+			if e:
+				_set_binding(action, false, e)
+		if not _config.has_section_key("pad_bindings", String(action)):
+			continue
+		var data: Variant = _config.get_value("pad_bindings", String(action))
 		if data is Dictionary:
 			# {} = deliberately unbound on the controller.
 			_set_binding(action, true, GamepadInput.deserialize(data))
