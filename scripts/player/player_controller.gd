@@ -103,6 +103,8 @@ const CORPSE_TIME := 8.0
 var _life: int = 0
 ## Seconds of flashbang blindness left (local player only; see GrenadeFx.flash).
 var blind_time: float = 0.0
+## A training bot (BotManager): the server drives it with a BotBrain.
+var is_bot: bool = false
 ## Grenade wheel open (hold 4): the mouse points at a grenade instead of looking.
 var grenade_wheel_open: bool = false
 ## Climbing onto a ledge (see Climb): true while pulling up.
@@ -155,6 +157,7 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	is_local = peer_id == multiplayer.get_unique_id() and not NetworkManager.is_dedicated()
+	is_bot = BotManager.is_bot(peer_id)
 	_height = stand_height
 	_apply_height()
 	health.died.connect(_on_died)
@@ -199,6 +202,10 @@ func _ready() -> void:
 			weapons[w.data.weapon_id] = w
 			w.unequip()
 	apply_loadout(primary_id, current_slot)
+	if is_bot and multiplayer.is_server():
+		var brain := BotBrain.new()
+		brain.name = "BotBrain"
+		add_child(brain)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -893,10 +900,12 @@ func _on_died(_source: Node) -> void:
 	else:
 		# The body falls and stays a while, then it is cleared away.
 		_model.play_death(randi() % 8, health.last_hit_headshot)
-		var life := _life
-		get_tree().create_timer(CORPSE_TIME).timeout.connect(func() -> void:
-			if is_instance_valid(self) and health.is_dead and _life == life:
-				visible = false)
+		get_tree().create_timer(CORPSE_TIME).timeout.connect(_clear_corpse.bind(_life))
+
+
+func _clear_corpse(life: int) -> void:
+	if health.is_dead and _life == life:
+		visible = false
 
 
 ## Local player: the view drops to the floor and rolls over; the gun goes.

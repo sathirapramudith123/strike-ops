@@ -50,7 +50,55 @@ func _ready() -> void:
 		_show_hardware_report.call_deferred(report_path)
 	NetworkManager.connection_failed.connect(_on_connection_failed)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	_build_bots_row()
 	%PlayButton.grab_focus()
+
+
+## "Bots [n] [Easy / Normal / Hard]" under the map and mode: training bots
+## for offline play (against them, in the chosen mode) and when hosting.
+var _bot_spin: SpinBox
+var _bot_skill: OptionButton
+
+
+func _build_bots_row() -> void:
+	var row := HBoxContainer.new()
+	row.name = "BotsRow"
+	var label := Label.new()
+	label.text = "Bots"
+	row.add_child(label)
+	_bot_spin = SpinBox.new()
+	_bot_spin.name = "BotSpin"
+	_bot_spin.min_value = 0
+	_bot_spin.max_value = BotManager.MAX_BOTS
+	_bot_spin.value = SettingsManager.bot_count
+	_bot_spin.tooltip_text = "Training bots (offline: play the chosen mode against them; hosting: they fill the teams)"
+	_bot_spin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_bot_spin)
+	_bot_skill = OptionButton.new()
+	_bot_skill.name = "BotSkill"
+	for i in BotManager.DIFFICULTY_NAMES.size():
+		_bot_skill.add_item(BotManager.DIFFICULTY_NAMES[i], i)
+	_bot_skill.select(clampi(SettingsManager.bot_difficulty, 0, 2))
+	_bot_skill.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_bot_skill)
+	_main.add_child(row)
+	_main.move_child(row, %PlayButton.get_index())
+	_bot_spin.value_changed.connect(func(_v: float) -> void: _update_play_text())
+	%ModeOption.item_selected.connect(func(_i: int) -> void: _update_play_text())
+	_update_play_text()
+
+
+func _update_play_text() -> void:
+	var n := int(_bot_spin.value)
+	%PlayButton.text = "Play Offline (Practice)" if n == 0 \
+		else "Play Offline — %s vs %d bot%s" % [%ModeOption.get_item_text(%ModeOption.selected), n, "" if n == 1 else "s"]
+
+
+func _store_bots() -> void:
+	SettingsManager.bot_count = int(_bot_spin.value)
+	SettingsManager.bot_difficulty = _bot_skill.get_selected_id()
+	Match.bots.difficulty = SettingsManager.bot_difficulty
+	SettingsManager.save()
 
 
 func _show_settings() -> void:
@@ -66,11 +114,16 @@ func _on_settings_closed() -> void:
 
 func _on_play_pressed() -> void:
 	_store_name()
-	NetworkManager.start_offline(_selected_map())
+	_store_bots()
+	SettingsManager.host_mode = %ModeOption.get_selected_id()
+	SettingsManager.save()
+	NetworkManager.start_offline(_selected_map(), SettingsManager.bot_count, SettingsManager.host_mode)
 
 
 func _on_host_pressed() -> void:
 	_store_name()
+	_store_bots()
+	NetworkManager.start_bots = SettingsManager.bot_count
 	SettingsManager.host_port = int(%PortSpin.value)
 	SettingsManager.host_mode = %ModeOption.get_selected_id()
 	SettingsManager.save()

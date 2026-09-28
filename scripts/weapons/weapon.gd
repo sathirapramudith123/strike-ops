@@ -134,6 +134,8 @@ func _physics_process(delta: float) -> void:
 	_bloom = move_toward(_bloom, 0.0, data.bloom_recovery * delta)
 	_update_flash(delta)
 	if not _player.is_local:
+		if _player.is_bot and multiplayer.is_server():
+			_bot_process(delta)
 		return
 
 	var can_act := _player.input_enabled and not _player.health.is_dead and Match.can_shoot() and not holstered \
@@ -165,6 +167,22 @@ func _physics_process(delta: float) -> void:
 
 	current_spread = _compute_spread()
 	_update_viewmodel(delta)
+
+
+## Bots (server): BotBrain holds `bot_trigger`; the gun fires as fast as it
+## can and reloads on its own clock.
+var bot_trigger: bool = false
+
+
+func _bot_process(delta: float) -> void:
+	is_aiming = false
+	if is_reloading:
+		_reload_timer -= delta
+		if _reload_timer <= 0.0:
+			_finish_reload()
+	if bot_trigger and not holstered and not _player.health.is_dead and Match.can_shoot():
+		try_fire()
+	current_spread = _compute_spread()
 
 
 ## Trigger by fire mode: auto (hold), semi (one per click), burst
@@ -270,10 +288,12 @@ func try_fire() -> bool:
 		data.recoil_pitch * _rng.randf_range(0.8, 1.2) * recoil_mult,
 		_rng.randf_range(-data.recoil_yaw, data.recoil_yaw) * recoil_mult)
 
-	_show_muzzle_flash()
-	_play_fire()
+	if not _player.is_bot: # a bot's shot plays its effects from the server trace
+		_show_muzzle_flash()
+		_play_fire()
 	# Kick scaled by the weapon's recoil (sniper hard, SMG light).
-	GamepadInput.rumble(0.25, clampf(data.recoil_pitch * 0.15, 0.1, 0.8), 0.08)
+	if _player.is_local:
+		GamepadInput.rumble(0.25, clampf(data.recoil_pitch * 0.15, 0.1, 0.8), 0.08)
 	fired.emit()
 	ammo_changed.emit(ammo_in_magazine, ammo_reserve)
 	return true
@@ -488,7 +508,7 @@ func _server_process_shot(origin: Vector3, dirs: PackedVector3Array, render_time
 	if any_hit:
 		if _player.is_local:
 			hit_confirmed.emit(any_kill, any_head)
-		else:
+		elif not _player.is_bot:
 			_client_hit_confirmed.rpc_id(_player.peer_id, any_kill, any_head)
 
 	# Effects for everyone except the shooter (who already predicted them).

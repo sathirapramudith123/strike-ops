@@ -2,6 +2,19 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Training bots:** choose how many bots (0–15) and how good (Easy /
+Normal / Hard) in the main menu. Play Offline then plays FFA, TDM or Bomb
+Defusal against them (0 bots = Practice as before); hosting fills your
+server with them, and the host can add or remove bots from the Esc menu
+(dedicated server: `--bots N --bot-skill 0-2`). Bots walk the map on a
+navigation mesh, only see you with a clear line of sight (not through
+walls or smoke), react, aim and spray in bursts while strafing, turn when
+shot, open doors, reload, and in Bomb Defusal buy guns and armour, plant,
+hold sites and defuse. Teammate bots show their name and health.
+
+**Fixed:** more than five kills within five seconds froze the game (the kill
+feed trimmed old lines with a deferred free and never finished).
+
 **Animations:** players no longer vanish when killed — they stagger, their
 knees give and they fall (backwards, forwards, twisting to the side or
 crumpling), with a little bounce, the gun clattering out of their hands; the

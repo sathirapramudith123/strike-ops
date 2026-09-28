@@ -43,6 +43,8 @@ var _sync_timer: float = 0.0
 var bomb: BombRules
 ## Money and the buy menu (Bomb Defusal).
 var economy: Economy
+## Training bots.
+var bots: BotManager
 
 
 func _ready() -> void:
@@ -52,6 +54,9 @@ func _ready() -> void:
 	economy = Economy.new()
 	economy.name = "Economy"
 	add_child(economy)
+	bots = BotManager.new()
+	bots.name = "Bots"
+	add_child(bots)
 
 
 func _process(delta: float) -> void:

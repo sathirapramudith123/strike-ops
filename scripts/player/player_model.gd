@@ -177,9 +177,7 @@ func _drop_gun() -> void:
 	body.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-2, 2), randf_range(-4, 4))
 	_gun.visible = false
 	_dropped_gun = body
-	get_tree().create_timer(12.0).timeout.connect(func() -> void:
-		if is_instance_valid(body):
-			body.queue_free())
+	get_tree().create_timer(12.0).timeout.connect(body.queue_free)
 
 
 ## Walk cycle from how far the player moved (works for remote players too).

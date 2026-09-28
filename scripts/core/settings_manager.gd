@@ -128,6 +128,9 @@ var player_name: String = "Player"
 var last_join_address: String = "127.0.0.1"
 var host_port: int = 7777
 var host_mode: int = 1 # GameConfig.Mode.FFA
+## Training bots for offline play / hosting (BotManager) and their skill.
+var bot_count: int = 0
+var bot_difficulty: int = 1
 var selected_map: String = "res://scenes/levels/test_map.tscn"
 ## Primary weapon id for the loadout (see GameConfig.PRIMARY_WEAPONS).
 var preferred_primary: String = "rifle"
@@ -430,6 +433,8 @@ func save() -> void:
 	_config.set_value("network", "last_join_address", last_join_address)
 	_config.set_value("network", "host_port", host_port)
 	_config.set_value("network", "host_mode", host_mode)
+	_config.set_value("network", "bot_count", bot_count)
+	_config.set_value("network", "bot_difficulty", bot_difficulty)
 	_config.set_value("network", "selected_map", selected_map)
 	_config.set_value("controls", "preferred_primary", preferred_primary)
 
@@ -499,6 +504,8 @@ func _load_all(first_launch: bool) -> void:
 	last_join_address = _config.get_value("network", "last_join_address", last_join_address)
 	host_port = _config.get_value("network", "host_port", host_port)
 	host_mode = _config.get_value("network", "host_mode", host_mode)
+	bot_count = _config.get_value("network", "bot_count", bot_count)
+	bot_difficulty = _config.get_value("network", "bot_difficulty", bot_difficulty)
 	selected_map = _config.get_value("network", "selected_map", selected_map)
 	preferred_primary = _config.get_value("controls", "preferred_primary", preferred_primary)
 

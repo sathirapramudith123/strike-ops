@@ -433,8 +433,10 @@ func _on_kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot
 	panel.add_theme_stylebox_override(&"panel", _feed_style_mine if mine else _feed_style)
 	row.modulate = Color(1, 1, 1, 1) if mine else Color(1, 1, 1, 0.9)
 	_kill_feed.add_child(row)
+	# free(), not queue_free(): the count must drop now or this never ends
+	# (more than KILL_FEED_MAX kills within KILL_FEED_TIME froze the game).
 	while _kill_feed.get_child_count() > KILL_FEED_MAX:
-		_kill_feed.get_child(0).queue_free()
+		_kill_feed.get_child(0).free()
 	get_tree().create_timer(KILL_FEED_TIME).timeout.connect(row.queue_free)
 
 
@@ -717,7 +719,7 @@ func _fill_score_grid(grid: GridContainer) -> void:
 		_add_score_cell(grid, ("» " if VoiceChat.is_speaking(id) else "") + e.name, col)
 		_add_score_cell(grid, str(e.kills), col)
 		_add_score_cell(grid, str(e.deaths), col)
-		_add_score_cell(grid, "host" if id == 1 else str(e.ping), col)
+		_add_score_cell(grid, "host" if id == 1 else ("BOT" if BotManager.is_bot(id) else str(e.ping)), col)
 
 
 func _add_score_cell(grid: GridContainer, text: String, color: Color) -> void:

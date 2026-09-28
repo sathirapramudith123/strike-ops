@@ -52,6 +52,7 @@ func _run() -> void:
 	await _test_performance()
 	await _test_maps()
 	await _test_doors_and_glass()
+	await _test_bots()
 	_test_hardware_report()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -2099,6 +2100,32 @@ func _test_doors_and_glass() -> void:
 	_player.throwables._blast_breakables(other.global_position + Vector3(0, 0, 1.0), Throwables.HE_RADIUS, 160.0)
 	_check(other.broken, "an HE blast shatters nearby windows")
 	_player.select_slot(0, true)
+
+
+## Training bots on the current map (Office): they spawn, get a navigation
+## mesh, walk off and can be removed again.
+func _test_bots() -> void:
+	_player.health.protect(999.0)
+	Match.bots.set_count(2)
+	await _frames(5)
+	var bots := _level.get_players().filter(func(p: PlayerController) -> bool: return p.is_bot)
+	_check(bots.size() == 2 and NetworkManager.roster.has(BotManager.BOT_ID_BASE), "2 bots join (roster + players)")
+	_check(_level.has_node("BotNavigation"), "a navigation mesh is baked for them")
+	_check(bots.size() == 2 and (bots[0] as PlayerController).has_node("BotBrain"), "the server drives them (BotBrain)")
+	var start := {}
+	for b: PlayerController in bots:
+		start[b] = b.global_position
+	await _frames(240)
+	var moved := 0
+	for b: PlayerController in bots:
+		if is_instance_valid(b) and b.global_position.distance_to(start[b]) > 3.0:
+			moved += 1
+	_check(moved >= 1, "bots walk around the map (%d of 2 moved)" % moved)
+	Match.bots.set_count(0)
+	await _frames(3)
+	_check(Match.bots.count() == 0 and _level.get_players().filter(func(p: PlayerController) -> bool: return p.is_bot).is_empty(),
+		"bots can be removed again")
+	_player.health.protect(0.0)
 
 
 func _release_all() -> void:

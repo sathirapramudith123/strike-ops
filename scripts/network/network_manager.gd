@@ -28,6 +28,10 @@ const PROTOCOL_VERSION := 5
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
+## Offline game mode (Practice, or a mode against bots) and the bots to add
+## when the first level of a session loads (main menu / --bots).
+var offline_mode: int = GameConfig.Mode.PRACTICE
+var start_bots: int = 0
 const MAIN_MENU := "res://scenes/main/main_menu.tscn"
 const CONNECT_TIMEOUT := 10.0
 
@@ -112,11 +116,14 @@ func server_time() -> float:
 	return _local_time() + _clock_offset
 
 
-func start_offline(map_path: String = DEFAULT_MAP) -> void:
+## Offline: Practice on your own, or `game_mode` against `bots` training bots.
+func start_offline(map_path: String = DEFAULT_MAP, bots: int = 0, game_mode: int = -1) -> void:
 	_reset_peer()
 	mode = Mode.OFFLINE
 	current_map = map_path
-	Match.configure(GameConfig.Mode.PRACTICE)
+	offline_mode = game_mode if bots > 0 and game_mode >= 0 else GameConfig.Mode.PRACTICE
+	start_bots = bots
+	Match.configure(offline_mode)
 	get_tree().change_scene_to_file(map_path)
 
 
@@ -255,13 +262,17 @@ func on_level_loaded(level: Level) -> void:
 	_level = level
 	if multiplayer.is_server():
 		if mode == Mode.OFFLINE:
-			Match.configure(GameConfig.Mode.PRACTICE)
+			Match.configure(offline_mode)
 		Match.start_match()
 		if mode != Mode.DEDICATED:
 			if not roster.has(1):
 				_add_local_entry()
 			_ready_peers[1] = true
 			_server_spawn(1)
+		Match.bots.on_level_loaded(level)
+		if start_bots > 0:
+			Match.bots.set_count(start_bots)
+			start_bots = 0
 	else:
 		_level_ready.rpc_id(1)
 
@@ -538,6 +549,8 @@ func _start_dedicated_from_args() -> void:
 			"--max-players": max_players = value.to_int()
 			"--map": map_path = GameConfig.map_path(value)
 			"--mode": game_mode = GameConfig.MODE_IDS.get(value.to_lower(), GameConfig.Mode.FFA)
+			"--bots": start_bots = clampi(value.to_int(), 0, BotManager.MAX_BOTS)
+			"--bot-skill": Match.bots.difficulty = clampi(value.to_int(), 0, 2)
 	if host(port, max_players, true, map_path, game_mode) != OK:
 		push_error(last_error)
 		get_tree().quit(1)

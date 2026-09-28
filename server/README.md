@@ -19,6 +19,8 @@ Options work with or without the `--` separator
 | `--max-players` | 2–32 | 16 |
 | `--mode` | `ffa`, `tdm`, `bomb` | `ffa` |
 | `--map` | `test_map`, `docks`, `bunker`, `oasis`, `factory`, `office`, `subway`, `trainyard` | `test_map` |
+| `--bots` | training bots on the server (0–15) | `0` |
+| `--bot-skill` | `0` easy, `1` normal, `2` hard | `1` |
 
 Open **UDP 7777** in the firewall / cloud security group. Players join with
 the server's IP (`Join` in the main menu, or `FPSGame -- --connect IP:7777`).

@@ -559,6 +559,9 @@ func _run_mixed_host() -> void:
 	door.send_state_to(client_id) # the late-joiner path too
 	var closed: Variant = await _wait_for(func() -> Variant: return true if not door.is_open() else null)
 	_check(closed == true, "the client closed the door (host sees it)")
+	# Training bots: two join; the client sees them as players that move.
+	Match.bots.set_count(2)
+	_check(Match.bots.count() == 2 and level.get_players().size() == 4, "host adds 2 bots (%d players)" % level.get_players().size())
 	await _wait_for(func() -> Variant: return true if level.get_player(client_id) == null else null)
 	_finish()
 
@@ -600,6 +603,16 @@ func _run_mixed_client() -> void:
 	door.request_toggle(level.player.global_position)
 	var shut: Variant = await _wait_for(func() -> Variant: return true if not door.is_open() else null)
 	_check(shut == true, "the client closes the door through the server")
+	var bots: Variant = await _wait_for(func() -> Variant:
+		var bs := level.get_players().filter(func(p: PlayerController) -> bool: return p.is_bot)
+		return bs if bs.size() == 2 else null)
+	_check(bots != null and (bots[0] as PlayerController).player_name.begins_with("BOT"), "client sees the host's 2 bots")
+	if bots != null:
+		var start: Vector3 = (bots[0] as PlayerController).global_position
+		var moved: Variant = await _wait_for(func() -> Variant:
+			var b := bots[0] as PlayerController
+			return true if not is_instance_valid(b) or b.global_position.distance_to(start) > 2.0 else null)
+		_check(moved == true, "a bot moves around on the client")
 	await get_tree().create_timer(2.0).timeout # let the host finish its checks
 	NetworkManager.leave()
 	await _frames(30)

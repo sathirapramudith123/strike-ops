@@ -552,6 +552,8 @@ Match flow: the server runs the clock and score → **results screen** (winner +
 | Death | **No respawn during a round** — you spectate living teammates (`Shoot` = next); no health regen; next round revives everyone with full ammo — survivors keep their gear, the dead start with pistol + knife |
 | Joining | Freeze time waits until both teams have a player; joining mid-round = spectate until the next round |
 
+**Training bots** (`scripts/bots/`) — set **Bots** (0–15) and the skill (**Easy / Normal / Hard**) in the main menu. *Play Offline* then plays the chosen mode (FFA, TDM or Bomb Defusal) against them; with 0 bots it is Practice as before. Hosting adds them to your server (they balance the teams), and the host can add / remove bots in the `Esc` menu. A dedicated server takes `--bots N --bot-skill 0-2`. Bots are real players in the roster (`BOT Nuwan`…, "BOT" in the ping column) run by the server: they walk a navigation mesh baked from the map when it loads (< 0.1 s), see you only with a clear line (not through walls or smoke), react after a moment, turn at a limited speed with an aim error that shrinks, fire in bursts while strafing, turn round when shot, open doors in their way, get unstuck, reload, and in Bomb Defusal buy a gun and armour, take the bomb to a site and plant it, hold sites, defuse and guard the bomb. Skill sets reaction time, turn speed, aim error, headshot chance and sight range.
+
 **Money and the buy menu** (`scripts/core/economy.gd`, `scripts/ui/buy_menu.gd`) — Bomb Defusal only; the other modes keep free loadouts.
 
 | | |

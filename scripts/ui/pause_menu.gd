@@ -31,6 +31,7 @@ func _ready() -> void:
 	%TeamButton.pressed.connect(func() -> void:
 		Match.request_team_switch()
 		close())
+	_build_bots_row()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -60,6 +61,8 @@ func open() -> void:
 	# Bomb Defusal guns are bought (X), not picked.
 	%LoadoutOption.get_parent().visible = Match.mode != GameConfig.Mode.BOMB
 	%TeamButton.visible = Match.is_team_mode()
+	_bots_row.visible = multiplayer.is_server()
+	_update_bots_label()
 	%ResumeButton.grab_focus()
 
 
@@ -100,3 +103,35 @@ func _go_to_main_menu() -> void:
 	SettingsManager.save()
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	NetworkManager.leave()
+
+
+# -----------------------------------------------------------------------------
+# Training bots (the server / offline player): add or remove one at a time.
+# -----------------------------------------------------------------------------
+
+var _bots_row: HBoxContainer
+var _bots_label: Label
+
+
+func _build_bots_row() -> void:
+	_bots_row = HBoxContainer.new()
+	_bots_row.name = "BotsRow"
+	_bots_label = Label.new()
+	_bots_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_bots_row.add_child(_bots_label)
+	for step: int in [-1, 1]:
+		var b := Button.new()
+		b.text = "−" if step < 0 else "+"
+		b.custom_minimum_size.x = 44
+		b.pressed.connect(func() -> void:
+			Match.bots.set_count(Match.bots.count() + step)
+			_update_bots_label())
+		_bots_row.add_child(b)
+	var team_row: Node = %TeamButton
+	team_row.get_parent().add_child(_bots_row)
+	team_row.get_parent().move_child(_bots_row, team_row.get_index() + 1)
+
+
+func _update_bots_label() -> void:
+	if _bots_label:
+		_bots_label.text = "Bots: %d (%s)" % [Match.bots.count(), BotManager.DIFFICULTY_NAMES[Match.bots.difficulty]]

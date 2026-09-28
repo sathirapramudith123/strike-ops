@@ -51,6 +51,15 @@ func _physics_process(delta: float) -> void:
 			_send_timer = 1.0 / SEND_RATE
 			_server_state.rpc_id(1, player.global_position, player.rotation.y,
 				player.head.rotation.x, player.current_height(), _flags())
+	elif player.is_bot and multiplayer.is_server():
+		# A bot: the server moves it (BotBrain) and sends it out like a host player.
+		_send_timer -= delta
+		_push_snapshot(now, player.global_position, player.rotation.y,
+			player.head.rotation.x, player.current_height(), _flags())
+		if _send_timer <= 0.0:
+			_send_timer = 1.0 / SEND_RATE
+			NetworkManager.send_to_ready(self, &"_client_state", [now, player.global_position,
+				player.rotation.y, player.head.rotation.x, player.current_height(), _flags()])
 	else:
 		_interpolate(now - NetworkManager.INTERPOLATION_DELAY)
 
@@ -157,6 +166,11 @@ func send_slot(slot: int) -> void:
 		NetworkManager.send_to_ready(self, &"_client_slot", [slot], [player.peer_id])
 	else:
 		_server_slot.rpc_id(1, slot)
+
+
+## Server: a slot change the server made itself (a bot switching weapons).
+func send_slot_from_server(slot: int) -> void:
+	NetworkManager.send_to_ready(self, &"_client_slot", [slot])
 
 
 @rpc("any_peer", "call_remote", "reliable")
