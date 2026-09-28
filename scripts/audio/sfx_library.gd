@@ -17,6 +17,8 @@ const NAMES: Array[StringName] = [
 	&"impact", &"whiz",
 	# Grenades
 	&"throw", &"grenade_bounce", &"glass_break", &"fire", &"flash_bang", &"flash_ring", &"smoke_hiss",
+	# Doors and windows
+	&"door_open", &"door_close", &"wood_break", &"glass_crack",
 	# Feedback (UI bus)
 	&"hitmarker", &"headshot", &"kill", &"hurt", &"ui_click", &"ui_hover",
 	# Bomb Defusal + match
@@ -172,6 +174,30 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			b = PS.buffer(0.12)
 			PS.add_tone(b, 0.0, 0.1, 0.5, 950.0, 700.0, 45.0)
 			PS.add_noise(b, 0.0, 0.06, 0.4, 0.7, 0.1, 70.0, 0.0005, 84)
+		# --- Doors and windows ---
+		&"door_open":
+			# A creak and the latch.
+			b = PS.buffer(0.55)
+			PS.add_noise(b, 0.0, 0.06, 0.4, 0.8, 0.2, 60.0, 0.001, 301)
+			PS.add_tone(b, 0.05, 0.45, 0.25, 180.0, 260.0, 4.0, 0.05)
+			PS.add_noise(b, 0.05, 0.45, 0.25, 0.4, 0.1, 5.0, 0.05, 302)
+		&"door_close":
+			# Swish, then a wooden thud.
+			b = PS.buffer(0.4)
+			PS.add_noise(b, 0.0, 0.25, 0.2, 0.3, 0.05, 8.0, 0.1, 303)
+			PS.add_tone(b, 0.25, 0.15, 0.8, 110.0, 70.0, 30.0, 0.002)
+			PS.add_noise(b, 0.25, 0.1, 0.6, 0.5, 0.2, 40.0, 0.001, 304)
+		&"wood_break":
+			b = PS.buffer(0.35)
+			PS.add_noise(b, 0.0, 0.3, 0.9, 0.6, 0.3, 25.0, 0.0005, 305)
+			for i in 4:
+				PS.add_noise(b, 0.03 + i * 0.04, 0.05, 0.5, 0.8, 0.4, 70.0, 0.0005, 306 + i)
+			PS.add_tone(b, 0.0, 0.2, 0.4, 240.0, 120.0, 25.0, 0.002)
+		&"glass_crack":
+			b = PS.buffer(0.25)
+			PS.add_noise(b, 0.0, 0.05, 0.6, 0.95, 0.3, 80.0, 0.0003, 311)
+			PS.add_tone(b, 0.0, 0.2, 0.25, 3300.0, -1.0, 30.0)
+			PS.add_tone(b, 0.01, 0.15, 0.15, 4100.0, -1.0, 35.0)
 		&"glass_break":
 			b = PS.buffer(0.6)
 			PS.add_noise(b, 0.0, 0.5, 0.8, 0.95, 0.4, 9.0, 0.0005, 85)

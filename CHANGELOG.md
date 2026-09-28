@@ -2,6 +2,17 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Doors and glass:** doorways in houses and offices have real doors now
+(19 across Docks, Oasis, Factory and Office). Press F looking at one to
+open it — it swings away from you — or close it. Doors are made of wooden
+pieces: bullets splinter the piece they hit and shoot it out, so the door
+breaks where you shoot it and you can see and fire through the holes; HE
+grenades blow pieces out too. House windows and the office glass walls are
+glass panes: the first shot cracks the glass, the second shatters it into
+falling shards (a knife, sniper round, HE or a flash nearby breaks it at
+once), and bullets fly on through. Everything is server-side and synced,
+including for players who join later.
+
 **Docks rebuilt** from concept art as a 3-lane bomb map at sunset. Mid
 runs through the Port Authority warehouse; A is the container yard off
 its north door under a gantry crane (the red container with the A), and T

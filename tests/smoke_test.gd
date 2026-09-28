@@ -51,6 +51,7 @@ func _run() -> void:
 	await _test_settings_menu()
 	await _test_performance()
 	await _test_maps()
+	await _test_doors_and_glass()
 	_test_hardware_report()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -1478,6 +1479,7 @@ func _test_maps() -> void:
 	# Oasis: A ramp onto the terrace, Mid doors, the covered B Apartments.
 	await _load_map("res://scenes/levels/oasis.tscn")
 	await _frames(40)
+	_open_all_doors()
 	_check(_player.is_on_floor(), "oasis: player lands")
 	_reset_player(Vector3(28, 0.1, -10.5))
 	await _walk_forward_max_y(150)
@@ -1588,6 +1590,7 @@ func _test_maps() -> void:
 			await _load_map("res://scenes/levels/%s.tscn" % route[0])
 			await _frames(30)
 			_check(_player.is_on_floor(), "%s: player lands" % route[0])
+			_open_all_doors()
 		_reset_player(route[1], route[2])
 		await _frames(2)
 		# The check sees where the walk ended, with y = the highest point reached.
@@ -1948,6 +1951,105 @@ func _aim_at(point: Vector3) -> void:
 	var flat := Vector3(point.x - eye.x, 0, point.z - eye.z)
 	_player.rotation.y = atan2(-flat.x, -flat.z)
 	_player.head.rotation.x = atan2(point.y - eye.y, flat.length())
+
+
+## Routes walk straight through doorways: open every door first.
+func _open_all_doors() -> void:
+	for d in get_tree().get_nodes_in_group(Door.GROUP):
+		(d as Door).set_open(1, true)
+
+
+## Office: a door opens with F (away from you), breaks where it is shot;
+## glass cracks, then shatters, and bullets / grenades go through.
+func _test_doors_and_glass() -> void:
+	await _load_map("res://scenes/levels/office.tscn")
+	await _frames(30)
+	var doors := get_tree().get_nodes_in_group(Door.GROUP)
+	_check(doors.size() >= 8, "office has doors (%d)" % doors.size())
+	var panes := get_tree().get_nodes_in_group(GlassPane.GROUP)
+	_check(panes.size() >= 10, "office has glass panes (%d)" % panes.size())
+	# The store room door (StoreWall, z = -12).
+	var door: Door = null
+	for d: Door in doors:
+		if (d as Node3D).global_position.distance_to(Vector3(13.9, 0, -12)) < 0.5:
+			door = d
+	_check(door != null and not door.is_open(), "store room door found, closed")
+	if door == null:
+		return
+	_reset_player(Vector3(13.9, 0.1, -9.6))
+	await _frames(5)
+	await _walk_forward_max_y(60)
+	_check(_player.global_position.z > -11.7, "a closed door blocks the way (z=%.2f)" % _player.global_position.z)
+	_reset_player(Vector3(13.9, 0.1, -10.2))
+	await _frames(3)
+	_press_action(&"interact")
+	await _frames(30)
+	_check(door.is_open() and door.open_side == -1, "F opens the door away from the player (side %d)" % door.open_side)
+	await _walk_forward_max_y(90)
+	_check(_player.global_position.z < -13.0, "walk through the open door (z=%.2f)" % _player.global_position.z)
+	_reset_player(Vector3(13.2, 0.1, -12.9), PI) # turn round, the leaf is beside us
+	_aim_at(Vector3(13.9, 1.2, -12.0))
+	await _frames(3)
+	_press_action(&"interact")
+	await _frames(30)
+	_check(not door.is_open(), "F again closes it")
+	# Shoot the closed door: the piece under the crosshair splinters and breaks.
+	_reset_player(Vector3(13.9, 0.1, -7.0))
+	_player.select_slot(0, true)
+	_player.health.protect(0.0)
+	await _frames(20)
+	var target := Vector3(13.6, 1.25, -12)
+	var before := door.pieces_left()
+	for i in 6:
+		_aim_at(target)
+		Input.action_press(&"shoot")
+		await _frames(2)
+		Input.action_release(&"shoot")
+		await _frames(10)
+	_check(door.pieces_left() < before, "shots break the door where they hit (%d → %d pieces)" % [before, door.pieces_left()])
+	var eye := _player.camera.global_position
+	var q := PhysicsRayQueryParameters3D.create(eye, eye + (target - eye) * 1.5, 1)
+	var through := get_tree().root.get_world_3d().direct_space_state.intersect_ray(q)
+	var past: bool = through.is_empty() or (through.position as Vector3).z < -12.2
+	_check(past, "a bullet hole: the view goes through the broken piece")
+
+	# Glass: the conference room wall (z = 14).
+	var pane: GlassPane = null
+	for gp: GlassPane in panes:
+		if (gp as Node3D).global_position.distance_to(Vector3(-19.5, 1.6, 14)) < 2.5:
+			pane = gp
+	_check(pane != null and not pane.broken, "conference room glass found")
+	if pane == null:
+		return
+	_reset_player(Vector3(pane.global_position.x, 0.1, 10.0), PI)
+	await _frames(10)
+	_aim_at(pane.global_position)
+	_player.select_slot(1, true) # the pistol: one shot at a time
+	await _frames(20)
+	_aim_at(pane.global_position)
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(15)
+	_check(pane.cracked and not pane.broken, "the first shot cracks the glass")
+	_aim_at(pane.global_position + Vector3(0.3, 0.2, 0))
+	Input.action_press(&"shoot")
+	await _frames(2)
+	Input.action_release(&"shoot")
+	await _frames(15)
+	_check(pane.broken, "the second shot shatters it")
+	_reset_player(Vector3(pane.global_position.x, 0.1, 12.5), PI)
+	await _walk_forward_max_y(60)
+	_check(_player.global_position.z > 14.3, "walk through the shattered window (z=%.2f)" % _player.global_position.z)
+	# An HE blast shatters glass round it and splinters doors.
+	var other: GlassPane = null
+	for gp: GlassPane in panes:
+		if not (gp as GlassPane).broken:
+			other = gp
+			break
+	_player.throwables._blast_breakables(other.global_position + Vector3(0, 0, 1.0), Throwables.HE_RADIUS, 160.0)
+	_check(other.broken, "an HE blast shatters nearby windows")
+	_player.select_slot(0, true)
 
 
 func _release_all() -> void:

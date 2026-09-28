@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="3_pause"]
 [ext_resource type="Shader" path="res://assets/shaders/prototype_grid.gdshader" id="4_grid"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="6_player"]
+[ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
+[ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.3, 0.36, 0.55, 1)
@@ -11418,6 +11420,34 @@ modulate = Color(0.75, 0.1, 0.07, 0.95)
 text = "B"
 font_size = 256
 outline_size = 0
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Door1" type="Node3D" parent="Doors"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -46.000, 0.000, -6.700)
+script = ExtResource("7_door")
+width = 1.600
+height = 2.400
+
+[node name="Glass" type="Node3D" parent="."]
+
+[node name="Pane1" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -51.250, 1.700, -4.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane2" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -47.750, 1.700, -4.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane3" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -46.000, 1.700, -9.250)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 

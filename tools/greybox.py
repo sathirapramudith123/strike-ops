@@ -133,6 +133,8 @@ class Map:
         self.callouts = []  # (label, pos, size)
         self.signs = []  # (text, pos, yaw)
         self.zones = []  # (pos, size, bus, amount, priority)
+        self.doors = []  # (bottom-centre pos, yaw, width, height) — scripts/levels/door.gd
+        self.panes = []  # (centre pos, yaw, width, height) — breakable glass, scripts/levels/glass_pane.gd
         self._n = {}
 
     def _id(self, prefix):
@@ -164,6 +166,15 @@ class Map:
         top = radius if top is None else top
         self.boxes.append((self._id(name), pos, ("cyl", top, radius, height, segments),
                            self._basis(yaw, pitch, roll), mat, collide))
+
+    def door(self, pos, yaw, width, height):
+        """A door that opens (Interact) and breaks where it is shot. pos is
+        the bottom centre of the doorway; yaw 0 = the door spans X."""
+        self.doors.append((pos, yaw, width, height))
+
+    def pane(self, pos, yaw, width, height):
+        """A breakable glass pane centred on pos; yaw 0 = it spans X."""
+        self.panes.append((pos, yaw, width, height))
 
     def blocker(self, pos, size, name="Blocker"):
         """Invisible collision box (e.g. one collider for a pile of sandbags)."""
@@ -232,9 +243,11 @@ class Map:
             size = (length, thickness, width)
         self.boxes.append((self._id(name), (cx, cy, cz), ("box", size), basis, mat, collide))
 
-    def wall_with_gaps(self, a, b, height, thickness, gaps, mat="wall", y0=0.0, name="Wall"):
+    def wall_with_gaps(self, a, b, height, thickness, gaps, mat="wall", y0=0.0, name="Wall", doors=False):
         """Straight wall from a=(x,z) to b=(x,z) (axis-aligned) with door gaps:
-        gaps = [(offset_from_a, gap_width, gap_height)]; gap_height >= height = full."""
+        gaps = [(offset_from_a, gap_width, gap_height)]; gap_height >= height = full.
+        doors=True puts a door (Map.door) in every door-sized gap; a "glass"
+        wall is made of breakable panes (Map.pane)."""
         ax, az = a
         bx, bz = b
         along_x = abs(bx - ax) > abs(bz - az)
@@ -248,6 +261,9 @@ class Map:
                 segments.append((pos, off, 0.0, height))
             if gh < height:  # lintel above the door
                 segments.append((off, off + w, gh, height))
+            if doors and gh < height and w <= 2.2 and gh <= 2.6:
+                mid = (off + w / 2) * sign
+                self.door((ax + mid, y0, az) if along_x else (ax, y0, az + mid), 0.0 if along_x else 90.0, w, gh)
             pos = off + w
         if pos < total:
             segments.append((pos, total, 0.0, height))
@@ -255,6 +271,14 @@ class Map:
             mid = (s0 + s1) / 2 * sign
             length = s1 - s0
             cy = y0 + (h0 + h1) / 2
+            if mat == "glass":
+                # Breakable panes, at most ~3 m wide each.
+                n = max(1, math.ceil(length / 3.0))
+                for k in range(n):
+                    pm = (s0 + (k + 0.5) * length / n) * sign
+                    self.pane((ax + pm, cy, az) if along_x else (ax, cy, az + pm), 0.0 if along_x else 90.0,
+                              length / n - 0.04, h1 - h0 - 0.04)
+                continue
             if along_x:
                 self.box((ax + mid, cy, az), (length, h1 - h0, thickness), mat, name)
             else:
@@ -372,6 +396,8 @@ class Map:
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="3_pause"]
 [ext_resource type="Shader" path="res://assets/shaders/prototype_grid.gdshader" id="4_grid"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="6_player"]
+[ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
+[ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color({sky[0]}, {sky[1]}, {sky[2]}, 1)
@@ -402,6 +428,18 @@ fog_density = {fog}
 {fog_line}volumetric_fog_density = 0.01
 
 '''
+        door_nodes = []
+        for i, (pos, yaw, w, h) in enumerate(self.doors):
+            b = ", ".join(f"{v:.6f}" for v in self._basis(yaw))
+            door_nodes.append(f'[node name="Door{i + 1}" type="Node3D" parent="Doors"]\n'
+                              f'transform = Transform3D({b}, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n'
+                              f'script = ExtResource("7_door")\nwidth = {w:.3f}\nheight = {h:.3f}\n')
+        pane_nodes = []
+        for i, (pos, yaw, w, h) in enumerate(self.panes):
+            b = ", ".join(f"{v:.6f}" for v in self._basis(yaw))
+            pane_nodes.append(f'[node name="Pane{i + 1}" type="Node3D" parent="Glass"]\n'
+                              f'transform = Transform3D({b}, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n'
+                              f'script = ExtResource("8_glass")\nwidth = {w:.3f}\nheight = {h:.3f}\n')
         site_nodes, site_paths = [], []
         for name, pos in self.sites:
             site_nodes.append(f'[node name="{name}" type="Marker3D" parent="BombSites"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]}, {pos[1]}, {pos[2]})\n')
@@ -442,6 +480,8 @@ directional_shadow_max_distance = 100.0
                + ('\n[node name="AudioZones" type="Node3D" parent="."]\n\n' + "\n".join(zone_nodes) if zone_nodes else "")
                + ('\n[node name="Callouts" type="Node3D" parent="."]\n\n' + "\n".join(callout_nodes) if callout_nodes else "")
                + ('\n[node name="Signs" type="Node3D" parent="."]\n\n' + "\n".join(sign_nodes) if sign_nodes else "")
+               + ('\n[node name="Doors" type="Node3D" parent="."]\n\n' + "\n".join(door_nodes) if door_nodes else "")
+               + ('\n[node name="Glass" type="Node3D" parent="."]\n\n' + "\n".join(pane_nodes) if pane_nodes else "")
                + "\n" + tail)
         with open(os.path.join(ROOT, path), "w") as f:
             f.write(out)
@@ -859,7 +899,8 @@ def oasis():
     m.box((-34, 3.5, 9), (8, 0.4, 18), "plaster", "ApartmentsCeiling")
     m.box((-34, 7.3, 9), (8, 7.2, 18), "plaster", "ApartmentsUpper")
     _facade(m, rng, -38, -30, 0, 18, 10.9, "", spacing=4)
-    m.wall_with_gaps((-34, 3), (-34, 15), 3.3, 0.4, [(3.0, 2.2, 99.0), (8.0, 1.6, 2.4)], "plaster_warm", name="AptWall")
+    m.wall_with_gaps((-34, 3), (-34, 15), 3.3, 0.4, [(3.0, 2.2, 99.0), (8.0, 1.6, 2.4)], "plaster_warm", name="AptWall",
+                     doors=True)
     for z in (0, 18):
         m.wall_with_gaps((-38, z), (-30, z), 3.3, 0.4, [(1.5, 5.0, 2.6)], "sandstone", name="AptArch")
     m.omni((-36, 2.9, 4), 1.2, 8.0, (1.0, 0.8, 0.55))
@@ -1230,10 +1271,11 @@ def _gantry(m, x0, x1, z, h=9.0, mat="yellow"):
 # ----------------------------------------------------------------------
 # Enterable buildings: real door and window openings, floors, stairs.
 
-def _wall_openings(m, a, b, y0, h, t, openings, mat, name="HouseWall"):
+def _wall_openings(m, a, b, y0, h, t, openings, mat, name="HouseWall", fill=False):
     """Straight axis-aligned wall band from a=(x,z) to b=(x,z), height h
     starting at y0, with rectangular holes: openings = [(offset, width,
-    bottom, top)] measured from a and from y0."""
+    bottom, top)] measured from a and from y0. fill=True puts a door in
+    holes that reach the floor and a breakable glass pane in the others."""
     ax, az = a
     bx, bz = b
     along_x = abs(bx - ax) > abs(bz - az)
@@ -1262,6 +1304,14 @@ def _wall_openings(m, a, b, y0, h, t, openings, mat, name="HouseWall"):
                 m.box((ax + mid, y0 + bottom - 0.04, az), (w + 0.2, 0.08, t + 0.12), "sandstone", "Sill", collide=False)
             else:
                 m.box((ax, y0 + bottom - 0.04, az + mid), (t + 0.12, 0.08, w + 0.2), "sandstone", "Sill", collide=False)
+        if fill:
+            mid = (off + w / 2) * sign
+            yaw = 0.0 if along_x else 90.0
+            at = (lambda y: (ax + mid, y, az) if along_x else (ax, y, az + mid))
+            if bottom < 0.05:
+                m.door(at(y0), yaw, w, top)
+            else:
+                m.pane(at(y0 + (bottom + top) / 2), yaw, w - 0.04, top - bottom - 0.04)
         pos = off + w
     piece(pos, total, 0.0, h)
 
@@ -1302,7 +1352,7 @@ def _house(m, x0, x1, z0, z1, mat, floors=2, fh=4.0, doors=(), windows="nsew", s
                     off = (k + 0.5) * length / count - 0.6
                     if all(off + 1.2 < o[0] - 0.3 or off > o[0] + o[1] + 0.3 for o in ops):
                         ops.append((off, 1.2, 1.1, 2.3))
-            _wall_openings(m, a, b, f * fh, fh, t, ops, mat)
+            _wall_openings(m, a, b, f * fh, fh, t, ops, mat, fill=True)
     # Stair: a ramp along one wall (about 25 degrees) up to each floor.
     run = fh / math.tan(math.radians(stair_angle))
     along_x = stair_side in "ns"
@@ -1671,8 +1721,10 @@ def office():
     m.box((0, 0.01, 0), (48, 0.02, 60), "carpet", "Carpet", collide=False)
     # Shell: front doors, side doors.
     m.wall_with_gaps((W0, Z1), (W1, Z1), HT, 0.4, [(20.0, 8.0, 3.0)], "concrete", name="Facade")
-    m.wall_with_gaps((W1, Z0), (W1, Z1), HT, 0.4, [(10.0, 2.0, 2.4), (36.0, 2.0, 2.4)], "concrete", name="Facade")
-    m.wall_with_gaps((W0, Z0), (W0, Z1), HT, 0.4, [(10.0, 2.0, 2.4), (36.0, 2.0, 2.4)], "concrete", name="Facade")
+    m.wall_with_gaps((W1, Z0), (W1, Z1), HT, 0.4, [(10.0, 2.0, 2.4), (36.0, 2.0, 2.4)], "concrete", name="Facade",
+                     doors=True)
+    m.wall_with_gaps((W0, Z0), (W0, Z1), HT, 0.4, [(10.0, 2.0, 2.4), (36.0, 2.0, 2.4)], "concrete", name="Facade",
+                     doors=True)
     m.wall_with_gaps((W0, Z0), (W1, Z0), HT, 0.4, [], "concrete", name="Facade")
     m.box((0, HT + 0.15, 0), (48.4, 0.3, 60.4), "ceiling", "Roof", collide=False)
     # Facade windows (both floors) and the glass entrance canopy.
@@ -1694,7 +1746,7 @@ def office():
         m.box((x, F + 0.5, -12.05), (1.4, 1.0, 0.1), "glass", "Balustrade")
     # Upper offices: glass wall with doors, desks.
     m.wall_with_gaps((W0, -21), (W1, -21), 3.4, 0.12, [(8.0, 1.6, 2.3), (23.2, 1.6, 2.3), (38.0, 1.6, 2.3)],
-                     "glass", y0=F, name="GlassWall")
+                     "glass", y0=F, name="GlassWall", doors=True)
     for x in (-16, -6, 6, 16):
         _desk(m, x, -26, 180, partition=False, y=F)
     # Lobby: reception, pillars, sofas, plants.
@@ -1716,8 +1768,8 @@ def office():
     m.box((22.8, 1.0, 22), (0.6, 2.0, 1.2), "office_wall", "Cabinet")
     m.site("A", (15.5, 0.0, 15.5))
     # West: conference room, server room (B).
-    m.wall_with_gaps((-10, -12), (-10, 30), 3.2, 0.2, [(6.0, 3.0, 99.0), (30.0, 2.0, 2.4)], "office_wall", name="WestWall")
-    m.wall_with_gaps((-24, 14), (-10, 14), 3.2, 0.2, [(9.0, 1.8, 2.4)], "glass", name="ConfWall")
+    m.wall_with_gaps((-10, -12), (-10, 30), 3.2, 0.2, [(6.0, 3.0, 99.0), (30.0, 2.0, 2.4)], "office_wall", name="WestWall", doors=True)
+    m.wall_with_gaps((-24, 14), (-10, 14), 3.2, 0.2, [(9.0, 1.8, 2.4)], "glass", name="ConfWall", doors=True)
     m.box((-17, 0.4, 22), (6, 0.8, 2.2), "wood", "ConfTable")
     for x in (-19.5, -17, -14.5):
         for z in (20.5, 23.5):
@@ -1730,8 +1782,8 @@ def office():
     m.box((-15, 0.6, 6), (1.2, 1.2, 1.2), "floor_dark", "UPS")
     m.site("B", (-17.0, 0.0, 2.0))
     # Under the mezzanine: break room (west), storage (east), CT spawn.
-    m.wall_with_gaps((-24, -12), (-10, -12), 3.2, 0.2, [(9.0, 1.8, 2.4)], "office_wall", name="BreakWall")
-    m.wall_with_gaps((10, -12), (24, -12), 3.2, 0.2, [(3.0, 1.8, 2.4)], "office_wall", name="StoreWall")
+    m.wall_with_gaps((-24, -12), (-10, -12), 3.2, 0.2, [(9.0, 1.8, 2.4)], "office_wall", name="BreakWall", doors=True)
+    m.wall_with_gaps((10, -12), (24, -12), 3.2, 0.2, [(3.0, 1.8, 2.4)], "office_wall", name="StoreWall", doors=True)
     m.box((-22.5, 0.45, -24), (1.2, 0.9, 6), "tile", "Kitchen")
     m.box((-17, 0.38, -20), (3, 0.75, 1.4), "wood", "Table")
     m.box((-12, 0.9, -28.8), (0.8, 1.8, 0.6), "tile_band", "Fridge")

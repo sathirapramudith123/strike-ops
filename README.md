@@ -694,7 +694,7 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 | Reload | `R` |
 | Fire / aim down sights | `Left Mouse` / `Right Mouse` |
 | **Switch fire mode** | `B` — AR-7: auto / 3-round burst / semi, V-10: auto / semi (shown next to the weapon name) |
-| Use / pick up / plant / defuse (hold) | `F` |
+| Use / open doors / plant / defuse (hold) | `F` — looking at a door opens it away from you (or closes it); doors break where they are shot, windows crack then shatter |
 | **Map** | `M` — the whole level, north up, with area names |
 | Chat / team chat | `Y` / `T` |
 | Voice chat (team) / (proximity) | hold `U` / `V` |

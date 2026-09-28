@@ -374,6 +374,9 @@ func _level_ready() -> void:
 		_spawn_player.rpc_id(id, p.peer_id, p.player_name, p.global_transform, p.primary_id, p.current_slot)
 	for h: Health in get_tree().get_nodes_in_group(Health.NET_GROUP):
 		h.send_state_to(id)
+	# Doors (open / broken pieces) and windows (cracked / shattered).
+	for n in get_tree().get_nodes_in_group(Door.NET_GROUP):
+		n.send_state_to(id)
 	_server_spawn(id)
 
 

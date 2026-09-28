@@ -547,8 +547,38 @@ func _run_mixed_host() -> void:
 	_check(NetworkManager.roster[client_id].opus == false and NetworkManager.roster[1].opus == true,
 		"roster knows who has Opus")
 	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_ADPCM)
+	# A door and a window, made on both sides under the same path.
+	var door := _net_door(level, client.global_position)
+	var pane := _net_pane(level)
+	await get_tree().create_timer(1.5).timeout # the client builds its copies
+	door._server_toggle(door.global_position + Vector3(0, 0, 2))
+	for i in 3:
+		door.server_hit(door.leaf(0), door.leaf(0).global_position + Vector3(0, 1.0, 0), 20.0)
+	pane.server_hit(null, pane.global_position, 10.0)
+	pane.server_hit(null, pane.global_position, 10.0)
+	door.send_state_to(client_id) # the late-joiner path too
+	var closed: Variant = await _wait_for(func() -> Variant: return true if not door.is_open() else null)
+	_check(closed == true, "the client closed the door (host sees it)")
 	await _wait_for(func() -> Variant: return true if level.get_player(client_id) == null else null)
 	_finish()
+
+
+## Next to `near` (the client's player — the server only lets players use
+## doors within reach).
+func _net_door(level: Level, near: Vector3) -> Door:
+	var door := Door.new()
+	door.name = "NetDoor"
+	level.add_child(door)
+	door.global_position = Vector3(near.x, 0, near.z - 1.5)
+	return door
+
+
+func _net_pane(level: Level) -> GlassPane:
+	var pane := GlassPane.new()
+	pane.name = "NetPane"
+	level.add_child(pane)
+	pane.global_position = Vector3(34, 1.5, 30)
+	return pane
 
 
 func _run_mixed_client() -> void:
@@ -559,6 +589,17 @@ func _run_mixed_client() -> void:
 	var level: Level = await _wait_for(func() -> Variant: return _level())
 	await _wait_for(func() -> Variant: return level.get_player(1) if level and level.player else null)
 	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_ADPCM)
+	var door := _net_door(level, level.player.global_position)
+	var pane := _net_pane(level)
+	var opened: Variant = await _wait_for(func() -> Variant: return true if door.is_open() else null)
+	_check(opened == true and door.open_side == -1, "the host opened the door (client sees it swing away)")
+	var shattered: Variant = await _wait_for(func() -> Variant: return true if pane.broken else null)
+	_check(shattered == true, "the host's shots shatter the window on the client too")
+	_check(door.pieces_left() < 24, "the shot-out door piece is gone on the client (%d left)" % door.pieces_left())
+	await get_tree().create_timer(0.5).timeout
+	door.request_toggle(level.player.global_position)
+	var shut: Variant = await _wait_for(func() -> Variant: return true if not door.is_open() else null)
+	_check(shut == true, "the client closes the door through the server")
 	await get_tree().create_timer(2.0).timeout # let the host finish its checks
 	NetworkManager.leave()
 	await _frames(30)

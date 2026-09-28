@@ -426,6 +426,27 @@ func _server_fire(render_time: float, origin: Vector3, dirs: PackedVector3Array)
 	_server_process_shot(origin, checked, render_time)
 
 
+## Server: one pellet through breakable glass (it cracks or shatters and
+## the bullet goes on) up to what it stops at; a door piece it hits takes the
+## damage (Door / GlassPane.server_hit).
+func _trace_through_breakables(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, players: Array,
+		render_time: float, teammates: Array) -> Dictionary:
+	var skip: Array[RID] = []
+	var hit := {}
+	for i in 4:
+		hit = LagCompensation.trace(space, origin, dir, data.max_range, _player, players, render_time, teammates, skip)
+		var col: Object = hit.get("collider")
+		if col == null or not col.has_meta(&"breakable") or not Match.can_shoot():
+			break
+		var falloff := remap(hit.distance, data.falloff_start, data.max_range, 1.0, data.min_damage_multiplier)
+		var target: Object = col.get_meta(&"breakable")
+		target.server_hit(col, hit.position, data.damage * clampf(falloff, data.min_damage_multiplier, 1.0))
+		if not target is GlassPane:
+			break
+		skip.append((col as CollisionObject3D).get_rid())
+	return hit
+
+
 ## Server: trace every pellet with lag compensation, apply damage, broadcast effects.
 func _server_process_shot(origin: Vector3, dirs: PackedVector3Array, render_time: float) -> void:
 	# Teammates are not hit — bullets pass through them.
@@ -439,7 +460,7 @@ func _server_process_shot(origin: Vector3, dirs: PackedVector3Array, render_time
 	var any_head := false
 	var any_hit := false
 	for dir in dirs:
-		var hit := LagCompensation.trace(space, origin, dir, data.max_range, _player, players, render_time, teammates)
+		var hit := _trace_through_breakables(space, origin, dir, players, render_time, teammates)
 		if hit.is_empty():
 			continue
 		hit_positions.append(hit.position)
@@ -659,9 +680,25 @@ func _spawn_impact(pos: Vector3, normal: Vector3) -> void:
 	if data.melee:
 		Audio.play_3d(&"knife_hit", pos, -4.0, 20.0, _rng.randf_range(0.9, 1.1), 3.0)
 		return
-	ImpactDecals.get_for(self).add(pos, normal)
+	# Doors and glass show their own damage (splinters, cracks) — a decal
+	# would hang in the air once the piece breaks.
+	if not _is_breakable_at(pos, normal):
+		ImpactDecals.get_for(self).add(pos, normal)
 	# One impact sound per shot (a shotgun blast is 13 pellets).
 	var now := Time.get_ticks_msec()
 	if now - _last_impact_sound_ms > 40:
 		_last_impact_sound_ms = now
 		Audio.play_3d(&"impact", pos, -8.0, 25.0, _rng.randf_range(0.85, 1.15), 3.0)
+
+
+func _is_breakable_at(pos: Vector3, normal: Vector3) -> bool:
+	if not is_inside_tree():
+		return false
+	var q := PhysicsPointQueryParameters3D.new()
+	q.position = pos - normal * 0.01
+	q.collision_mask = 1
+	for r: Dictionary in get_world_3d().direct_space_state.intersect_point(q, 4):
+		var c: Object = r.get("collider")
+		if c and c.has_meta(&"breakable"):
+			return true
+	return false

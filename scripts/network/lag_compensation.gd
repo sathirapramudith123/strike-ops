@@ -19,19 +19,22 @@ const HEAD_RADIUS := 0.2
 const HEAD_DROP := 0.2
 
 
-## Returns {} on miss, otherwise { position, normal, distance, hitbox, zone }
-## (zone: &"head" / &"chest" / &"stomach" / &"legs", see Hitbox.zone_at).
+## Returns {} on miss, otherwise { position, normal, distance, hitbox, zone,
+## collider } (zone: &"head" / &"chest" / &"stomach" / &"legs", see
+## Hitbox.zone_at; collider: the world body hit, null for players).
+## `skip`: world bodies to shoot through (shattered glass on the way).
 ## `players` must contain every player (their hitboxes are removed from the
 ## physics query and tested analytically instead); players in `ignore`
 ## (teammates) are not hit at all — bullets pass through them.
 static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, max_range: float,
-		shooter: PlayerController, players: Array, rewind_time: float, ignore: Array = []) -> Dictionary:
+		shooter: PlayerController, players: Array, rewind_time: float, ignore: Array = [],
+		skip: Array[RID] = []) -> Dictionary:
 	dir = dir.normalized()
 	var best := {}
 	var best_distance := max_range
 
 	# 1) World + non-player hitboxes via physics.
-	var exclude: Array[RID] = []
+	var exclude: Array[RID] = skip.duplicate()
 	for p: PlayerController in players:
 		exclude.append(p.get_rid())
 		for hb: Hitbox in p.hitboxes:
@@ -47,6 +50,7 @@ static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector
 			"hitbox": hit.collider as Hitbox,
 			# Non-player hitboxes (target dummies) have no body zones.
 			"zone": &"head" if hit.collider is Hitbox and (hit.collider as Hitbox).is_head else &"chest",
+			"collider": hit.collider,
 		}
 
 	# 2) Players, rewound to what the shooter saw.

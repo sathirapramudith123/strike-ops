@@ -196,6 +196,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		rotate_y(-motion.relative.x * sens)
 		head.rotation.x = clampf(head.rotation.x - motion.relative.y * sens * invert,
 			-deg_to_rad(max_pitch_degrees), deg_to_rad(max_pitch_degrees))
+	elif event.is_action_pressed(&"interact") and not event.is_echo() and not _bomb_action_here() and use_door():
+		pass # opened / closed the door in front
 	elif event.is_action(&"interact") and not event.is_echo():
 		# Plant / defuse in Bomb Defusal (the server checks everything).
 		if Match.mode == GameConfig.Mode.BOMB:
@@ -351,6 +353,46 @@ func _physics_process(delta: float) -> void:
 # -----------------------------------------------------------------------------
 # Public API
 # -----------------------------------------------------------------------------
+
+## Bomb Defusal: F plants / defuses here, so it must not work a door.
+func _bomb_action_here() -> bool:
+	if Match.mode != GameConfig.Mode.BOMB:
+		return false
+	var b := Match.bomb
+	if b.bomb_carrier == peer_id and b.site_at(global_position) != "":
+		return true
+	return b.bomb_state == BombRules.BombState.PLANTED \
+		and global_position.distance_to(b.bomb_position) <= BombRules.DEFUSE_RANGE + 0.5
+
+
+## Interact (F) on the door in front (within Door.USE_RANGE): opens it away
+## from us, or closes it. Returns false if there is no door there.
+func use_door() -> bool:
+	if health.is_dead:
+		return false
+	var from := camera.global_position
+	var q := PhysicsRayQueryParameters3D.create(from, from - camera.global_basis.z * Door.USE_RANGE, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	var col: Object = hit.get("collider")
+	var door: Door = null
+	if col and col.has_meta(&"breakable") and col.get_meta(&"breakable") is Door:
+		door = col.get_meta(&"breakable")
+	else:
+		# Looking into a doorway (an open door stands aside): the nearest
+		# door we roughly face.
+		var look := -camera.global_basis.z
+		var best := 2.5
+		for d: Door in get_tree().get_nodes_in_group(Door.GROUP):
+			var to := (d.global_position + Vector3.UP * 1.2) - from
+			var dist := to.length()
+			if dist < best and look.dot(to / maxf(dist, 0.01)) > 0.7:
+				best = dist
+				door = d
+	if door == null:
+		return false
+	door.request_toggle(global_position)
+	return true
+
 
 ## Pulls the player up onto a climbable ledge in front (at least
 ## `min_height` high). Returns false if there is none.

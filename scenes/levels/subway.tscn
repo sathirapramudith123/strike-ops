@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="3_pause"]
 [ext_resource type="Shader" path="res://assets/shaders/prototype_grid.gdshader" id="4_grid"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="6_player"]
+[ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
+[ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.1, 0.1, 0.12, 1)

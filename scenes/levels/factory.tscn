@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="3_pause"]
 [ext_resource type="Shader" path="res://assets/shaders/prototype_grid.gdshader" id="4_grid"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="6_player"]
+[ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
+[ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.28, 0.5, 0.82, 1)
@@ -14486,6 +14488,154 @@ modulate = Color(0.12, 0.35, 0.8, 0.95)
 text = "CT"
 font_size = 256
 outline_size = 0
+
+[node name="Doors" type="Node3D" parent="."]
+
+[node name="Door1" type="Node3D" parent="Doors"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 4.800, 0.000, -28.000)
+script = ExtResource("7_door")
+width = 1.600
+height = 2.400
+
+[node name="Door2" type="Node3D" parent="Doors"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 4.800, 0.000, -22.000)
+script = ExtResource("7_door")
+width = 1.600
+height = 2.400
+
+[node name="Glass" type="Node3D" parent="."]
+
+[node name="Pane1" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -4.500, 1.700, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane2" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -1.500, 1.700, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane3" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 1.500, 1.700, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane4" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -4.500, 6.200, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane5" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -1.500, 6.200, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane6" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 1.500, 6.200, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane7" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 4.500, 6.200, -28.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane8" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -4.500, 1.700, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane9" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -1.500, 1.700, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane10" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 1.500, 1.700, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane11" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -4.500, 6.200, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane12" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -1.500, 6.200, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane13" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 1.500, 6.200, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane14" type="Node3D" parent="Glass"]
+transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 4.500, 6.200, -22.000)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane15" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -6.000, 1.700, -26.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane16" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -6.000, 1.700, -23.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane17" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -6.000, 6.200, -26.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane18" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, -6.000, 6.200, -23.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane19" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 6.000, 1.700, -26.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane20" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 6.000, 1.700, -23.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane21" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 6.000, 6.200, -26.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
+
+[node name="Pane22" type="Node3D" parent="Glass"]
+transform = Transform3D(0.000000, 0.000000, -1.000000, 0.000000, 1.000000, 0.000000, 1.000000, 0.000000, 0.000000, 6.000, 6.200, -23.500)
+script = ExtResource("8_glass")
+width = 1.160
+height = 1.160
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 
