@@ -517,7 +517,7 @@ Preset files themselves are only *suggested* — review and edit `resources/sett
 | **Display** | Window mode, window size, V-Sync, FPS limit, field of view, brightness, performance overlay |
 | **Audio** | Master, music, effects, voice chat and interface volume |
 | **Voice** | On/off, push-to-talk or voice activation, microphone, mic volume, activation level, live mic meter, noise suppression, proximity chat, "hear myself" test |
-| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 23 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
+| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 24 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
 | **Gameplay** | Player name, crosshair colour / size / centre dot with live preview |
 
 *Reset tab* restores that tab's defaults. Settings live in `user://settings.cfg` (key bindings in its `[bindings]` section, stored by physical key position so they work on any keyboard layout). Tests use a separate `settings_test.cfg`, so running them never changes your settings. `Esc`/Pause stays fixed so you can always reach the menu.
@@ -570,6 +570,15 @@ Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only 
 | Legs (lower half of the body) | ×0.75 | **no** |
 
 With armour (Bomb Defusal), the armour soaks `1 − armour penetration` of the hit and loses that much; the rest goes to health. A rifle bullet keeps 78 % of its damage against armour, a pistol bullet only half. Falls and the bomb ignore armour. Zones are worked out on the server from the rewound (lag-compensated) player shapes: `Hitbox.zone_at()` and `ZONE_MULTIPLIERS` in `scripts/core/hitbox.gd`, `armor_penetration` in each `WeaponData`.
+
+**Grenades** — everyone gets one **HE grenade** (`G`) and one **Molotov** (`Q`) per life (per round in Bomb Defusal), thrown straight away without switching from the gun (`scripts/weapons/throwables.gd`):
+
+| Grenade | Goes off | Damage | Armour |
+|---------|----------|--------|--------|
+| HE grenade | after a 1.6 s fuse (bounces first) | up to 98 at the centre, falling to 0 at 6 m; walls block it | 50 % penetration |
+| Molotov | when it breaks on a floor (or after 2.5 s) | a 3 m fire for 7 s, 25 per second to anyone standing in it | ignored |
+
+Neither hurts teammates; both hurt the thrower. The owner asks the server to throw, every peer simulates the same projectile, and the server alone decides where it goes off and deals the damage; the kill feed shows "HE Grenade" / "Molotov".
 
 All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weapon: new `WeaponData` `.tres` + viewmodel scene using `weapon.gd`, register it in `scripts/core/game_config.gd`, and add an instance under the player's `WeaponHolder`.
 
@@ -658,7 +667,7 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 | Reload | `R` |
 | Switch weapon | `1` primary / `2` pistol / `Mouse Wheel` |
 | Interact / plant / defuse (hold) | `E` |
-| Throw grenade | `G` |
+| Throw HE grenade / Molotov | `G` / `Q` |
 | **Push-to-talk (team)** | `V` |
 | **Push-to-talk (proximity)** | `B` |
 | Scoreboard | `Tab` |
@@ -677,6 +686,7 @@ All keys (except `Esc`) can be remapped in **Settings → Controls**; aim and cr
 | Sprint / slide | L3 / R3 (stick clicks) | Interact (plant, defuse) | LB |
 | Primary / pistol | D-pad ← / → | Team / proximity voice | D-pad ↑ / ↓ |
 | Scoreboard | View (Back) | Pause | Menu (Start) |
+| HE grenade | RB | Molotov | unbound (set it in Settings) |
 
 Menus: D-pad / left stick to move, **A** to select, **B** to go back. **Settings → Controls → Controller:** look sensitivity (°/s), stick deadzone, response curve (Linear / Default / Precise), invert Y, **aim assist** (slows the aim while the crosshair is on an enemy — controller only), vibration; every action has a keyboard *and* a controller binding, both remappable (`scripts/core/gamepad_input.gd`).
 

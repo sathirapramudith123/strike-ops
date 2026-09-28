@@ -38,6 +38,7 @@ func _run() -> void:
 	await _test_weapon_switching()
 	await _test_shotgun_and_sniper()
 	await _test_loadout_on_respawn()
+	await _test_grenades()
 	await _test_audio()
 	await _test_controller()
 	_test_friendly_fire_and_match_end()
@@ -455,6 +456,103 @@ func _test_loadout_on_respawn() -> void:
 	Match.request_loadout("rifle")
 
 
+func _press_action(action: StringName) -> void:
+	var ev := InputEventAction.new()
+	ev.action = action
+	ev.pressed = true
+	Input.parse_input_event(ev)
+	var up := InputEventAction.new()
+	up.action = action
+	Input.parse_input_event(up)
+
+
+func _test_grenades() -> void:
+	var t := _player.throwables
+	_check(t != null and t.counts[Throwables.Kind.HE] == 1 and t.counts[Throwables.Kind.MOLOTOV] == 1,
+		"spawn with one HE grenade and one Molotov")
+	var slots := _level.hud._weapon_slots.get_children().map(func(l: Label) -> String: return l.text)
+	_check(slots.any(func(x: String) -> bool: return x.begins_with("HE ×1")) \
+		and slots.any(func(x: String) -> bool: return x.begins_with("Molotov ×1")), "HUD lists the grenades (%s)" % str(slots))
+	_player.health.protect(0.0)
+
+	# HE: the G key throws it, it flies, bounces and explodes after the fuse.
+	_reset_player(Vector3(0, 0.1, -12), PI)
+	_player.head.rotation.x = deg_to_rad(10)
+	await _frames(3)
+	_press_action(&"throw_grenade")
+	await _frames(2)
+	_check(t.counts[Throwables.Kind.HE] == 0, "G throws the HE grenade")
+	var nade := _level.find_child("Grenade_*", true, false) as GrenadeProjectile
+	_check(nade != null and nade.linear_velocity.length() > 10.0, "grenade flies out")
+	var thrown_from := nade.global_position if nade else Vector3.ZERO
+	await _frames(int(Throwables.HE_FUSE * 60.0) - 20)
+	_check(is_instance_valid(nade) and nade.global_position.distance_to(thrown_from) > 5.0, "grenade still flying before the fuse")
+	await _frames(40)
+	_check(not is_instance_valid(nade) or nade.is_queued_for_deletion(), "grenade explodes after its fuse")
+	_check(_level.find_child("Explosion", true, false) != null, "explosion effect spawned")
+	_press_action(&"throw_grenade")
+	await _frames(2)
+	_check(_level.find_child("Grenade_*", true, false) == null, "no second throw with none left")
+
+	# Blast damage: falls off with distance, stopped by walls.
+	var target := _level.get_node("Targets/Target2") as TargetDummy
+	target.health.revive()
+	var at := target.global_position
+	t._server_blast(at + Vector3(1.0, 0.1, 0.0))
+	var close_dmg := target.health.max_health - target.health.current
+	target.health.revive()
+	t._server_blast(at + Vector3(4.0, 0.1, 0.0))
+	var far_dmg := target.health.max_health - target.health.current
+	target.health.revive()
+	t._server_blast(at + Vector3(7.0, 0.1, 0.0))
+	var out_dmg := target.health.max_health - target.health.current
+	_check(close_dmg > 60.0 and far_dmg > 5.0 and far_dmg < close_dmg and out_dmg == 0.0,
+		"HE damage falls off (1 m %.0f, 4 m %.0f, 7 m %.0f)" % [close_dmg, far_dmg, out_dmg])
+	var wall := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.3, 4.0, 4.0)
+	shape.shape = box
+	wall.add_child(shape)
+	_level.add_child(wall)
+	wall.global_position = at + Vector3(1.5, 1.0, 0.0)
+	await _frames(2)
+	target.health.revive()
+	t._server_blast(at + Vector3(2.5, 0.1, 0.0))
+	_check(target.health.current == target.health.max_health, "walls block the blast")
+	wall.queue_free()
+	target.health.revive()
+
+	# Molotov: Q throws it at our feet; it breaks on the floor and burns.
+	_reset_player(Vector3(0, 0.1, -12), PI)
+	_player.head.rotation.x = deg_to_rad(-80)
+	_player.health.revive()
+	_player.health.protect(0.0)
+	await _frames(3)
+	_press_action(&"throw_molotov")
+	await _frames(40)
+	_check(t.counts[Throwables.Kind.MOLOTOV] == 0, "Q throws the Molotov")
+	var fire := _level.find_child("Fire_*", true, false) as FireZone
+	_check(fire != null and fire.is_burning(), "Molotov breaks on the floor and starts a fire")
+	await _frames(60)
+	_check(_player.health.current < _player.health.max_health, "fire burns the player standing in it (%.0f)" % _player.health.current)
+	_check(fire != null and fire.covers(fire.global_position + Vector3(1.0, 0.0, 0.0)) \
+		and not fire.covers(fire.global_position + Vector3(FireZone.RADIUS + 1.0, 0.0, 0.0)), "fire covers its radius only")
+	# Dying in the fire shows "Molotov" in the kill feed.
+	var feed := []
+	var on_feed := func(_k: int, _v: int, w: String, _h: bool) -> void: feed.append(w)
+	NetworkManager.kill_feed.connect(on_feed)
+	_player.health.current = 3.0
+	await _frames(20)
+	NetworkManager.kill_feed.disconnect(on_feed)
+	_check(_player.health.is_dead and "Molotov" in feed, "kill feed names the Molotov (%s)" % str(feed))
+	if fire:
+		fire.queue_free()
+	await _frames(int(_player.respawn_delay * 60.0) + 15)
+	_check(not _player.health.is_dead and t.counts[Throwables.Kind.HE] == 1 and t.counts[Throwables.Kind.MOLOTOV] == 1,
+		"grenades refilled on respawn")
+
+
 func _test_friendly_fire_and_match_end() -> void:
 	# Team deathmatch rules offline: us (blue) + a teammate in front of an enemy.
 	Match.configure(GameConfig.Mode.TDM, 1)
@@ -472,6 +570,11 @@ func _test_friendly_fire_and_match_end() -> void:
 	_check(mate.health.current == mate.health.max_health, "no friendly fire (teammate untouched)")
 	_check(enemy.health.current < enemy.health.max_health, "bullet passes through teammate and hits the enemy")
 	_check(Match.is_friendly(1, 401) and not Match.is_friendly(1, 402), "is_friendly follows teams")
+	# Grenades follow the same rule: an HE between them only hurts the enemy.
+	var enemy_hp := enemy.health.current
+	_player.throwables._server_blast(Vector3(-20, 0.1, 12.5))
+	_check(mate.health.current == mate.health.max_health and enemy.health.current < enemy_hp,
+		"HE grenade spares teammates, hurts enemies")
 
 	Match.results_time = 999.0
 	NetworkManager.report_kill(1, 402, "AR-7", false)

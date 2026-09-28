@@ -180,8 +180,9 @@ func _on_died(source: Node) -> void:
 		_respawn_timer = player.respawn_delay
 	var killer := source as PlayerController
 	var cause := player.health.last_cause if player.health.last_cause != "" else "Fall"
-	var weapon_name := killer.current_weapon.data.display_name \
-		if killer and killer.current_weapon else cause
+	var weapon_name := cause
+	if killer and killer.current_weapon and cause not in Throwables.NAMES.values():
+		weapon_name = killer.current_weapon.data.display_name
 	NetworkManager.report_kill(killer.peer_id if killer else -1, player.peer_id,
 		weapon_name, player.health.last_hit_headshot)
 

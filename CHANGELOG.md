@@ -2,6 +2,15 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**HE grenade and Molotov:** one of each per life (per round in Bomb
+Defusal), quick-thrown with `G` / `Q` (controller: RB for the HE). The HE
+bounces and goes off after 1.6 s — up to 98 damage, gone by 6 m, blocked
+by walls, half of it through armour — with a flash, fireball, smoke and a
+screen shake. The Molotov smashes on the floor and leaves a 3 m fire for
+7 s that burns 25 health a second (armour doesn't help). Teammates are
+safe, the thrower is not. The server decides where each goes off; the HUD
+lists what you have left and the kill feed names the grenade.
+
 **Armour (Bomb Defusal):** everyone starts each round with 100 armour. It
 takes 40 % of every bullet (and wears down by that much); falls and the
 bomb ignore it. Shown next to health with a shield icon.

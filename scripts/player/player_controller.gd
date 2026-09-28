@@ -14,6 +14,7 @@ extends CharacterBody3D
 ##   ├── Health                        ← authority = server
 ##   ├── NetSync (PlayerNetSync)
 ##   ├── BodyHitbox / Head/HeadHitbox  ← Hitbox (layer 3)
+##   ├── Throwables                   ← HE grenade + Molotov (added in _ready)
 ##   ├── ThirdPerson/Model (PlayerModel: body, legs, gun; shadow-only for the local player) + NameTag
 ##   └── Head (Node3D)                 ← pitch
 ##       └── Camera3D                  ← recoil + head bob
@@ -80,6 +81,8 @@ var primary_id: String = GameConfig.DEFAULT_PRIMARY
 var current_slot: int = 0
 ## weapon_id -> Weapon (every weapon exists on every player; see GameConfig.WEAPONS).
 var weapons: Dictionary = {}
+## HE grenade + Molotov (quick-throw, G / Q).
+var throwables: Throwables
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -125,6 +128,11 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	_default_regen = health.regen_per_second
 	_name_tag.text = player_name
+	# Built here (not in the scene) but under a fixed name, so its RPC path
+	# is the same on every peer.
+	throwables = Throwables.new()
+	throwables.name = "Throwables"
+	add_child(throwables)
 	NetworkManager.roster_changed.connect(_update_team_visuals)
 	_update_team_visuals()
 
@@ -339,6 +347,7 @@ func add_recoil(pitch_degrees: float, yaw_degrees: float) -> void:
 ## Called on every peer by PlayerNetSync when the server respawns this player.
 func respawn_at(xform: Transform3D, primary: String) -> void:
 	apply_loadout(primary, 0)
+	throwables.refill()
 	global_transform = xform
 	head.rotation = Vector3.ZERO
 	velocity = Vector3.ZERO

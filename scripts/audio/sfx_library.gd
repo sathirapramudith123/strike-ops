@@ -15,6 +15,8 @@ const NAMES: Array[StringName] = [
 	&"step1", &"step2", &"step3", &"step4", &"land", &"jump", &"slide",
 	# Bullets
 	&"impact", &"whiz",
+	# Grenades
+	&"throw", &"grenade_bounce", &"glass_break", &"fire",
 	# Feedback (UI bus)
 	&"hitmarker", &"headshot", &"kill", &"hurt", &"ui_click", &"ui_hover",
 	# Bomb Defusal + match
@@ -153,6 +155,28 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			b = PS.buffer(0.3)
 			PS.add_noise(b, 0.0, 0.3, 0.5, 0.5, 0.25, 22.0, 0.1, 82)
 			PS.add_tone(b, 0.0, 0.3, 0.35, 1100.0, 500.0, 20.0, 0.1)
+		# --- Grenades ---
+		&"throw":
+			b = PS.buffer(0.25)
+			PS.add_noise(b, 0.0, 0.25, 0.5, 0.3, 0.05, 14.0, 0.06, 83)
+		&"grenade_bounce":
+			b = PS.buffer(0.12)
+			PS.add_tone(b, 0.0, 0.1, 0.5, 950.0, 700.0, 45.0)
+			PS.add_noise(b, 0.0, 0.06, 0.4, 0.7, 0.1, 70.0, 0.0005, 84)
+		&"glass_break":
+			b = PS.buffer(0.6)
+			PS.add_noise(b, 0.0, 0.5, 0.8, 0.95, 0.4, 9.0, 0.0005, 85)
+			for i in 6:
+				PS.add_tone(b, i * 0.035, 0.2, 0.25, 2800.0 + i * 530.0, -1.0, 25.0)
+			PS.add_noise(b, 0.0, 0.6, 0.6, 0.25, 0.0, 5.0, 0.01, 86) # the whoosh of the fuel
+		&"fire":
+			# Crackling roar for the whole burn (FireZone.DURATION), fading at the end.
+			b = PS.buffer(7.5)
+			PS.add_noise(b, 0.0, 7.5, 0.5, 0.12, 0.0, 0.25, 0.3, 87)
+			var rng := RandomNumberGenerator.new()
+			rng.seed = 88
+			for i in 90:
+				PS.add_noise(b, rng.randf_range(0.0, 7.0), 0.03, rng.randf_range(0.3, 0.7), 0.9, 0.5, 90.0, 0.0005, 200 + i)
 		# --- Feedback ---
 		&"hitmarker":
 			b = PS.buffer(0.05)

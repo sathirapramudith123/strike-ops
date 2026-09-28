@@ -69,6 +69,10 @@ func _run_host() -> void:
 	var reload_seen: Variant = await _wait_for(func() -> Variant:
 		return true if int(Audio.stats.get("3d:mag_out", 0)) > 0 else null)
 	_check(reload_seen == true, "host sees and hears the client reload (third-person animation)")
+	var boom: Variant = await _wait_for(func() -> Variant:
+		return true if int(Audio.stats.get("3d:explosion", 0)) > 0 else null)
+	_check(boom == true and client.throwables.counts[Throwables.Kind.HE] == 0,
+		"client's HE grenade is thrown and explodes on the host")
 
 	_check_codec(await _voice_exchange(client_id, 500.0, 440.0), VoiceCodec.CODEC_OPUS)
 
@@ -131,6 +135,12 @@ func _run_client() -> void:
 	# Reload once so the host can see the third-person reload.
 	me.current_weapon.ammo_in_magazine = 5
 	me.current_weapon.reload()
+	# Throw the HE grenade away from the host; the server says where it goes off.
+	_aim_at(me, me.global_position + (me.global_position - host.global_position).normalized() * 20.0 + Vector3.UP * 8.0)
+	_check(me.throwables.throw(Throwables.Kind.HE), "client throws an HE grenade")
+	var exploded: Variant = await _wait_for(func() -> Variant:
+		return true if int(Audio.stats.get("3d:explosion", 0)) > 0 else null)
+	_check(exploded == true and me.throwables.counts[Throwables.Kind.HE] == 0, "client sees its grenade explode")
 
 	_check_codec(await _voice_exchange(1, 440.0, 500.0), VoiceCodec.CODEC_OPUS)
 
