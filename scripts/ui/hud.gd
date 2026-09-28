@@ -590,6 +590,8 @@ func _update_match_bar() -> void:
 					role = "Protect the bomb at %s" % b.bomb_site if attacker else "Defuse the bomb at %s!" % b.bomb_site
 				else:
 					role = "Attack — plant the bomb at A or B" if attacker else "Defend — stop the plant or defuse"
+			if b.is_overtime():
+				role = "OVERTIME %d (first to %d) · %s" % [b.overtime, b.win_target, role]
 			_match_bar.text = role
 		GameConfig.Mode.TDM:
 			var my_team := Match.get_team(multiplayer.get_unique_id())
@@ -618,7 +620,8 @@ func _update_bomb_hud() -> void:
 			if b.waiting_for_players:
 				msg = "Waiting for players on both teams…"
 			else:
-				msg = ("Switching sides!\n" if b.sides_swapped else "") + "Round %d starts in %d" % [b.round_number, ceili(b.phase_time_left)]
+				var ot := ("OVERTIME %d — first to %d\n" % [b.overtime, b.win_target]) if b.is_overtime() else ""
+				msg = ot + ("Switching sides!\n" if b.sides_swapped else "") + "Round %d starts in %d" % [b.round_number, ceili(b.phase_time_left)]
 		BombRules.Phase.PLANTED:
 			msg = "BOMB PLANTED at %s" % b.bomb_site if b.phase_time_left > b.bomb_time - 3.0 else ""
 		BombRules.Phase.ROUND_END:

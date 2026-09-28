@@ -2,6 +2,11 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Bomb Defusal overtime:** regulation is 8 rounds (first to 5); if it ends
+4–4 the match goes to overtime — halves of 3 rounds with sides swapping and
+$10,000 each — and the first team to win 4 overtime rounds takes it. Level
+again, another overtime. The HUD shows "OVERTIME 1 — first to 8".
+
 **Doors and glass:** doorways in houses and offices have real doors now
 (19 across Docks, Oasis, Factory and Office). Press F looking at one to
 open it — it swings away from you — or close it. Doors are made of wooden

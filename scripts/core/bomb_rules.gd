@@ -8,7 +8,11 @@ extends Node
 ## a plant, or when the round clock runs out. Attackers win when the bomb
 ## explodes or every defender is dead. No respawns during a round; the next
 ## round revives everyone. First team to `Match.score_limit` round wins takes
-## the match; sides swap at halftime.
+## the match; sides swap at halftime. Regulation is 2 × (score_limit - 1)
+## rounds, so it can end level (4–4 with the default 5): then **overtime**
+## — halves of `overtime_half` rounds, sides swapping at each, everyone on
+## Economy.OVERTIME_MONEY — first to `overtime_half` + 1 overtime round wins;
+## level again, another overtime.
 ##
 ## Server-authoritative: clients only send "interact held / released" and
 ## receive a compact state sync (plus local countdowns in between).
@@ -41,6 +45,8 @@ var bomb_time: float = 40.0
 var round_end_time: float = 5.0
 ## Swap sides after this many rounds (-1 = score_limit - 1, 0 = never).
 var halftime_after: int = -1
+## Rounds per overtime half (0 = no overtime).
+var overtime_half: int = 3
 
 # Replicated state.
 var phase: Phase = Phase.FREEZE
@@ -59,6 +65,9 @@ var round_reason: String = ""
 var sides_swapped: bool = false
 ## Freeze time is on hold until both teams have at least one player.
 var waiting_for_players: bool = false
+## Overtimes played so far (0 = regulation) and the round wins that take the match now.
+var overtime: int = 0
+var win_target: int = 0
 
 var _interact: Dictionary = {} # server: peer_id -> holding Interact
 var _last_positions: Dictionary = {} # server: peer_id -> position last frame
@@ -148,19 +157,40 @@ func start_match() -> void:
 	round_number = 0
 	attacking_team = 1
 	sides_swapped = false
+	overtime = 0
+	win_target = Match.score_limit
 	_start_round()
+
+
+## Rounds before halftime (0 = no halftime).
+func halftime_rounds() -> int:
+	return halftime_after if halftime_after >= 0 else maxi(Match.score_limit - 1, 0)
+
+
+## Rounds in regulation (both halves).
+func regulation_rounds() -> int:
+	return halftime_rounds() * 2
+
+
+func is_overtime() -> bool:
+	return overtime > 0
 
 
 func _start_round() -> void:
 	if Match.is_ended():
 		return
-	var halftime := halftime_after if halftime_after >= 0 else maxi(Match.score_limit - 1, 0)
+	var halftime := halftime_rounds()
+	var regulation := regulation_rounds()
 	sides_swapped = halftime > 0 and round_number == halftime
+	# Overtime: sides swap at its start and at each of its halves.
+	if overtime > 0 and overtime_half > 0 and round_number >= regulation \
+			and (round_number - regulation) % overtime_half == 0:
+		sides_swapped = true
 	if sides_swapped:
 		attacking_team = 1 - attacking_team
 	# Money: a fresh start each half; survivors keep their gear otherwise.
 	if round_number == 0 or sides_swapped:
-		Match.economy.server_reset()
+		Match.economy.server_reset(Economy.OVERTIME_MONEY if overtime > 0 else Economy.START_MONEY)
 	else:
 		Match.economy.server_prepare_round()
 	round_number += 1
@@ -216,8 +246,23 @@ func _end_round(winner: int, reason: String) -> void:
 	_sync()
 	round_ended.emit(winner, reason)
 	round_changed.emit()
-	if Match.score_limit > 0 and Match.team_scores[winner] >= Match.score_limit:
-		Match._end_match("%s team wins!" % GameConfig.TEAM_NAMES[winner])
+	var target := win_target if win_target > 0 else Match.score_limit
+	if target > 0 and Match.team_scores[winner] >= target:
+		Match._end_match("%s team wins!" % GameConfig.TEAM_NAMES[winner] + (" (overtime)" if overtime > 0 else ""))
+	elif _regulation_or_overtime_over() and Match.team_scores[0] == Match.team_scores[1]:
+		# Level at the end of regulation (or of an overtime): overtime.
+		overtime += 1
+		win_target = halftime_rounds() + overtime * overtime_half + 1
+		print("[bomb] Overtime %d — first to %d" % [overtime, win_target])
+		_sync()
+		round_changed.emit()
+
+
+func _regulation_or_overtime_over() -> bool:
+	var regulation := regulation_rounds()
+	if overtime_half <= 0 or regulation <= 0 or round_number < regulation:
+		return false
+	return (round_number - regulation) % (overtime_half * 2) == 0
 
 
 ## Called by Match.on_kill() and when a player leaves.
@@ -398,7 +443,7 @@ func _sync() -> void:
 func _pack() -> Array:
 	return [phase, phase_time_left, round_number, attacking_team, bomb_state, bomb_carrier,
 		bomb_position, bomb_site, action, action_player, action_progress, round_winner,
-		round_reason, sides_swapped, Match.team_scores, waiting_for_players, round_time]
+		round_reason, sides_swapped, Match.team_scores, waiting_for_players, round_time, overtime, win_target]
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -423,6 +468,8 @@ func _sync_round(data: Array) -> void:
 	Match.team_scores = data[14]
 	waiting_for_players = data[15]
 	round_time = data[16]
+	overtime = data[17]
+	win_target = data[18]
 	if round_number != old_round:
 		round_started.emit(round_number)
 	if phase == Phase.ROUND_END and old_phase != Phase.ROUND_END:

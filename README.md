@@ -543,6 +543,7 @@ Match flow: the server runs the clock and score → **results screen** (winner +
 | Rule | Detail |
 |------|--------|
 | Sides | Red attacks first, Blue defends; **sides swap at halftime** (after `rounds to win − 1` rounds) |
+| Overtime | Regulation is 2 × (rounds to win − 1) rounds (8 by default). Level at the end (4–4) → **overtime**: halves of 3 rounds, sides swap at each, everyone starts them with **$10,000**; first to 4 overtime round wins takes the match (level again → another overtime) |
 | Round | **5 s freeze** (can't move or shoot — buy with `X`) → **1:45** to plant → bomb timer **40 s** → 5 s round result |
 | Bomb | Given to a random attacker when the round goes live; carried on their back (visible to others); **dropped where the carrier dies**, any attacker can walk over it to pick it up |
 | Plant | Carrier stands still inside site **A** or **B** (orange floor + big letter) and **holds `F` for 3 s** |

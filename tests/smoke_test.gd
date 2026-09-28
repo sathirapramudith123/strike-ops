@@ -1120,6 +1120,7 @@ func _test_bomb_defusal() -> void:
 	NetworkManager.roster[402].team = 0
 	var defender := _level.spawn_player(402, "Defender", Transform3D(Basis.IDENTITY, Vector3(0, 0, 14)))
 	Match.start_match()
+	b.phase_time_left = 5.0 # time for the buying checks
 	await _frames(2)
 	_check(b.round_number == 1 and b.phase == BombRules.Phase.FREEZE, "round 1 starts in freeze time")
 	_check(b.is_attacker(1) and not b.is_attacker(402), "red attacks, blue defends")
@@ -1130,6 +1131,7 @@ func _test_bomb_defusal() -> void:
 	Input.action_release(&"move_forward")
 	_check(Vector2(_player.global_position.x - start.x, _player.global_position.z - start.z).length() < 0.05,
 		"movement frozen during freeze time")
+	b.phase_time_left = minf(b.phase_time_left, 0.2) # end the (long) test freeze now
 	await _frames(30)
 	_check(b.phase == BombRules.Phase.LIVE, "round goes live after freeze")
 	_check(b.bomb_carrier == 1 and b.bomb_state == BombRules.BombState.CARRIED, "the attacker gets the bomb when the round goes live")
@@ -1257,6 +1259,24 @@ func _test_bomb_defusal() -> void:
 	_check(b.attacking_team != first and b.sides_swapped, "sides swap at halftime")
 	_check(Economy.money_of(1) == Economy.START_MONEY and Economy.money_of(402) == Economy.START_MONEY,
 		"halftime resets the money")
+
+	# Overtime: first to 2 → regulation is 2 rounds; 1–1 → overtime (halves of 1 round).
+	Match.state = Match.State.PLAYING
+	b.halftime_after = -1
+	b.overtime_half = 1
+	Match.start_match()
+	b._end_round(0, "test")
+	b._start_round()
+	b._end_round(1, "test")
+	_check(b.overtime == 1 and b.win_target == 3 and not Match.is_ended(),
+		"level at the end of regulation → overtime, first to %d" % b.win_target)
+	b._start_round()
+	_check(b.sides_swapped and Economy.money_of(1) == Economy.OVERTIME_MONEY, "overtime: sides swap, $%d each" % Economy.OVERTIME_MONEY)
+	b._end_round(0, "test")
+	b._start_round()
+	b._end_round(0, "test")
+	_check(Match.is_ended() and "overtime" in Match.winner_text, "overtime winner takes the match (%s)" % Match.winner_text)
+	b.overtime_half = 3
 
 	_level.despawn_player(402)
 	NetworkManager.roster.erase(402)
