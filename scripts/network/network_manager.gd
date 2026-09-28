@@ -24,7 +24,7 @@ signal kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: 
 
 enum Mode { OFFLINE, HOST, DEDICATED, CLIENT }
 
-const PROTOCOL_VERSION := 5
+const PROTOCOL_VERSION := 6
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
@@ -332,7 +332,7 @@ func _on_connected_to_server() -> void:
 	_connect_timer = -1.0
 	print("[net] Connected as peer %d" % multiplayer.get_unique_id())
 	_register_player.rpc_id(1, local_name, PROTOCOL_VERSION, SettingsManager.preferred_primary,
-		VoiceCodec.opus_available())
+		VoiceCodec.opus_available(), CharacterLook.pack(SettingsManager.character))
 
 
 func _on_connection_failed() -> void:
@@ -355,7 +355,7 @@ func _fail(reason: String) -> void:
 # -----------------------------------------------------------------------------
 
 @rpc("any_peer", "call_remote", "reliable")
-func _register_player(player_name: String, protocol: int, primary: String, opus: bool) -> void:
+func _register_player(player_name: String, protocol: int, primary: String, opus: bool, look: Array = []) -> void:
 	if not multiplayer.is_server():
 		return
 	var id := multiplayer.get_remote_sender_id()
@@ -363,6 +363,7 @@ func _register_player(player_name: String, protocol: int, primary: String, opus:
 		_kicked.rpc_id(id, "Version mismatch (server %d, client %d)." % [PROTOCOL_VERSION, protocol])
 		return
 	roster[id] = _new_entry(_sanitize_name(player_name, id), primary, opus)
+	roster[id].look = CharacterLook.pack(CharacterLook.unpack(look))
 	roster[id].team = Match.assign_team(id)
 	print("[net] %s (%d) joined" % [roster[id].name, id])
 	_client_load_map.rpc_id(id, current_map)
@@ -473,6 +474,7 @@ func _server_spawn(peer_id: int) -> void:
 
 func _add_local_entry() -> void:
 	roster[1] = _new_entry(local_name, SettingsManager.preferred_primary, VoiceCodec.opus_available())
+	roster[1].look = CharacterLook.pack(SettingsManager.character)
 	roster[1].team = Match.assign_team(1)
 
 
@@ -496,7 +498,13 @@ func _new_entry(player_name: String, primary: String = GameConfig.DEFAULT_PRIMAR
 	return {
 		"name": player_name, "kills": 0, "deaths": 0, "ping": 0,
 		"team": GameConfig.TEAM_NONE, "primary": primary, "opus": opus, "money": Economy.START_MONEY,
+		"look": CharacterLook.pack(CharacterLook.default_look()),
 	}
+
+
+## A player's look (CharacterLook) from the roster.
+func look_of(peer_id: int) -> Dictionary:
+	return CharacterLook.unpack(roster.get(peer_id, {}).get("look", []))
 
 
 func _sanitize_name(raw: String, id: int) -> String:

@@ -51,7 +51,38 @@ func _ready() -> void:
 	NetworkManager.connection_failed.connect(_on_connection_failed)
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_build_bots_row()
+	_build_character_button()
 	%PlayButton.grab_focus()
+
+
+## "Character: <face> · <outfit> ▸" under the name: opens the Character screen.
+var _character_button: Button
+var _character_screen: CharacterScreen
+
+
+func _build_character_button() -> void:
+	_character_button = Button.new()
+	_character_button.name = "CharacterButton"
+	_character_button.tooltip_text = "Body, face, voice, outfit and kit — what other players see"
+	_main.add_child(_character_button)
+	_main.move_child(_character_button, %MapButton.get_index())
+	_character_screen = CharacterScreen.new()
+	_character_screen.name = "CharacterScreen"
+	add_child(_character_screen)
+	_character_button.pressed.connect(func() -> void:
+		_main.visible = false
+		_character_screen.open())
+	_character_screen.closed.connect(func() -> void:
+		_main.visible = true
+		_update_character_button()
+		_character_button.grab_focus())
+	_update_character_button()
+
+
+func _update_character_button() -> void:
+	var look: Dictionary = CharacterLook.sanitize(SettingsManager.character)
+	_character_button.text = "Character: %s · %s ▸" % [CharacterLook.face_of(look).name,
+		CharacterLook.OUTFITS[int(look.outfit)].name]
 
 
 ## "Bots [n] [Easy / Normal / Hard]" under the map and mode: training bots

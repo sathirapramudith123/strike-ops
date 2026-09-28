@@ -38,6 +38,7 @@ func _ready() -> void:
 
 func _run_host() -> void:
 	NetworkManager.local_name = "Host"
+	SettingsManager.character = CharacterLook.with_outfit(CharacterLook.default_look(), 5) # stealth
 	# Team deathmatch, first kill wins, short results screen → quick map rotation.
 	Match.configure(GameConfig.Mode.TDM, 1)
 	Match.results_time = 3.0
@@ -56,6 +57,8 @@ func _run_host() -> void:
 		return _finish()
 	var client_id := client.peer_id # the node is freed when the client leaves
 	_check(Match.get_team(1) == 0 and Match.get_team(client_id) == 1, "teams auto-balanced (host blue, client red)")
+	var client_look: Dictionary = (client.get_node(^"ThirdPerson/Model") as PlayerModel).get_look()
+	_check(client_look.body == 1 and client_look.outfit == 3, "host sees the client's character (female, desert)")
 	var start := client.global_position
 	var moved: Variant = await _wait_for(func() -> Variant:
 		return true if client.global_position.distance_to(start) > 1.0 else null)
@@ -120,6 +123,9 @@ func _run_host() -> void:
 func _run_client() -> void:
 	await get_tree().create_timer(1.0).timeout
 	NetworkManager.local_name = "Client"
+	var mine := CharacterLook.with_outfit(CharacterLook.default_look(), 3) # desert
+	mine.body = 1
+	SettingsManager.character = mine
 	_check(NetworkManager.join("127.0.0.1", _port) == OK, "client starts connecting")
 	var level: Level = await _wait_for(func() -> Variant: return _level())
 	var me: PlayerController = await _wait_for(func() -> Variant: return level.player if level else null)
@@ -129,6 +135,8 @@ func _run_client() -> void:
 	if me == null or host == null:
 		return _finish()
 	_check(NetworkManager.roster.size() == 2, "roster has both players")
+	_check((host.get_node(^"ThirdPerson/Model") as PlayerModel).get_look().outfit == 5,
+		"client sees the host's character (stealth)")
 
 	_check(Match.mode == GameConfig.Mode.TDM, "client knows the game mode (TDM)")
 	_check(Match.get_team(me.peer_id) == 1 and Match.get_team(1) == 0, "client sees the teams")

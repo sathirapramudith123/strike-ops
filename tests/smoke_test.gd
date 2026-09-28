@@ -53,6 +53,7 @@ func _run() -> void:
 	await _test_maps()
 	await _test_doors_and_glass()
 	await _test_bots()
+	await _test_characters()
 	_test_hardware_report()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -2133,6 +2134,93 @@ func _test_bots() -> void:
 	_check(Match.bots.count() == 0 and _level.get_players().filter(func(p: PlayerController) -> bool: return p.is_bot).is_empty(),
 		"bots can be removed again")
 	_player.health.protect(0.0)
+
+
+## Character looks: data, meshes, sync through the roster, bots, the
+## Character screen, the voice.
+func _test_characters() -> void:
+	var junk := CharacterLook.sanitize({ "body": 7, "face": 99, "outfit": -3, "boots": "x" })
+	_check(junk.body == 1 and junk.face == CharacterLook.FEMALE_FACES.size() - 1 and junk.outfit == 0 and junk.boots == 0,
+		"looks: out-of-range values are clamped (%s)" % str(junk))
+	var military := CharacterLook.with_outfit(CharacterLook.default_look(), 1)
+	_check(military.headwear == 2 and military.pants == 1, "looks: picking an outfit dresses its kit")
+	_check(CharacterLook.unpack(CharacterLook.pack(military)) == CharacterLook.sanitize(military), "looks: pack / unpack round trip")
+	var female := military.duplicate()
+	female.body = 1
+	var m1: Dictionary = CharacterMesh.get_meshes(military)
+	var m2: Dictionary = CharacterMesh.get_meshes(female)
+	_check(m1.body != m2.body and CharacterMesh.get_meshes(military.duplicate()).body == m1.body,
+		"looks: male / female meshes differ, identical looks share theirs")
+	var uv: PackedVector2Array = (m1.leg as ArrayMesh).surface_get_arrays(0)[Mesh.ARRAY_TEX_UV]
+	var camo := false
+	for v in uv:
+		camo = camo or v.x > 0.5
+	_check(camo, "looks: woodland pants carry the camouflage pattern")
+	var r1 := CharacterLook.random(42)
+	_check(r1 == CharacterLook.random(42) and CharacterLook.random(42, 1).body == 1, "looks: random looks repeat per seed")
+
+	# Your own look reaches your model through the roster.
+	var saved: Dictionary = SettingsManager.character.duplicate()
+	var mine := CharacterLook.with_outfit(CharacterLook.default_look(), 4)
+	mine.body = 1
+	mine.face = 3
+	NetworkManager.roster[1].look = CharacterLook.pack(mine)
+	NetworkManager.roster_changed.emit()
+	await _frames(1)
+	var model := _player.get_node(^"ThirdPerson/Model") as PlayerModel
+	_check(model.get_look() == CharacterLook.sanitize(mine), "your model wears your look (female, winter kit)")
+	NetworkManager.roster[1].look = CharacterLook.pack(saved)
+	NetworkManager.roster_changed.emit()
+
+	# Bots: random looks, every third one a woman.
+	_player.health.protect(999.0)
+	Match.bots.set_count(3)
+	await _frames(3)
+	var third := BotManager.BOT_ID_BASE + 2
+	var bot := _level.get_player(third)
+	_check(bot != null and NetworkManager.look_of(third).body == 1 and NetworkManager.get_player_name(third) == "BOT Nimali"
+		and (bot.get_node(^"ThirdPerson/Model") as PlayerModel).get_look() == NetworkManager.look_of(third),
+		"bots get a random look (the third is a woman: %s)" % NetworkManager.get_player_name(third))
+	# The voice: a grunt when hit, a cry when killed.
+	if bot:
+		bot.global_position = _player.global_position + Vector3(0, 0, -3)
+		var grunts: int = Audio.stats.get("3d:grunt", 0) + Audio.stats.get("3d:grunt_rough", 0)
+		var cries: int = Audio.stats.get("3d:death_cry", 0) + Audio.stats.get("3d:death_cry_rough", 0)
+		bot.health.take_damage(20.0)
+		await _frames(2)
+		bot.health.take_damage(500.0)
+		await _frames(2)
+		_check(Audio.stats.get("3d:grunt", 0) + Audio.stats.get("3d:grunt_rough", 0) > grunts
+			and Audio.stats.get("3d:death_cry", 0) + Audio.stats.get("3d:death_cry_rough", 0) > cries,
+			"voices: a grunt when hit, a cry when killed")
+	Match.bots.set_count(0)
+	await _frames(3)
+	_player.health.protect(0.0)
+
+	# The Character screen: step through options, Done saves.
+	var screen := CharacterScreen.new()
+	get_tree().root.add_child(screen)
+	screen.open()
+	screen.step("body", 1 - int(screen.look.body))
+	var face_name: String = (screen._values["face"] as Button).text
+	_check(screen.look.body == 1 and CharacterLook.FEMALE_FACES.any(func(f: Dictionary) -> bool: return f.name == face_name),
+		"character screen: switching to a female body offers female faces (%s)" % face_name)
+	screen.look = CharacterLook.with_outfit(screen.look, 0)
+	screen.step("outfit", 3)
+	_check(screen.look.outfit == 3 and screen.look.headwear == CharacterLook.OUTFITS[3].kit.headwear,
+		"character screen: an outfit brings its kit (%s)" % (screen._values["headwear"] as Button).text)
+	screen.step("boots", 1)
+	var chosen: Dictionary = screen.look.duplicate()
+	(screen.find_child("DoneButton", true, false) as Button).pressed.emit()
+	_check(SettingsManager.character == CharacterLook.sanitize(chosen) and not screen.visible,
+		"character screen: Done saves the look")
+	var cfg := ConfigFile.new()
+	cfg.load(SettingsManager.settings_path)
+	_check(CharacterLook.sanitize(cfg.get_value("player", "character", {})) == CharacterLook.sanitize(chosen),
+		"settings: the look is written to the settings file")
+	screen.queue_free()
+	SettingsManager.character = saved
+	SettingsManager.save()
 
 
 func _release_all() -> void:

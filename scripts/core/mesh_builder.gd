@@ -35,7 +35,16 @@ const TINTED := &"armor"
 
 static var _shared_material: ShaderMaterial
 
-var _groups: Dictionary = {} # "base" / "tint" -> { v, n, c, i }
+var _groups: Dictionary = {} # "base" / "tint" -> { v, n, c, uv, i }
+## Materials defined on this builder (characters): name -> [Color, metal, pattern].
+var _custom: Dictionary = {}
+
+
+## A material only this builder knows (a character's outfit colours).
+## `pattern` > 0 paints a camouflage over it (see model.gdshader:
+## 1 woodland, 2 desert, 3 urban, 4 winter, 5 multicam).
+func define(mat: StringName, color: Color, metal: float = 0.0, pattern: int = 0) -> void:
+	_custom[mat] = [color, metal, pattern]
 
 
 ## The one material all built models share (duplicate it to tint).
@@ -99,6 +108,7 @@ func build() -> ArrayMesh:
 		arrays[Mesh.ARRAY_VERTEX] = g.v
 		arrays[Mesh.ARRAY_NORMAL] = g.n
 		arrays[Mesh.ARRAY_COLOR] = g.c
+		arrays[Mesh.ARRAY_TEX_UV] = g.uv
 		arrays[Mesh.ARRAY_INDEX] = g.i
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 		var idx := mesh.get_surface_count() - 1
@@ -123,11 +133,13 @@ static func tinted_material() -> ShaderMaterial:
 func _add(mat: StringName, primitive: PrimitiveMesh, xform: Transform3D) -> void:
 	var key := "tint" if mat == TINTED else "base"
 	if not _groups.has(key):
-		_groups[key] = { "v": PackedVector3Array(), "n": PackedVector3Array(), "c": PackedColorArray(), "i": PackedInt32Array() }
+		_groups[key] = { "v": PackedVector3Array(), "n": PackedVector3Array(), "c": PackedColorArray(),
+			"uv": PackedVector2Array(), "i": PackedInt32Array() }
 	var g: Dictionary = _groups[key]
-	var spec: Array = MATERIALS.get(mat, [Color.MAGENTA, 0.0])
+	var spec: Array = _custom.get(mat, MATERIALS.get(mat, [Color.MAGENTA, 0.0]))
 	var color: Color = spec[0]
 	color.a = spec[1]
+	var uv := Vector2(spec[2] if spec.size() > 2 else 0, 0)
 	var arrays := primitive.get_mesh_arrays()
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -138,6 +150,7 @@ func _add(mat: StringName, primitive: PrimitiveMesh, xform: Transform3D) -> void
 		g.v.append(xform * verts[k])
 		g.n.append((nbasis * normals[k]).normalized())
 		g.c.append(color)
+		g.uv.append(uv)
 	for k in indices.size():
 		g.i.append(base + indices[k])
 

@@ -161,6 +161,7 @@ func _ready() -> void:
 	_height = stand_height
 	_apply_height()
 	health.died.connect(_on_died)
+	health.damaged.connect(_on_damaged_voice)
 	_default_regen = health.regen_per_second
 	_name_tag.text = player_name
 	_tag_health = Label3D.new()
@@ -654,6 +655,7 @@ func _update_team_visuals() -> void:
 	var local_id := multiplayer.get_unique_id()
 	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, local_id)
 	_model.set_team_color(GameConfig.team_color(team))
+	_model.set_look(NetworkManager.look_of(peer_id))
 	_name_tag.no_depth_test = friendly
 	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
 
@@ -893,6 +895,8 @@ func _on_died(_source: Node) -> void:
 	is_sliding = false
 	_set_hitboxes_enabled(false)
 	_name_tag.visible = false
+	if not health.silent_death:
+		_voice_sound(&"death_cry", -3.0)
 	if is_local:
 		_death_cam()
 	elif health.silent_death:
@@ -901,6 +905,26 @@ func _on_died(_source: Node) -> void:
 		# The body falls and stays a while, then it is cleared away.
 		_model.play_death(randi() % 8, health.last_hit_headshot)
 		get_tree().create_timer(CORPSE_TIME).timeout.connect(_clear_corpse.bind(_life))
+
+
+## The player's voice (CharacterLook: pitch, rough or not) grunts when hit
+## (at most every half second) and cries out when killed.
+var _last_grunt := -10.0
+
+
+func _on_damaged_voice(amount: float, _source: Node, _headshot: bool) -> void:
+	var now := Time.get_ticks_msec() / 1000.0
+	if health.is_dead or amount < 5.0 or now - _last_grunt < 0.5:
+		return
+	_last_grunt = now
+	_voice_sound(&"grunt", -6.0)
+
+
+func _voice_sound(sound: StringName, volume_db: float) -> void:
+	var look := _model.get_look()
+	var rough := CharacterLook.voice_rough(look)
+	Audio.play_3d(StringName(String(sound) + ("_rough" if rough else "")), global_position + Vector3.UP * 1.6,
+		volume_db, 30.0, CharacterLook.voice_pitch(look) * randf_range(0.96, 1.04), 6.0)
 
 
 func _clear_corpse(life: int) -> void:

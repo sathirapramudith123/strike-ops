@@ -125,6 +125,8 @@ var grenade_arc: bool = true
 
 # Multiplayer
 var player_name: String = "Player"
+## The player's appearance (Character screen; see CharacterLook).
+var character: Dictionary = CharacterLook.default_look()
 var last_join_address: String = "127.0.0.1"
 var host_port: int = 7777
 var host_mode: int = 1 # GameConfig.Mode.FFA
@@ -430,6 +432,7 @@ func save() -> void:
 	_save_bindings()
 
 	_config.set_value("network", "player_name", player_name)
+	_config.set_value("player", "character", character)
 	_config.set_value("network", "last_join_address", last_join_address)
 	_config.set_value("network", "host_port", host_port)
 	_config.set_value("network", "host_mode", host_mode)
@@ -501,6 +504,7 @@ func _load_all(first_launch: bool) -> void:
 	dynamic_resolution_target_fps = _config.get_value("display", "dynamic_resolution_target_fps", dynamic_resolution_target_fps)
 
 	player_name = _config.get_value("network", "player_name", player_name)
+	character = CharacterLook.sanitize(_config.get_value("player", "character", character))
 	last_join_address = _config.get_value("network", "last_join_address", last_join_address)
 	host_port = _config.get_value("network", "host_port", host_port)
 	host_mode = _config.get_value("network", "host_mode", host_mode)

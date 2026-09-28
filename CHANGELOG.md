@@ -2,6 +2,16 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Character creator:** main menu → Character. Male or female body, 15 faces
+(skin, hair, beards), eye colour, mouth, ears and a voice (your grunts and
+death cry), and a clothing kit: 7 outfits (Tactical, Military, Urban,
+Desert, Winter, Stealth, Casual) that dress headwear, torso armour,
+backpack, gloves, pants and boots — each changeable on its own, with
+woodland / desert / urban / winter / multicam camouflage. A turning 3D
+preview, Random and Reset. Everyone sees your look in game; bots get random
+ones. Team colours stay on the shoulders, armbands, chest patch and helmet
+band. Network protocol 6 (clients and servers must both update).
+
 **Subway rebuilt** after the concept art: Riverside station, a 3-lane
 bomb map. T spawn east (Exit stairs), CT spawn west (ticket hall). A Long
 (upper), Mid (the central island) and B Long (lower) are platforms with

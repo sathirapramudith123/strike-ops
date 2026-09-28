@@ -18,6 +18,8 @@ const BOT_ID_BASE := 2_000_000_000
 const MAX_BOTS := 15
 const NAMES: PackedStringArray = ["Nuwan", "Saman", "Kamal", "Dilan", "Ruwan", "Chamara", "Tharindu", "Isuru",
 	"Lahiru", "Pasindu", "Kasun", "Dasun", "Sahan", "Janith", "Malith"]
+## Every third bot is a woman (a female body and a random look to match).
+const FEMALE_NAMES: PackedStringArray = ["Nimali", "Sanduni", "Dilini", "Hasini", "Kavindi"]
 
 var difficulty: int = Difficulty.NORMAL
 
@@ -59,9 +61,12 @@ func add_bot() -> int:
 	var id := BOT_ID_BASE
 	while NetworkManager.roster.has(id):
 		id += 1
-	var name_index := (id - BOT_ID_BASE) % NAMES.size()
-	var entry := NetworkManager._new_entry("BOT %s" % NAMES[name_index])
+	var n := id - BOT_ID_BASE
+	var female := n % 3 == 2
+	var bot_name: String = FEMALE_NAMES[int(n / 3.0) % FEMALE_NAMES.size()] if female else NAMES[n % NAMES.size()]
+	var entry := NetworkManager._new_entry("BOT %s" % bot_name)
 	entry.bot = true
+	entry.look = CharacterLook.pack(CharacterLook.random(id, 1 if female else 0))
 	NetworkManager.roster[id] = entry
 	NetworkManager.roster[id].team = Match.assign_team(id)
 	NetworkManager.broadcast_roster()

@@ -21,6 +21,8 @@ const NAMES: Array[StringName] = [
 	&"door_open", &"door_close", &"wood_break", &"glass_crack",
 	# Feedback (UI bus)
 	&"hitmarker", &"headshot", &"kill", &"hurt", &"ui_click", &"ui_hover",
+	# Voices (players' grunts and cries; pitched per CharacterLook voice)
+	&"grunt", &"grunt_rough", &"death_cry", &"death_cry_rough",
 	# Bomb Defusal + match
 	&"bomb_beep", &"explosion", &"bomb_planted", &"bomb_defused",
 	&"round_start", &"round_win", &"round_lose", &"match_win", &"match_lose",
@@ -243,6 +245,12 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			b = PS.buffer(0.3)
 			PS.add_tone(b, 0.0, 0.3, 0.9, 80.0, 45.0, 14.0)
 			PS.add_noise(b, 0.0, 0.25, 0.5, 0.12, 0.0, 16.0, 0.002, 92)
+		&"grunt", &"grunt_rough":
+			b = PS.buffer(0.32)
+			_voice(b, 0.0, 0.3, 135.0, 100.0, [600.0, 1100.0], sound == &"grunt_rough", 7.0)
+		&"death_cry", &"death_cry_rough":
+			b = PS.buffer(0.8)
+			_voice(b, 0.0, 0.78, 165.0, 85.0, [760.0, 1250.0], sound == &"death_cry_rough", 3.2)
 		&"ui_click":
 			b = PS.buffer(0.05)
 			PS.add_tone(b, 0.0, 0.05, 0.5, 1150.0, -1.0, 70.0)
@@ -290,6 +298,23 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			PS.add_tone(b, 0.0, 0.05, 0.3, 1000.0)
 	PS.normalize(b, 0.9)
 	return PS.to_stream(b)
+
+
+## A voiced sound (a grunt, a cry): the harmonics of a pitch gliding from
+## f0 to f1, weighted by two formants (the vowel), a breath of noise; rough
+## voices get a raspy noise band as well.
+static func _voice(b: PackedFloat32Array, start: float, duration: float, f0: float, f1: float,
+		formants: Array, rough: bool, decay: float) -> void:
+	for k in range(1, 24):
+		var f := f0 * k
+		var weight := 0.0
+		for fm: float in formants:
+			weight += exp(-pow((f - fm) / 260.0, 2.0))
+		weight = weight * 0.5 + 0.35 / k
+		PS.add_tone(b, start, duration, 0.25 * weight, f, f1 * k, decay, 0.025)
+	PS.add_noise(b, start, duration * 0.8, 0.12, 0.2, 0.02, decay * 1.5, 0.01, 77)
+	if rough:
+		PS.add_noise(b, start, duration, 0.3, 0.12, 0.01, decay, 0.02, 91)
 
 
 ## Notes (MIDI) one after another, each ringing out.
