@@ -87,6 +87,8 @@ func bind_player(player: PlayerController) -> void:
 		GamepadInput.rumble(0.6, 0.4, 0.2)
 		Audio.play_local(&"hurt", -4.0, randf_range(0.9, 1.1)))
 	_on_health_changed(player.health.current, player.health.max_health)
+	if player.throwables:
+		player.throwables.changed.connect(_update_weapon_slots)
 	_bind_weapon(player.current_weapon)
 
 
@@ -403,6 +405,31 @@ func _update_weapon_slots() -> void:
 			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
 			l.add_theme_constant_override(&"outline_size", 4)
 			_weapon_slots.add_child(l)
+	# Grenades under the guns, with their quick-throw keys.
+	var t := _player.throwables
+	if t:
+		for kind: int in [Throwables.Kind.HE, Throwables.Kind.MOLOTOV]:
+			var l := Label.new()
+			var n: int = t.counts[kind]
+			l.text = "%s ×%d   %s" % [Throwables.SHORT_NAMES[kind], n, _key_name(Throwables.ACTIONS[kind])]
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			l.add_theme_font_size_override(&"font_size", 13)
+			l.add_theme_color_override(&"font_color", Color(0.75, 0.95, 0.6, 0.8) if n > 0 else Color(1, 1, 1, 0.25))
+			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
+			l.add_theme_constant_override(&"outline_size", 4)
+			_weapon_slots.add_child(l)
+
+
+## Keyboard key bound to `action` ("G"), or "" if none.
+static func _key_name(action: StringName) -> String:
+	if not InputMap.has_action(action):
+		return ""
+	for e in InputMap.action_get_events(action):
+		if e is InputEventKey:
+			var k := e as InputEventKey
+			var code := k.physical_keycode if k.physical_keycode != KEY_NONE else k.keycode
+			return OS.get_keycode_string(code)
+	return ""
 
 
 ## Objective line under the top bar (the clock and scores are drawn by TopBar).

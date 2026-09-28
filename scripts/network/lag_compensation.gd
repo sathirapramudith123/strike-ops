@@ -19,7 +19,8 @@ const HEAD_RADIUS := 0.2
 const HEAD_DROP := 0.2
 
 
-## Returns {} on miss, otherwise { position, normal, distance, hitbox }.
+## Returns {} on miss, otherwise { position, normal, distance, hitbox, zone }
+## (zone: &"head" / &"chest" / &"stomach" / &"legs", see Hitbox.zone_at).
 ## `players` must contain every player (their hitboxes are removed from the
 ## physics query and tested analytically instead); players in `ignore`
 ## (teammates) are not hit at all — bullets pass through them.
@@ -44,6 +45,8 @@ static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector
 			"normal": hit.normal,
 			"distance": best_distance,
 			"hitbox": hit.collider as Hitbox,
+			# Non-player hitboxes (target dummies) have no body zones.
+			"zone": &"head" if hit.collider is Hitbox and (hit.collider as Hitbox).is_head else &"chest",
 		}
 
 	# 2) Players, rewound to what the shooter saw.
@@ -73,6 +76,7 @@ static func trace(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector
 				"normal": -dir,
 				"distance": t,
 				"hitbox": hitbox,
+				"zone": &"head" if hitbox == p.head_hitbox else Hitbox.zone_at(pos.y, feet.y, height),
 			}
 	return best
 

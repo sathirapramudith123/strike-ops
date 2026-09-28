@@ -20,6 +20,10 @@ extends Resource
 @export var falloff_start: float = 30.0
 ## …down to damage * this at max_range.
 @export_range(0.1, 1.0, 0.05) var min_damage_multiplier: float = 0.6
+## Share of the damage that goes straight through armour (the rest is
+## soaked up by the armour). High for rifles and snipers, low for pistols
+## and shotguns — as in CS.
+@export_range(0.0, 1.0, 0.05) var armor_penetration: float = 0.75
 
 @export_group("Ammo")
 @export var magazine_size: int = 30

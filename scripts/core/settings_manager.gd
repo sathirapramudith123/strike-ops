@@ -42,7 +42,7 @@ const REMAPPABLE_ACTIONS := {
 	&"shoot": "Shoot", &"aim": "Aim down sights", &"reload": "Reload",
 	&"weapon_1": "Primary weapon", &"weapon_2": "Secondary weapon",
 	&"weapon_next": "Next weapon", &"weapon_prev": "Previous weapon",
-	&"interact": "Interact / plant / defuse", &"throw_grenade": "Throw grenade",
+	&"interact": "Interact / plant / defuse", &"throw_grenade": "Throw HE grenade", &"throw_molotov": "Throw Molotov",
 	&"push_to_talk_team": "Push-to-talk (team)", &"push_to_talk_proximity": "Push-to-talk (proximity)",
 	&"scoreboard": "Scoreboard", &"chat_all": "Chat (all)", &"chat_team": "Chat (team)",
 	&"toggle_perf_overlay": "Performance overlay",
