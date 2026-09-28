@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal; 5 weapons; 11 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
+> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal with money and a buy menu; 5 guns + knife and 4 grenade types; 11 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
 
 ---
 
@@ -40,9 +40,11 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 
 ## ✨ Key Features
 
-- 🔫 **Core FPS gameplay** — smooth first-person movement (walk, sprint, crouch, jump, slide), aim-down-sights, recoil & spread, hitscan and projectile weapons.
+- 🔫 **Core FPS gameplay** — smooth first-person movement (walk, sprint, crouch, jump, slide, lean, **climb onto crates, cars and low walls**), aim-down-sights, fire modes, recoil & spread, hitscan weapons and a knife.
+- 💣 **Grenades** — HE, Molotov, flashbang and smoke; hold `4` for a **grenade wheel**, and the grenade in hand shows its **flight path and landing spot**.
+- 💰 **Bomb Defusal economy** — money for kills, plants, defuses and rounds; a **buy menu** (`X`) for guns, armour + helmet and grenades; survivors keep their gear.
 - 🌐 **Multiplayer** — client/server networking with lag compensation and client-side prediction.
-- 🎮 **Game modes** — Free-for-All, Team Deathmatch, Bomb Defusal (rounds, plant/defuse), offline Practice.
+- 🎮 **Game modes** — Free-for-All, Team Deathmatch, Bomb Defusal (rounds, plant/defuse, money + buy menu), offline Practice.
 - ⚙️ **Graphics presets** — Low / Medium / High / Ultra + auto-detect on first launch.
 - 🔊 **3D spatial audio** — distance attenuation, occlusion, reverb zones.
 - 🎙️ **Voice chat** — team channel, proximity chat, push-to-talk / voice activation, per-player mute.
@@ -518,8 +520,8 @@ Preset files themselves are only *suggested* — review and edit `resources/sett
 | **Display** | Window mode, window size, V-Sync, FPS limit, field of view, brightness, performance overlay |
 | **Audio** | Master, music, effects, voice chat and interface volume |
 | **Voice** | On/off, push-to-talk or voice activation, microphone, mic volume, activation level, live mic meter, noise suppression, proximity chat, "hear myself" test |
-| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 30 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
-| **Gameplay** | Player name, crosshair colour / size / centre dot with live preview |
+| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 31 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
+| **Gameplay** | Player name, crosshair colour / size / centre dot with live preview, grenade throw path on/off |
 
 *Reset tab* restores that tab's defaults. Settings live in `user://settings.cfg` (key bindings in its `[bindings]` section, stored by physical key position so they work on any keyboard layout). Tests use a separate `settings_test.cfg`, so running them never changes your settings. `Esc`/Pause stays fixed so you can always reach the menu.
 
@@ -784,6 +786,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **v0.9 — toward v1.0:** controller support (look curve, aim assist, rumble, remapping), new look from code (procedural materials, gun + soldier models, lighting), code-signing pipeline (off until certificates exist)
 - [x] **Concept-art pass (code only):** armour, health/armour/ammo HUD, faces in the top bar, map banner, painted A/B signs, rugs, fruit stalls, barrels, towers
 - [x] **Maps + CS-style HUD:** Kasbah, Factory, Office, Subway and Train Yard; radar with location names, top bar with player cards; first-person hands, new sniper model; reload animations in first and third person
+- [x] **Gameplay update:** grenades (HE, Molotov, flash, smoke), PUBG-style key layout (lean, walk, knife, grenade slot, fire modes, big map, scope zoom), Bunker + Train Yard rebuilt, grippier movement, gun pulls back at walls, Bomb Defusal money + buy menu, climbing, grenade wheel + throw path
 - [ ] **v1.0:** beta feedback, presets tuned from hardware reports (Phase 7b), real art (CC0 packs or an artist), certificates for signing
 
 ---
