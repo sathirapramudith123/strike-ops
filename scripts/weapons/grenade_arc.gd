@@ -43,7 +43,7 @@ func _init() -> void:
 static func predict(space: PhysicsDirectSpaceState3D, origin: Vector3, velocity: Vector3, kind: int) -> Dictionary:
 	var gravity := Vector3.DOWN * float(ProjectSettings.get_setting("physics/3d/default_gravity", 9.8))
 	var damp := float(ProjectSettings.get_setting("physics/3d/default_linear_damp", 0.1)) + 0.05
-	var molotov := kind == Throwables.Kind.MOLOTOV
+	var molotov: bool = kind == Throwables.Kind.MOLOTOV
 	var bounce := 0.15 if molotov else 0.35
 	var fuse: float = Throwables.FUSES.get(kind, GrenadeProjectile.MOLOTOV_MAX_FLIGHT)
 	var p := origin

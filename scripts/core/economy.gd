@@ -92,7 +92,7 @@ static func money_of(peer_id: int) -> int:
 
 ## Seconds of buy time left in this round (0 = closed).
 static func buy_time_left() -> float:
-	var b := Match.bomb
+	var b: BombRules = Match.bomb
 	if not is_active() or b.round_number == 0 or Match.is_ended():
 		return 0.0
 	if b.phase == BombRules.Phase.FREEZE:
@@ -104,10 +104,10 @@ static func buy_time_left() -> float:
 
 ## Whether `p` stands close enough to one of their side's spawns.
 static func in_buy_zone(p: PlayerController) -> bool:
-	var level := NetworkManager.current_level()
+	var level: Level = NetworkManager.current_level()
 	if level == null or p == null:
 		return false
-	var spawns := level.red_spawn_points if Match.bomb.is_attacker(p.peer_id) else level.blue_spawn_points
+	var spawns: Array[Marker3D] = level.red_spawn_points if Match.bomb.is_attacker(p.peer_id) else level.blue_spawn_points
 	if spawns.is_empty():
 		spawns = level.spawn_points
 	for m: Marker3D in spawns:
@@ -148,7 +148,7 @@ static func item_block_reason(item: String, p: PlayerController) -> String:
 			if p.primary_id == item:
 				return "You already have it"
 		"armor":
-			var full := p.health.armor >= Health.MAX_ARMOR
+			var full: bool = p.health.armor >= Health.MAX_ARMOR
 			if full and (item == "vest" or p.health.helmet):
 				return "You already have it"
 		"grenade":
@@ -183,12 +183,12 @@ func _request_buy(item: String) -> void:
 
 
 func _server_buy(peer_id: int, item: String) -> void:
-	var level := NetworkManager.current_level()
-	var p := level.get_player(peer_id) if level else null
-	var reason := buy_block_reason(p)
+	var level: Level = NetworkManager.current_level()
+	var p: PlayerController = level.get_player(peer_id) if level else null
+	var reason: String = buy_block_reason(p)
 	if reason == "":
 		reason = item_block_reason(item, p)
-	var price := price_of(item, p) if reason == "" else 0
+	var price: int = price_of(item, p) if reason == "" else 0
 	if reason == "" and money_of(peer_id) < price:
 		reason = "Not enough money"
 	if reason != "":
@@ -201,7 +201,7 @@ func _server_buy(peer_id: int, item: String) -> void:
 		"armor":
 			p.health.server_set_armor(Health.MAX_ARMOR, p.health.helmet or item == "vest_helmet")
 		"grenade":
-			var counts := p.throwables.counts_array()
+			var counts: Array = p.throwables.counts_array()
 			counts[info.grenade] += 1
 			p.throwables.server_set_counts(counts)
 	_add_money(peer_id, -price, "")
@@ -229,7 +229,7 @@ func _buy_refused(reason: String) -> void:
 func _add_money(peer_id: int, amount: int, text: String) -> void:
 	if not NetworkManager.roster.has(peer_id):
 		return
-	var before := money_of(peer_id)
+	var before: int = money_of(peer_id)
 	var after := clampi(before + amount, 0, MAX_MONEY)
 	NetworkManager.roster[peer_id].money = after
 	if text != "" and after != before:
@@ -256,7 +256,7 @@ func server_reset() -> void:
 ## keep what they carry, the dead start over.
 func server_prepare_round() -> void:
 	_gear.clear()
-	var level := NetworkManager.current_level()
+	var level: Level = NetworkManager.current_level()
 	if level == null:
 		return
 	for p in level.get_players():
@@ -279,9 +279,9 @@ func gear_for(peer_id: int) -> Dictionary:
 func on_kill(killer_id: int, victim_id: int) -> void:
 	if killer_id <= 0 or killer_id == victim_id or Match.is_friendly(killer_id, victim_id):
 		return
-	var level := NetworkManager.current_level()
-	var killer := level.get_player(killer_id) if level else null
-	var victim := level.get_player(victim_id) if level else null
+	var level: Level = NetworkManager.current_level()
+	var killer: PlayerController = level.get_player(killer_id) if level else null
+	var victim: PlayerController = level.get_player(victim_id) if level else null
 	var reward := KILL_REWARD
 	var what := ""
 	if victim and victim.health.last_cause in Throwables.NAMES.values():
@@ -309,7 +309,7 @@ func on_round_end(winner: int, reason: String, planted: bool) -> void:
 	var win := BOMB_WIN_REWARD if reason == "Bomb exploded" or reason == "Bomb defused" else WIN_REWARD
 	var loss := mini(LOSS_REWARD + LOSS_STEP * (_loss_streak[loser] - 1), MAX_LOSS_REWARD)
 	for id: int in NetworkManager.roster:
-		var team := Match.get_team(id)
+		var team: int = Match.get_team(id)
 		if team == winner:
 			_add_money(id, win, "Round won")
 		elif team == loser:

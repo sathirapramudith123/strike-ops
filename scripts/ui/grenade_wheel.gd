@@ -19,7 +19,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var show := throwables != null and is_instance_valid(throwables) and throwables.wheel_visible()
+	var show: bool = throwables != null and is_instance_valid(throwables) and throwables.wheel_visible()
 	if show != visible:
 		visible = show
 	if visible:
@@ -28,14 +28,14 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	var c := size * 0.5
-	var n := Throwables.ORDER.size()
+	var n: int = Throwables.ORDER.size()
 	var step := TAU / n
 	var font := get_theme_default_font()
 	draw_circle(c, RADIUS + 6.0, Color(0, 0, 0, 0.35))
 	for i in n:
 		var kind: int = Throwables.ORDER[i]
 		var count: int = throwables.counts.get(kind, 0)
-		var chosen := throwables.wheel_choice == kind
+		var chosen: bool = throwables.wheel_choice == kind
 		# Segment i is centred straight up for i = 0, clockwise after that.
 		var mid := -PI / 2 + i * step
 		var pts := PackedVector2Array()
@@ -58,6 +58,6 @@ func _draw() -> void:
 		draw_multiline_string(font, label_at - Vector2(w * 0.5, 10), text, HORIZONTAL_ALIGNMENT_CENTER, w, 18, -1, col)
 	# Where the mouse points.
 	if throwables.wheel_choice >= 0:
-		var i := Throwables.ORDER.find(throwables.wheel_choice)
+		var i: int = Throwables.ORDER.find(throwables.wheel_choice)
 		var a := -PI / 2 + i * step
 		draw_line(c, c + Vector2(cos(a), sin(a)) * (INNER - 8.0), Color(1, 0.9, 0.55, 0.9), 3.0)

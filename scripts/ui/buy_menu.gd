@@ -109,7 +109,7 @@ func _input(event: InputEvent) -> void:
 func try_open() -> bool:
 	if player == null or not player.input_enabled or not Economy.is_active():
 		return false
-	var reason := Economy.buy_block_reason(player)
+	var reason: String = Economy.buy_block_reason(player)
 	if reason != "":
 		Match.economy.buy_refused.emit(reason)
 		return false
@@ -120,7 +120,7 @@ func try_open() -> bool:
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	_status.text = "Click to buy · %s or Esc to close" % SettingsManager.prompt_text(BUY_ACTION)
 	refresh()
-	var first := _first_enabled()
+	var first: Button = _first_enabled()
 	if first and GamepadInput.using_pad:
 		first.grab_focus()
 	return true
@@ -139,12 +139,12 @@ func close() -> void:
 func refresh() -> void:
 	if player == null:
 		return
-	var money := Economy.money_of(player.peer_id)
+	var money: int = Economy.money_of(player.peer_id)
 	_title.text = "Buy   $%d   ·   %ds left" % [money, ceili(Economy.buy_time_left())]
 	for item: String in _buttons:
 		var b: Button = _buttons[item]
-		var price := Economy.price_of(item, player)
-		var why := Economy.item_block_reason(item, player)
+		var price: int = Economy.price_of(item, player)
+		var why: String = Economy.item_block_reason(item, player)
 		if why == "" and price > money:
 			why = "Not enough money"
 		b.text = "%s   $%d" % [Economy.ITEMS[item].name, price]
