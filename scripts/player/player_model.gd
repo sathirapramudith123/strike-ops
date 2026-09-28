@@ -24,6 +24,10 @@ var _armor: ShaderMaterial
 var _phase: float = 0.0
 var _last_pos: Vector3
 var _has_last: bool = false
+## Dead: the death animation owns the pose (animate() leaves it alone).
+var _dead: bool = false
+var _death_tween: Tween
+var _dropped_gun: RigidBody3D
 
 
 func _ready() -> void:
@@ -80,8 +84,108 @@ func is_reloading() -> bool:
 	return _reload_left > 0.0
 
 
+## Death: a stagger, the knees give, a fall to the ground with a small
+## bounce, arms flopping, the gun dropping out of the hands. `style` picks
+## the fall (0 backwards, 1 forwards, 2 twisting to the side, 3 crumpling
+## down); a headshot snaps the head back first.
+func play_death(style: int, headshot: bool) -> void:
+	_dead = true
+	if _death_tween:
+		_death_tween.kill()
+	_reload_left = 0.0
+	var fall_x := 0.0 # pitch of the whole body (+ = backwards)
+	var fall_z := 0.0 # roll
+	var twist := 0.0
+	match style % 4:
+		0:
+			fall_x = 1.5
+		1:
+			fall_x = -1.45
+		2:
+			fall_x = 0.4
+			fall_z = 1.45 * (1.0 if style % 8 < 4 else -1.0)
+			twist = 0.7
+		_:
+			# Crumple to the knees, then slump onto the side.
+			fall_x = -0.5
+			fall_z = -1.35
+	var t := create_tween()
+	_death_tween = t
+	# Stagger: jolted by the hit (a headshot throws the upper body back).
+	t.set_parallel(true)
+	t.tween_property(self, "rotation:x", 0.35 if headshot else 0.12 * signf(fall_x + 0.01), 0.12) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	t.tween_property(_arm_l, "rotation:x", -1.6, 0.25)
+	t.tween_property(_arm_l, "rotation:z", -0.6, 0.25)
+	t.chain().set_parallel(true)
+	# The knees give way.
+	for leg: MeshInstance3D in _legs:
+		t.tween_property(leg, "rotation:x", -1.3, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(self, "position:y", -0.3 if style % 4 != 3 else -0.5, 0.28) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(self, "rotation:y", twist, 0.5)
+	t.chain().set_parallel(true)
+	# Topple over — gravity: slow start, fast finish — and a little bounce.
+	t.tween_property(self, "rotation:x", fall_x * 1.05, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(self, "rotation:z", fall_z * 1.05, 0.42).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(self, "position:y", 0.1 if style % 4 != 3 else 0.0, 0.42) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	for i in _legs.size():
+		t.tween_property(_legs[i], "rotation:x", -0.2 - 0.5 * i, 0.42)
+	t.chain().set_parallel(true)
+	t.tween_property(self, "rotation:x", fall_x, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	t.tween_property(self, "rotation:z", fall_z, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_drop_gun()
+
+
+## Back to standing (respawn).
+func reset_pose() -> void:
+	_dead = false
+	if _death_tween:
+		_death_tween.kill()
+		_death_tween = null
+	rotation = Vector3.ZERO
+	position = Vector3.ZERO
+	for leg: MeshInstance3D in _legs:
+		leg.rotation = Vector3.ZERO
+	_arm_l.rotation = Vector3.ZERO
+	_gun.visible = true
+	if is_instance_valid(_dropped_gun):
+		_dropped_gun.queue_free()
+
+
+## The gun falls out of the hands and clatters to the ground (visual only).
+func _drop_gun() -> void:
+	if _gun.mesh == null or not is_inside_tree():
+		return
+	var body := RigidBody3D.new()
+	body.collision_layer = 0
+	body.collision_mask = 1
+	body.mass = 3.0
+	var mi := MeshInstance3D.new()
+	mi.mesh = _gun.mesh
+	body.add_child(mi)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.08, 0.14, 0.7)
+	shape.shape = box
+	body.add_child(shape)
+	var parent: Node = get_tree().current_scene if get_tree().current_scene else self
+	parent.add_child(body)
+	body.global_transform = _gun.global_transform
+	body.linear_velocity = global_basis * Vector3(randf_range(-0.8, 0.8), 1.2, -1.0)
+	body.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-2, 2), randf_range(-4, 4))
+	_gun.visible = false
+	_dropped_gun = body
+	get_tree().create_timer(12.0).timeout.connect(func() -> void:
+		if is_instance_valid(body):
+			body.queue_free())
+
+
 ## Walk cycle from how far the player moved (works for remote players too).
 func animate(delta: float, crouching: bool) -> void:
+	if _dead:
+		return
 	_animate_reload(delta)
 	var pos := global_position
 	var speed := 0.0

@@ -115,6 +115,7 @@ func equip(player: PlayerController, camera: Camera3D) -> void:
 
 
 func unequip() -> void:
+	_inspect_left = 0.0
 	_burst_left = 0
 	zoom_index = 0
 	is_aiming = false
@@ -240,6 +241,7 @@ func set_holstered(on: bool) -> void:
 
 ## Fires one shot if possible. Returns true if a shot was fired.
 func try_fire() -> bool:
+	_inspect_left = 0.0
 	if _cooldown > 0.0 or is_reloading or _player.is_sprinting:
 		return false
 	if data.melee:
@@ -278,6 +280,7 @@ func try_fire() -> bool:
 
 
 func reload() -> void:
+	_inspect_left = 0.0
 	if is_reloading or ammo_in_magazine >= data.magazine_size or ammo_reserve <= 0:
 		return
 	is_reloading = true
@@ -547,16 +550,62 @@ func _wall_distance_pull(target: Vector3) -> float:
 	return clampf(pull, 0.0, MAX_WALL_PULL)
 
 
+## Inspect (I): turn the gun to look at one side, then the other (the knife
+## is flipped in the hand). Any action cancels it.
+const INSPECT_TIME := 2.6
+var _inspect_left := 0.0
+
+
+func start_inspect() -> void:
+	if is_reloading or is_aiming or holstered or _player == null or not _player.is_local:
+		return
+	_inspect_left = INSPECT_TIME
+
+
+func is_inspecting() -> bool:
+	return _inspect_left > 0.0
+
+
+func cancel_inspect() -> void:
+	_inspect_left = 0.0
+
+
+## Pose offsets for the inspect: { offset, yaw, pitch, roll }.
+func _inspect_pose(delta: float) -> Dictionary:
+	var pose := { "offset": Vector3.ZERO, "yaw": 0.0, "pitch": 0.0, "roll": 0.0 }
+	if _inspect_left <= 0.0:
+		return pose
+	if is_aiming or is_reloading or holstered:
+		_inspect_left = 0.0
+		return pose
+	_inspect_left = maxf(_inspect_left - delta, 0.0)
+	var p := 1.0 - _inspect_left / INSPECT_TIME
+	var first := _smooth(p, 0.0, 0.15) * (1.0 - _smooth(p, 0.45, 0.55))
+	var second := _smooth(p, 0.5, 0.62) * (1.0 - _smooth(p, 0.85, 1.0))
+	if data.melee:
+		# Flip the blade over, then a look along its edge.
+		pose.pitch = TAU * _smooth(p, 0.3, 0.6)
+		pose.yaw = 0.8 * first - 0.4 * second
+		pose.offset = Vector3(-0.1, 0.06, -0.05) * maxf(first, second)
+		return pose
+	pose.yaw = 0.75 * first - 0.35 * second
+	pose.roll = 0.5 * first - 0.6 * second
+	pose.pitch = 0.2 * second
+	pose.offset = Vector3(-0.08, 0.05, -0.02) * first + Vector3(0.02, 0.07, -0.04) * second
+	return pose
+
+
 func _update_viewmodel(delta: float) -> void:
 	_kick = move_toward(_kick, 0.0, delta * 12.0)
-	var target := _hip_position.lerp(ads_position, ads_blend)
+	var inspect := _inspect_pose(delta)
+	var target := _hip_position.lerp(ads_position, ads_blend) + (inspect.offset as Vector3)
 	target.z += _kick * 0.06
 	target.y += _kick * 0.01
 	# Knife: a slash from the right across to the left and back.
 	_swing = move_toward(_swing, 0.0, delta / SWING_TIME)
 	var slash := sin((1.0 - _swing) * PI) if _swing > 0.0 else 0.0
 	target += Vector3(-0.16, 0.04, -0.1) * slash
-	rotation.y = lerpf(rotation.y, 0.9 * slash, clampf(delta * 20.0, 0.0, 1.0))
+	rotation.y = lerpf(rotation.y, 0.9 * slash + inspect.yaw, clampf(delta * 20.0, 0.0, 1.0))
 	var pose := _animate_reload(get_reload_progress() if is_reloading else -1.0)
 	target += pose.offset
 	# Lower the weapon while sprinting.
@@ -568,8 +617,8 @@ func _update_viewmodel(delta: float) -> void:
 	target += Vector3(0.0, -_wall_pull * 0.2, _wall_pull)
 	position = position.lerp(target, clampf(delta * 18.0, 0.0, 1.0))
 	var k := clampf(delta * 14.0, 0.0, 1.0)
-	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch - _wall_pull * 0.8, k)
-	rotation.z = lerpf(rotation.z, pose.roll, k)
+	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch - _wall_pull * 0.8 + inspect.pitch, k)
+	rotation.z = lerpf(rotation.z, pose.roll + inspect.roll, k)
 	# Looking through a scope: the HUD draws the scope, hide the gun (also
 	# while a grenade is in hand).
 	var show_model := not is_scoped() and not holstered

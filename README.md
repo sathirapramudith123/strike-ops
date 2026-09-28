@@ -520,7 +520,7 @@ Preset files themselves are only *suggested* — review and edit `resources/sett
 | **Display** | Window mode, window size, V-Sync, FPS limit, field of view, brightness, performance overlay |
 | **Audio** | Master, music, effects, voice chat and interface volume |
 | **Voice** | On/off, push-to-talk or voice activation, microphone, mic volume, activation level, live mic meter, noise suppression, proximity chat, "hear myself" test |
-| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 31 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
+| **Controls** | Mouse and ADS sensitivity, invert Y, **hold or toggle** for aim and crouch, **key bindings** for 32 actions (click → press a key or mouse button; a key already in use swaps with the other action; `Esc` cancels; *Reset key bindings*) |
 | **Gameplay** | Player name, crosshair colour / size / centre dot with live preview, grenade throw path on/off |
 
 *Reset tab* restores that tab's defaults. Settings live in `user://settings.cfg` (key bindings in its `[bindings]` section, stored by physical key position so they work on any keyboard layout). Tests use a separate `settings_test.cfg`, so running them never changes your settings. `Esc`/Pause stays fixed so you can always reach the menu.
@@ -694,6 +694,7 @@ git tag v0.9.0-beta && git push origin v0.9.0-beta
 | **Grenades** | **hold `4`** for the grenade wheel — move the mouse (or right stick) towards one and let go; a quick tap takes the next type. Left click throws, right click lobs it short; while one is in hand its **flight path and landing ring** are drawn (Settings → Gameplay to turn off). `1`–`3` or the mouse wheel put it away · `G` quick-throws the HE |
 | Reload | `R` |
 | Fire / aim down sights | `Left Mouse` / `Right Mouse` |
+| **Inspect weapon** | `I` — the gun turns to show each side (the knife flips); firing, aiming or reloading cancels it |
 | **Switch fire mode** | `B` — AR-7: auto / 3-round burst / semi, V-10: auto / semi (shown next to the weapon name) |
 | Use / open doors / plant / defuse (hold) | `F` — looking at a door opens it away from you (or closes it); doors break where they are shot, windows crack then shatter |
 | **Map** | `M` — the whole level, north up, with area names |

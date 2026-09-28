@@ -97,6 +97,10 @@ var _lean_target: float = 0.0
 var weapons: Dictionary = {}
 ## Grenades (quick-throw: G HE, Q Molotov, F flash, Z smoke).
 var throwables: Throwables
+## Remote players' bodies lie this long after the death animation.
+const CORPSE_TIME := 8.0
+## Counts lives, so a timer from an earlier death can't hide a respawned player.
+var _life: int = 0
 ## Seconds of flashbang blindness left (local player only; see GrenadeFx.flash).
 var blind_time: float = 0.0
 ## Grenade wheel open (hold 4): the mouse points at a grenade instead of looking.
@@ -107,6 +111,8 @@ var _climb_time: float = 0.0
 var _climb_duration: float = 0.0
 var _climb_from: Vector3
 var _climb_to: Vector3
+## First-person hands on the ledge while climbing (local player).
+var _climb_hands: ClimbHands
 
 @onready var head: Node3D = $Head
 @onready var camera: Camera3D = $Head/Camera3D
@@ -230,6 +236,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			select_slot(current_slot, true)
 		else:
 			select_slot(_next_slot(current_slot, step))
+	elif event.is_action_pressed(&"inspect"):
+		if current_weapon:
+			current_weapon.start_inspect()
 	elif event.is_action_pressed(&"fire_mode"):
 		if current_weapon:
 			current_weapon.cycle_fire_mode()
@@ -426,6 +435,10 @@ func _try_climb(min_height: float) -> bool:
 	if current_weapon and not throwables.is_holding():
 		current_weapon.set_holstered(true)
 	_movement_sound(&"jump", -8.0, 14.0)
+	if is_local:
+		_climb_hands = ClimbHands.new()
+		add_child(_climb_hands)
+		_climb_hands.grab(_climb_to, forward, camera)
 	return true
 
 
@@ -450,6 +463,9 @@ func _update_climb(delta: float) -> void:
 
 
 func _end_climb() -> void:
+	if is_instance_valid(_climb_hands):
+		_climb_hands.release()
+	_climb_hands = null
 	if not is_climbing:
 		return
 	is_climbing = false
@@ -580,6 +596,12 @@ func respawn_at(xform: Transform3D, primary: String, nades: Array = []) -> void:
 	is_sliding = false
 	_fell_reported = false
 	_end_climb()
+	_life += 1
+	_model.reset_pose()
+	camera.rotation.z = 0.0
+	_apply_height()
+	if current_weapon:
+		current_weapon.set_holstered(false)
 	visible = true
 	_set_hitboxes_enabled(true)
 	is_walking = false
@@ -640,7 +662,8 @@ const TAG_RANGE := 70.0
 
 func _update_name_tag() -> void:
 	var viewer := get_viewport().get_camera_3d()
-	if viewer == null:
+	if viewer == null or health.is_dead:
+		_name_tag.visible = false
 		return
 	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, multiplayer.get_unique_id())
 	var to := _name_tag.global_position - viewer.global_position
@@ -862,8 +885,29 @@ func _on_died(_source: Node) -> void:
 	velocity = Vector3.ZERO
 	is_sliding = false
 	_set_hitboxes_enabled(false)
-	if not is_local:
+	_name_tag.visible = false
+	if is_local:
+		_death_cam()
+	elif health.silent_death:
 		visible = false
+	else:
+		# The body falls and stays a while, then it is cleared away.
+		_model.play_death(randi() % 8, health.last_hit_headshot)
+		var life := _life
+		get_tree().create_timer(CORPSE_TIME).timeout.connect(func() -> void:
+			if is_instance_valid(self) and health.is_dead and _life == life:
+				visible = false)
+
+
+## Local player: the view drops to the floor and rolls over; the gun goes.
+func _death_cam() -> void:
+	if current_weapon:
+		current_weapon.set_holstered(true)
+	var t := create_tween().set_parallel(true)
+	t.tween_property(head, "position:y", 0.35, 0.7).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	t.tween_property(camera, "rotation:z", deg_to_rad(randf_range(55.0, 75.0) * (1 if randf() < 0.5 else -1)), 0.8) \
+		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	t.tween_property(head, "rotation:x", deg_to_rad(-12.0), 0.8)
 
 
 ## Q / E held: -1 / 1, shortened when a wall is in the way; 0 while

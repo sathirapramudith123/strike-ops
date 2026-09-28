@@ -2,6 +2,14 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Animations:** players no longer vanish when killed — they stagger, their
+knees give and they fall (backwards, forwards, twisting to the side or
+crumpling), with a little bounce, the gun clattering out of their hands; the
+body stays for 8 s. Your own view drops to the floor and rolls when you
+die. Climbing shows both gloved hands gripping the ledge as you pull up.
+**I** inspects your weapon (the gun turns to show each side, the knife
+flips in the hand); any action cancels it.
+
 **Names over players:** bigger name tags. Teammates always show their name
 — through walls — with a health bar under it; an enemy's name appears when
 your crosshair is on them or they're within 6 m (never through walls or

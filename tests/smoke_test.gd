@@ -121,6 +121,8 @@ func _test_climbing() -> void:
 	_press_action(&"jump")
 	await _frames(3)
 	_check(_player.is_climbing, "Jump at the crate starts climbing")
+	_check(is_instance_valid(_player._climb_hands) and _player._climb_hands.get_child_count() >= 4,
+		"first-person hands grab the ledge while climbing")
 	await _frames(70)
 	_check(not _player.is_climbing and _player.global_position.y > 1.7 and _player.global_position.z < 2.6,
 		"climbed up on top of the crate (%s)" % _player.global_position.snappedf(0.01))
@@ -648,6 +650,15 @@ func _test_new_controls() -> void:
 	await _frames(2)
 	_check(not t.is_holding() and not _player.current_weapon.holstered and t.counts[Throwables.Kind.FLASH] == 2,
 		"1 puts the grenade away, nothing thrown")
+
+	# Inspect (I): the gun turns to show its sides; firing stops it.
+	var gun := _player.current_weapon
+	_press_action(&"inspect")
+	await _frames(40)
+	_check(gun.is_inspecting() and absf(gun.rotation.y) > 0.2, "I inspects the weapon (turned %.2f)" % gun.rotation.y)
+	gun.try_fire()
+	_check(not gun.is_inspecting(), "firing cancels the inspect")
+	await _frames(20)
 
 	# Big map (M).
 	_tap(&"map")
@@ -1258,6 +1269,11 @@ func _test_bomb_defusal() -> void:
 	defender.health.take_damage(500.0, _player)
 	await _frames(2)
 	_check(b.round_reason == "Defenders eliminated", "eliminating the defenders wins the round")
+	await _frames(40)
+	var body := defender.get_node(^"ThirdPerson/Model") as PlayerModel
+	_check(defender.visible and body._dead and absf(body.rotation.x) + absf(body.rotation.z) > 0.2,
+		"the dead player falls over (death animation) instead of vanishing")
+	_check(not (defender.get_node(^"NameTag") as Label3D).visible, "no name tag over a body")
 	_check(Economy.money_of(1) == money_before + Economy.KILL_REWARD + Economy.WIN_REWARD,
 		"pistol kill $%d + round win $%d ($%d)" % [Economy.KILL_REWARD, Economy.WIN_REWARD, Economy.money_of(1)])
 	_check(Match.is_ended() and Match.winner_text == "Red team wins!", "match ends at the round limit (%s)" % Match.winner_text)
