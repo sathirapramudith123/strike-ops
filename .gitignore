@@ -220,3 +220,6 @@ $RECYCLE.BIN/
 .Trash-*
 .fuse_hidden*
 .nfs*
+
+# Godot on Windows copies loaded GDExtension DLLs to ~name.dll while the editor runs
+addons/**/bin/~*
