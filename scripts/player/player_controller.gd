@@ -120,6 +120,8 @@ var _remote_reloading := false
 @onready var _third_person: Node3D = $ThirdPerson
 @onready var _model: PlayerModel = $ThirdPerson/Model
 @onready var _name_tag: Label3D = $NameTag
+## Teammates' health under their name (built in _ready).
+var _tag_health: Label3D
 @onready var _body_hitbox_shape: CapsuleShape3D = $BodyHitbox/CollisionShape3D.shape
 @onready var _shape: CapsuleShape3D = $CollisionShape3D.shape
 @onready var _collision: CollisionShape3D = $CollisionShape3D
@@ -152,6 +154,17 @@ func _ready() -> void:
 	health.died.connect(_on_died)
 	_default_regen = health.regen_per_second
 	_name_tag.text = player_name
+	_tag_health = Label3D.new()
+	_tag_health.name = "TagHealth"
+	_tag_health.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_tag_health.no_depth_test = true
+	_tag_health.fixed_size = true
+	_tag_health.pixel_size = _name_tag.pixel_size
+	_tag_health.font_size = 22
+	_tag_health.outline_size = 6
+	_tag_health.offset = Vector2(0, -34)
+	_tag_health.visible = false
+	_name_tag.add_child(_tag_health)
 	# Built here (not in the scene) but under a fixed name, so its RPC path
 	# is the same on every peer.
 	throwables = Throwables.new()
@@ -238,7 +251,7 @@ func _process(delta: float) -> void:
 		_pad_look(delta)
 	if not is_local and visible:
 		_model.animate(delta, is_crouching)
-		_update_tag_through_smoke()
+		_update_name_tag()
 
 
 func _physics_process(delta: float) -> void:
@@ -616,18 +629,40 @@ func _update_team_visuals() -> void:
 	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
 
 
-## Enemy name tags are hidden through walls by the depth test, but smoke is
-## see-through to it — hide them while a smoke cloud is in the way.
-func _update_tag_through_smoke() -> void:
-	if not get_tree().has_group(SmokeCloud.GROUP):
-		if not _name_tag.visible and not is_local:
-			_name_tag.visible = true
-		return
+## Name over the head (remote players, every frame):
+## • teammates: always, through walls, with a health bar under the name;
+## • enemies: only when the crosshair is on them (within TAG_AIM_DEGREES) or
+##   they are close (TAG_NEAR), never through walls (depth test) or smoke.
+const TAG_AIM_DEGREES := 4.0
+const TAG_NEAR := 6.0
+const TAG_RANGE := 70.0
+
+
+func _update_name_tag() -> void:
 	var viewer := get_viewport().get_camera_3d()
-	if viewer == null or Match.is_friendly(peer_id, multiplayer.get_unique_id()):
-		_name_tag.visible = true
+	if viewer == null:
 		return
-	_name_tag.visible = not SmokeCloud.blocks_line(get_tree(), viewer.global_position, _name_tag.global_position)
+	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, multiplayer.get_unique_id())
+	var to := _name_tag.global_position - viewer.global_position
+	var dist := to.length()
+	var show := friendly
+	if not friendly and dist < TAG_RANGE:
+		var aim := (-viewer.global_basis.z).dot(to / maxf(dist, 0.01))
+		show = dist < TAG_NEAR or aim > cos(deg_to_rad(TAG_AIM_DEGREES))
+		if show and get_tree().has_group(SmokeCloud.GROUP):
+			show = not SmokeCloud.blocks_line(get_tree(), viewer.global_position, _name_tag.global_position)
+	_name_tag.visible = show
+	if not show:
+		return
+	# Fade a little with distance so far tags don't clutter the view.
+	_name_tag.modulate.a = clampf(remap(dist, 30.0, TAG_RANGE, 1.0, 0.45), 0.45, 1.0)
+	_tag_health.visible = friendly
+	if friendly:
+		var hp := clampf(health.current / health.max_health, 0.0, 1.0)
+		var n := ceili(hp * 10.0)
+		_tag_health.text = "▮".repeat(n) + "▯".repeat(10 - n)
+		_tag_health.modulate = Color(0.45, 0.95, 0.5).lerp(Color(1, 0.3, 0.25), 1.0 - hp)
+		_tag_health.modulate.a = _name_tag.modulate.a
 
 
 ## Voice chat indicator on the name tag.

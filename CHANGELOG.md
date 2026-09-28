@@ -2,6 +2,11 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Names over players:** bigger name tags. Teammates always show their name
+— through walls — with a health bar under it; an enemy's name appears when
+your crosshair is on them or they're within 6 m (never through walls or
+smoke). Far-away tags fade a little.
+
 **Bomb Defusal overtime:** regulation is 8 rounds (first to 5); if it ends
 4–4 the match goes to overtime — halves of 3 rounds with sides swapping and
 $10,000 each — and the first team to win 4 overtime rounds takes it. Level

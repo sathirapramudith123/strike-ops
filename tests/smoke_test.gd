@@ -1173,6 +1173,19 @@ func _test_bomb_defusal() -> void:
 	_player.health.helmet = true
 	_player.health.heal(100.0)
 
+	# Enemy name tags: only under the crosshair or up close, never far off to the side.
+	defender.global_position = _player.global_position + Vector3(0, 0, -15)
+	_aim_at(defender.global_position + Vector3(12, 1.7, 0))
+	await _frames(3)
+	await get_tree().process_frame
+	var tag := defender.get_node(^"NameTag") as Label3D
+	_check(not tag.visible, "an enemy's name is hidden when not aimed at")
+	_aim_at(defender.global_position + Vector3.UP * 1.9)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_check(tag.visible and not (tag.get_node(^"TagHealth") as Label3D).visible,
+		"aiming at an enemy shows the name (no health bar)")
+
 	# Drop + pick up.
 	b.on_player_down(1, _player.global_position + Vector3(0.5, 0, 0))
 	_check(b.bomb_state == BombRules.BombState.DROPPED, "bomb drops when the carrier goes down")
