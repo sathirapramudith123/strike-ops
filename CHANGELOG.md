@@ -22,6 +22,11 @@ other slots; gun silhouettes and a skull in the kill feed; A/B markers
 that point the way; teammates outlined in blue with a portrait on their
 name tag; N on the radar.
 
+**Walking players:** other players and bots now really walk — the legs
+bend at the knee and step in time with how fast they move (before, the
+legs hardly moved at high frame rates and the soldier slid along).
+Crouching drops them onto bent knees.
+
 **Custom match rooms:** create a room, friends join with the INVITE
 address and appear on the stage with their characters and READY / NOT
 READY; room chat; the host sets the map, mode and settings and starts the

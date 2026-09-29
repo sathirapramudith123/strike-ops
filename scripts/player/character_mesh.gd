@@ -15,7 +15,7 @@ const HEAD := Vector3(0, 1.62, -0.01)
 static var _cache: Dictionary = {}
 
 
-## { "body": ArrayMesh, "leg": ArrayMesh, "arm_l": ArrayMesh } for `look`.
+## { "body", "leg" (thigh), "shin", "arm_l": ArrayMesh } for `look`.
 static func get_meshes(look: Dictionary) -> Dictionary:
 	var clean: Dictionary = CharacterLook.sanitize(look)
 	var key: String = CharacterLook.key_of(clean)
@@ -78,19 +78,22 @@ static func _build(look: Dictionary) -> Dictionary:
 	_arm(a, Vector3((1.0 - w) * 0.23, 0, 0), l_elbow, l_hand, female, gloves)
 	var arm_l := a.build()
 
-	# --- One leg (pivot at the hip) ---------------------------------------------
+	# --- One leg: thigh (pivot at the hip) and shin (pivot at the knee) --------
 	var l := MeshBuilder.new()
 	_define(l, look)
 	var t := 0.92 if female else 1.0
 	l.limb(&"pants", Vector3(0, 0.02, 0), Vector3(0, -0.44, -0.02), 0.075 * t, 0.062 * t)
-	l.limb(&"pants", Vector3(0, -0.44, -0.02), Vector3(0, -0.82, 0.0), 0.058 * t, 0.05 * t)
+	var n := MeshBuilder.new()
+	_define(n, look)
+	var k := PlayerModel.KNEE # the shin is built round the knee
+	n.limb(&"pants", Vector3.ZERO, Vector3(0, -0.82, 0.0) - k, 0.058 * t, 0.05 * t)
 	if int(look.pants) not in [2, 3]: # knee pads (not with khakis or jeans)
-		l.sphere(&"gear", 0.06, Vector3(0, -0.45, -0.06), Vector3(1, 1.1, 0.7))
+		n.sphere(&"gear", 0.06, Vector3(0, -0.45, -0.06) - k, Vector3(1, 1.1, 0.7))
 	if bool(boots.tall):
-		l.limb(&"boot", Vector3(0, -0.84, 0.0), Vector3(0, -0.62, -0.005), 0.058 * t, 0.06 * t)
-	l.box(&"boot", Vector3(0.11, 0.09, 0.24), Vector3(0, -0.855, -0.04))
-	l.box(&"gear", Vector3(0.115, 0.02, 0.25), Vector3(0, -0.895, -0.04)) # sole
-	return { "body": body, "arm_l": arm_l, "leg": l.build() }
+		n.limb(&"boot", Vector3(0, -0.84, 0.0) - k, Vector3(0, -0.62, -0.005) - k, 0.058 * t, 0.06 * t)
+	n.box(&"boot", Vector3(0.11, 0.09, 0.24), Vector3(0, -0.855, -0.04) - k)
+	n.box(&"gear", Vector3(0.115, 0.02, 0.25), Vector3(0, -0.895, -0.04) - k) # sole
+	return { "body": body, "arm_l": arm_l, "leg": l.build(), "shin": n.build() }
 
 
 ## The look's own colours on a builder.

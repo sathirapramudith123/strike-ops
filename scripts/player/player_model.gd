@@ -3,23 +3,30 @@ extends Node3D
 ## Third-person soldier built from code (until real art) after the player's
 ## CharacterLook (CharacterMesh: body, face, hair, outfit and kit), with the
 ## shoulder pads, armbands, a chest patch and the helmet band in the team
-## colour; arms holding the current weapon, and legs that swing while
-## walking. Reloading tips the gun and swings the left arm down to swap the
+## colour; arms holding the current weapon, and legs (thigh + shin, bent
+## at the knee) that walk in step with how far the player moves. Reloading tips the gun and swings the left arm down to swap the
 ## magazine. Five mesh nodes, about eight draw calls; identical looks share
 ## their meshes.
 
 const HIP := Vector3(0.1, 0.9, 0.0)
+## The knee, from the hip.
+const KNEE := Vector3(0.0, -0.44, -0.02)
+## How far a crouch lowers the model.
+const CROUCH_DROP := 0.34
 const L_SHOULDER := Vector3(-0.23, 1.42, 0.0)
 const GUN_POS := Vector3(0.1, 1.3, -0.32)
 
 var _body: MeshInstance3D
-var _legs: Array[MeshInstance3D] = []
+var _legs: Array[MeshInstance3D] = [] # thighs
+var _shins: Array[MeshInstance3D] = []
 var _gun: MeshInstance3D
 var _arm_l: MeshInstance3D
 var _reload_time := 0.0
 var _reload_left := 0.0
 var _armor: ShaderMaterial
 var _phase: float = 0.0
+var _speed: float = 0.0 # smoothed ground speed
+var _crouch: float = 0.0 # 0 standing … 1 crouched
 var _last_pos: Vector3
 var _has_last: bool = false
 ## Dead: the death animation owns the pose (animate() leaves it alone).
@@ -40,6 +47,11 @@ func _ready() -> void:
 		leg.position = Vector3(side * HIP.x, HIP.y, 0.0)
 		add_child(leg)
 		_legs.append(leg)
+		var shin := MeshInstance3D.new()
+		shin.name = "Shin"
+		shin.position = KNEE
+		leg.add_child(shin)
+		_shins.append(shin)
 	_arm_l = MeshInstance3D.new()
 	_arm_l.name = "ArmL"
 	_arm_l.position = L_SHOULDER
@@ -70,7 +82,7 @@ func set_outline(color: Color) -> void:
 		mat = ShaderMaterial.new()
 		mat.shader = preload("res://assets/shaders/outline.gdshader")
 		mat.set_shader_parameter(&"color", color)
-	for mi: MeshInstance3D in [_body, _legs[0], _legs[1], _arm_l]:
+	for mi: MeshInstance3D in [_body, _legs[0], _legs[1], _shins[0], _shins[1], _arm_l]:
 		if mi:
 			mi.material_overlay = mat
 
@@ -84,8 +96,10 @@ func _apply_meshes() -> void:
 	_body.mesh = meshes.body
 	_legs[0].mesh = meshes.leg
 	_legs[1].mesh = meshes.leg
+	_shins[0].mesh = meshes.shin
+	_shins[1].mesh = meshes.shin
 	_arm_l.mesh = meshes.arm_l
-	for mi: MeshInstance3D in [_body, _legs[0], _legs[1], _arm_l]:
+	for mi: MeshInstance3D in [_body, _legs[0], _legs[1], _shins[0], _shins[1], _arm_l]:
 		for i in mi.get_surface_override_material_count():
 			mi.set_surface_override_material(i, null)
 		var idx := MeshBuilder.surface_of(mi.mesh, &"armor")
@@ -154,6 +168,8 @@ func play_death(style: int, headshot: bool) -> void:
 	# The knees give way.
 	for leg: MeshInstance3D in _legs:
 		t.tween_property(leg, "rotation:x", -1.3, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	for shin: MeshInstance3D in _shins:
+		t.tween_property(shin, "rotation:x", -0.9, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_property(self, "position:y", -0.3 if style % 4 != 3 else -0.5, 0.28) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	t.tween_property(self, "rotation:y", twist, 0.5)
@@ -165,6 +181,7 @@ func play_death(style: int, headshot: bool) -> void:
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	for i in _legs.size():
 		t.tween_property(_legs[i], "rotation:x", -0.2 - 0.5 * i, 0.42)
+		t.tween_property(_shins[i], "rotation:x", -0.3 - 0.4 * i, 0.42)
 	t.chain().set_parallel(true)
 	t.tween_property(self, "rotation:x", fall_x, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	t.tween_property(self, "rotation:z", fall_z, 0.14).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -181,6 +198,10 @@ func reset_pose() -> void:
 	position = Vector3.ZERO
 	for leg: MeshInstance3D in _legs:
 		leg.rotation = Vector3.ZERO
+	for shin: MeshInstance3D in _shins:
+		shin.rotation = Vector3.ZERO
+	_speed = 0.0
+	_has_last = false
 	_arm_l.rotation = Vector3.ZERO
 	_gun.visible = true
 	if is_instance_valid(_dropped_gun):
@@ -214,30 +235,49 @@ func _drop_gun() -> void:
 
 
 ## Walk cycle from how far the player moved (works for remote players too).
+## Positions change at the physics rate, not every drawn frame, so the
+## speed is smoothed over a few frames. The legs step in time with the
+## distance covered (a stride as long as the swing reaches — no sliding
+## feet): the thigh swings, the knee bends as the leg comes through, the
+## body bobs twice a cycle. Crouching lowers the model onto bent knees
+## (both feet on the ground, one knee lower).
 func animate(delta: float, crouching: bool) -> void:
-	if _dead:
+	if _dead or delta <= 0.0:
 		return
 	_animate_reload(delta)
 	var pos := global_position
-	var speed := 0.0
-	if _has_last and delta > 0.0:
-		speed = Vector2(pos.x - _last_pos.x, pos.z - _last_pos.z).length() / delta
+	var moved := 0.0
+	if _has_last:
+		moved = Vector2(pos.x - _last_pos.x, pos.z - _last_pos.z).length()
+		if moved > 3.0:
+			moved = 0.0 # teleport / respawn
 	_last_pos = pos
 	_has_last = true
-	if speed > 12.0:
-		speed = 0.0 # teleport / respawn
-	var amount := clampf(speed / 5.0, 0.0, 1.0)
-	_phase += delta * speed * 1.9
-	var swing := sin(_phase) * 0.55 * amount
-	var target_l := swing
-	var target_r := -swing
-	if crouching:
-		target_l = -0.9
-		target_r = -0.9
-	var k := clampf(delta * 14.0, 0.0, 1.0)
-	_legs[0].rotation.x = lerpf(_legs[0].rotation.x, target_l, k)
-	_legs[1].rotation.x = lerpf(_legs[1].rotation.x, target_r, k)
-	_body.position.y = absf(sin(_phase)) * 0.03 * amount
+	_speed = lerpf(_speed, moved / delta, 1.0 - exp(-delta * 8.0))
+	if _speed < 0.05:
+		_speed = 0.0
+	_crouch = move_toward(_crouch, 1.0 if crouching else 0.0, delta * 6.0)
+	var amount := clampf(_speed / 4.0, 0.0, 1.0)
+	# Thigh swing either way; one step covers the ground the feet span (a
+	# little more: running has a moment with both feet off the ground).
+	var swing := lerpf(0.22, 0.5, clampf(_speed / 6.5, 0.0, 1.0)) * (1.0 - 0.45 * _crouch)
+	var step := maxf(2.0 * (-KNEE.y + 0.45) * sin(swing) * lerpf(1.0, 1.4, amount), 0.25)
+	_phase = fmod(_phase + _speed * delta * PI / step, TAU)
+	var k := clampf(delta * 16.0, 0.0, 1.0)
+	for i in 2:
+		var ph := _phase + PI * i
+		# Crouch pose: thighs forward, shins folded back under, one knee lower.
+		var thigh := sin(ph) * swing * amount + _crouch * (1.05 - 0.35 * i)
+		var knee := -maxf(cos(ph), 0.0) * (0.35 + 0.6 * amount) * amount - 0.08 * amount - _crouch * 1.75
+		_legs[i].rotation.x = lerpf(_legs[i].rotation.x, thigh, k)
+		_shins[i].rotation.x = lerpf(_shins[i].rotation.x, knee, k)
+	var drop := CROUCH_DROP * _crouch
+	var bob := -absf(cos(_phase)) * 0.035 * amount + 0.02 * amount
+	_body.position.y = bob - drop
+	_arm_l.position.y = L_SHOULDER.y + bob - drop
+	_gun.position.y = GUN_POS.y + bob - drop
+	for i in 2:
+		_legs[i].position.y = HIP.y + bob - drop
 
 
 ## Reload: gun tips over, left hand drops to pull the magazine, goes down

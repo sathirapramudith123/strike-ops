@@ -2305,6 +2305,23 @@ func _test_characters() -> void:
 	for v in uv:
 		camo = camo or v.x > 0.5
 	_check(camo, "looks: woodland pants carry the camouflage pattern")
+	# Walk cycle: positions change on 60 Hz ticks but frames draw at 144 FPS
+	# (remote players) — the legs must still swing and the knees bend.
+	var walker := PlayerModel.new()
+	add_child(walker)
+	var thighs := [walker.get_node("LegL"), walker.get_node("LegR")]
+	var swing := 0.0
+	var bend := 0.0
+	for f in 288:
+		if f % 12 in [0, 2, 5, 7, 10]:
+			walker.position.z -= 5.0 / 60.0
+		walker.animate(1.0 / 144.0, false)
+		if f > 100:
+			for thigh: Node3D in thighs:
+				swing = maxf(swing, absf(thigh.rotation.x))
+				bend = minf(bend, (thigh.get_node("Shin") as Node3D).rotation.x)
+	_check(swing > 0.25 and bend < -0.3, "walk cycle: legs swing and knees bend at 144 FPS (swing %.2f, knee %.2f)" % [swing, bend])
+	walker.queue_free()
 	var r1 := CharacterLook.random(42)
 	_check(r1 == CharacterLook.random(42) and CharacterLook.random(42, 1).body == 1, "looks: random looks repeat per seed")
 
