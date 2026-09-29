@@ -521,7 +521,7 @@ func _local_time() -> float:
 func _start_dedicated_from_args() -> void:
 	var args := OS.get_cmdline_user_args()
 	# The server export also accepts options without the "--" separator
-	# (./FPSGame-server.x86_64 --port 7777), which is what admins type.
+	# (./StrikeOps-server.x86_64 --port 7777), which is what admins type.
 	if OS.has_feature("dedicated_server"):
 		args = OS.get_cmdline_args() + args
 	# `-- --connect 1.2.3.4:7777 [--name Bob]` joins a server straight away.
@@ -541,7 +541,7 @@ func _start_dedicated_from_args() -> void:
 	# The "Linux Server" export has the dedicated_server feature: always a server.
 	if not "--server" in args and not OS.has_feature("dedicated_server"):
 		return
-	print("[net] FPS Game %s dedicated server" % version_string())
+	print("[net] Strike Ops %s dedicated server" % version_string())
 	var port := DEFAULT_PORT
 	var max_players := DEFAULT_MAX_PLAYERS
 	var map_path := DEFAULT_MAP

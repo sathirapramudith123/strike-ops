@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="FPS Game"
+config/name="Strike Ops"
 config/description="Low-spec friendly multiplayer first-person shooter with scalable graphics and voice chat."
 config/version="0.9.0"
 config/release_channel="beta"

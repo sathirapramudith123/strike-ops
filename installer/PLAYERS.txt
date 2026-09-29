@@ -1,8 +1,8 @@
-FPS Game — quick start
+Strike Ops — quick start
 ======================
 
 Play
-  Windows : run FPSGame.exe          Linux : ./FPSGame.x86_64
+  Windows : run StrikeOps.exe          Linux : ./StrikeOps.x86_64
   First launch picks graphics settings for your PC automatically.
   Settings → Graphics → "Run benchmark" checks how well it runs.
   Help us tune the game for PCs like yours: Settings → Graphics →
@@ -14,7 +14,7 @@ Multiplayer
   LAN        : use the host's local IP.
   Internet   : the host forwards UDP 7777 on the router, or everyone uses
                a VPN such as Tailscale / ZeroTier / Radmin VPN.
-  Shortcut   : FPSGame.exe -- --connect 1.2.3.4:7777 --name YourName
+  Shortcut   : StrikeOps.exe -- --connect 1.2.3.4:7777 --name YourName
 
 Controller: plug in any Xbox / PlayStation / generic gamepad — sticks to
   move and look, RT shoot, LT aim, A jump, B crouch, X reload, Y next weapon,

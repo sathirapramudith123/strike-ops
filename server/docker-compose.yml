@@ -1,6 +1,6 @@
 # docker compose -f server/docker-compose.yml up -d   (after tools/build_release.sh)
 services:
-  fpsgame:
+  strikeops:
     build:
       context: ../builds/server
       dockerfile: ../../server/Dockerfile

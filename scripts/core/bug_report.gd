@@ -11,7 +11,7 @@ const ISSUES_URL := "https://github.com/sathirapramudith123/game-develop/issues/
 ## Version, OS, hardware, graphics settings and where the logs are.
 static func system_info() -> String:
 	var lines := PackedStringArray([
-		"Game: FPS Game %s" % NetworkManager.version_string(),
+		"Game: Strike Ops %s" % NetworkManager.version_string(),
 		"OS: %s %s" % [OS.get_name(), OS.get_version()],
 		"CPU: %s (%d threads)" % [OS.get_processor_name(), OS.get_processor_count()],
 		"RAM: %.1f GB" % (float(OS.get_memory_info().get("physical", 0)) / 1073741824.0),

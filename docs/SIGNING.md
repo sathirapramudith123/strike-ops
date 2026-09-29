@@ -44,7 +44,7 @@ reputation quickly.
 | `WINDOWS_CERT_PFX_BASE64` | `base64 -w0 cert.pfx` (PowerShell: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("cert.pfx"))`) |
 | `WINDOWS_CERT_PASSWORD` | The .pfx password |
 
-If both are set, Azure Trusted Signing is used. Signed: `FPSGame.exe`, the
+If both are set, Azure Trusted Signing is used. Signed: `StrikeOps.exe`, the
 Opus DLL, and the installer; the Windows zip is re-packed with the signed files.
 
 ## macOS (Apple Developer Program, US$99/year)
@@ -84,7 +84,7 @@ builds and signs everything and uploads the files as workflow artifacts, but
 only publishes a GitHub Release for `v*` tags. Check the logs of *Windows
 installer (+ signing)* and *macOS signing + notarization*, then download the
 artifacts and check: Windows — right-click the exe → Properties → Digital
-Signatures; macOS — `spctl --assess --verbose "FPS Game.app"`.
+Signatures; macOS — `spctl --assess --verbose "Strike Ops.app"`.
 
 > These steps were written without real certificates, so they have only been
 > checked for syntax (actionlint). Do the test run above the first time.

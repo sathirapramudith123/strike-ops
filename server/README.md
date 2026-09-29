@@ -1,11 +1,11 @@
-# FPS Game — dedicated server
+# Strike Ops — dedicated server
 
 A headless server with no graphics (meshes and textures are stripped from this
 build), small enough for a cheap Linux VPS — measured with 4 players: **~96 MB
 RAM and ~8 % of one CPU core** (plan roughly 1 core for a full 16-player server).
 
 Options work with or without the `--` separator
-(`./FPSGame-server.x86_64 --port 7777` or `./run_server.sh --port 7777`).
+(`./StrikeOps-server.x86_64 --port 7777` or `./run_server.sh --port 7777`).
 
 ```bash
 ./run_server.sh                                   # FFA on the Test Range, port 7777
@@ -23,7 +23,7 @@ Options work with or without the `--` separator
 | `--bot-skill` | `0` easy, `1` normal, `2` hard | `1` |
 
 Open **UDP 7777** in the firewall / cloud security group. Players join with
-the server's IP (`Join` in the main menu, or `FPSGame -- --connect IP:7777`).
+the server's IP (`Join` in the main menu, or `StrikeOps -- --connect IP:7777`).
 
 After every match players vote for the next map (keys 1–3 on the results screen); with no votes the map rotates. The server log prints joins, leaves,
 kills of the match result and `[anticheat]` lines; players who send
