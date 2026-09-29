@@ -85,6 +85,12 @@ var _stage_root: Node3D
 var _stage_models: Array[PlayerModel] = []
 var _stage_ids: Array[int] = []
 var _tags: Control
+# The selected map behind the group (see _update_stage_map); the warehouse
+# set (_studio) while it loads, for Random, or where no spot fits.
+var _studio: Node3D
+var _stage_level: Level
+var _stage_map_path := "" # the map wanted on the stage ("" = the studio)
+var _stage_fill: SpotLight3D
 var _change_button: Button
 
 
@@ -749,6 +755,9 @@ func _build_stage() -> void:
 		_stage_vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_stage_root = Node3D.new()
 	_stage_vp.add_child(_stage_root)
+	_studio = Node3D.new()
+	_studio.name = "Studio"
+	_stage_root.add_child(_studio)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
@@ -761,7 +770,7 @@ func _build_stage() -> void:
 	e.fog_light_color = Color(0.2, 0.18, 0.15)
 	e.fog_density = 0.02
 	env.environment = e
-	_stage_root.add_child(env)
+	_studio.add_child(env)
 	# A warehouse corner: wet concrete floor, a back wall, crates, a lamp.
 	var floor_mat := StandardMaterial3D.new()
 	floor_mat.albedo_color = Color(0.13, 0.13, 0.14)
@@ -794,19 +803,19 @@ func _build_stage() -> void:
 	key.light_energy = 3.2
 	key.light_color = Color(1.0, 0.9, 0.78)
 	key.shadow_enabled = true
-	_stage_root.add_child(key)
+	_studio.add_child(key)
 	var rim := OmniLight3D.new()
 	rim.position = Vector3(-3, 3.5, -3.5)
 	rim.omni_range = 9.0
 	rim.light_energy = 1.4
 	rim.light_color = Color(0.6, 0.72, 1.0)
-	_stage_root.add_child(rim)
+	_studio.add_child(rim)
 	var warm := OmniLight3D.new()
 	warm.position = Vector3(5, 2.0, -2.5)
 	warm.omni_range = 7.0
 	warm.light_energy = 1.2
 	warm.light_color = Color(1.0, 0.6, 0.3)
-	_stage_root.add_child(warm)
+	_studio.add_child(warm)
 	_stage_cam = Camera3D.new()
 	_stage_cam.fov = 34.0
 	# Looking a little right of the group, so it stands in the free space
@@ -824,7 +833,150 @@ func _stage_box(pos: Vector3, box_size: Vector3, mat: Material) -> void:
 	mi.mesh = bm
 	mi.material_override = mat
 	mi.position = pos
-	_stage_root.add_child(mi)
+	_studio.add_child(mi)
+
+
+## The lobby background follows the map pick: the map is loaded in the
+## background (threaded) in preview mode into the stage's world and the
+## group moved to an open spot on it, facing the camera with the map
+## behind them. Random (or a map with no clear spot) shows the warehouse.
+func _update_stage_map() -> void:
+	if _stage_vp == null or DisplayServer.get_name() == "headless":
+		return
+	var path := _map
+	if NetworkManager.in_room:
+		path = String(NetworkManager.room.get("map", _map))
+	if path == "random" or not ResourceLoader.exists(path):
+		path = ""
+	if path == _stage_map_path:
+		return
+	_stage_map_path = path
+	if path == "":
+		_show_studio()
+	elif ResourceLoader.load_threaded_request(path) != OK:
+		_stage_map_path = ""
+		_show_studio()
+
+
+func _poll_stage_map() -> void:
+	var path := _stage_map_path
+	if path == "" or (_stage_level and _stage_level.scene_file_path == path):
+		return
+	match ResourceLoader.load_threaded_get_status(path):
+		ResourceLoader.THREAD_LOAD_LOADED:
+			var scene := ResourceLoader.load_threaded_get(path) as PackedScene
+			if scene:
+				_show_map(scene)
+		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			_stage_map_path = ""
+			_show_studio()
+
+
+func _show_map(scene: PackedScene) -> void:
+	var level := scene.instantiate() as Level
+	if level == null:
+		_show_studio()
+		return
+	_free_stage_level()
+	level.preview_only = true
+	_stage_level = level
+	_stage_vp.add_child(level)
+	# The colliders are in the physics space after a physics frame.
+	await get_tree().physics_frame
+	await get_tree().physics_frame
+	if level != _stage_level:
+		return # another map was picked meanwhile
+	var spot: Variant = _find_stage_spot(level)
+	if spot == null:
+		_show_studio()
+		return
+	if _studio.get_parent():
+		_stage_root.remove_child(_studio)
+	_stage_root.transform = spot
+	if _stage_fill == null:
+		# A soft key light on the group, so they read against the map.
+		_stage_fill = SpotLight3D.new()
+		_stage_fill.name = "Fill"
+		_stage_fill.spot_range = 12.0
+		_stage_fill.spot_angle = 30.0
+		_stage_fill.light_energy = 2.4
+		_stage_fill.light_color = Color(1.0, 0.94, 0.86)
+		_stage_root.add_child(_stage_fill)
+		_stage_fill.look_at_from_position(Vector3(1.2, 3.5, 4.5), Vector3(0, 1.0, 0))
+	_stage_fill.visible = true
+
+
+func _show_studio() -> void:
+	_free_stage_level()
+	_stage_root.transform = Transform3D.IDENTITY
+	if _studio.get_parent() == null:
+		_stage_root.add_child(_studio)
+		_stage_root.move_child(_studio, 0)
+	if _stage_fill:
+		_stage_fill.visible = false
+
+
+func _free_stage_level() -> void:
+	if _stage_level:
+		_stage_level.queue_free()
+		_stage_level = null
+
+
+## Where the group stands on `level`: the stage's transform (the group at
+## the origin looking down +Z at the camera), or null. Tries the spawns and
+## bomb sites in eight directions each and keeps the one with flat ground
+## under the group, a clear line to the camera and the most open view
+## behind the group.
+func _find_stage_spot(level: Level) -> Variant:
+	var space := level.get_world_3d().direct_space_state
+	var cam_local := _stage_cam.position
+	var spots: Array[Vector3] = []
+	for list: Array in [level.blue_spawn_points, level.red_spawn_points, level.spawn_points, level.bomb_sites]:
+		for m: Marker3D in list:
+			if m and m.is_inside_tree():
+				spots.append(m.global_position)
+	var best: Variant = null
+	var best_score := 0.0
+	for p in spots:
+		var ground: Variant = _ground_at(space, p)
+		if ground == null:
+			continue
+		for i in 8:
+			var basis := Basis(Vector3.UP, TAU * i / 8.0)
+			var xf := Transform3D(basis, ground)
+			var cam := xf * cam_local
+			# Clear from the group to the camera (a little past it, too).
+			if _ray(space, xf * Vector3(0, 1.2, 0), xf * (cam_local + Vector3(0, 0, 0.6))) != null:
+				continue
+			var ok := true
+			for x in [-1.5, 1.5]:
+				var g: Variant = _ground_at(space, xf * Vector3(x, 0.5, 0))
+				if g == null or absf((g as Vector3).y - ground.y) > 0.25 \
+						or _ray(space, xf * Vector3(x, 1.0, 0), cam) != null:
+					ok = false
+					break
+			if not ok:
+				continue
+			# The view behind them: how far until a wall, capped.
+			var hit: Variant = _ray(space, xf * Vector3(0, 1.4, 0), xf * Vector3(0, 1.4, -40))
+			var depth := 40.0 if hit == null else (hit as Vector3).distance_to(xf * Vector3(0, 1.4, 0))
+			if depth < 4.0:
+				continue
+			var score := minf(depth, 25.0) + randf() # a little variety between equal spots
+			if score > best_score:
+				best_score = score
+				best = xf
+	return best
+
+
+func _ground_at(space: PhysicsDirectSpaceState3D, p: Vector3) -> Variant:
+	return _ray(space, p + Vector3.UP * 1.0, p + Vector3.DOWN * 3.0)
+
+
+## Where the segment first hits the map, or null.
+func _ray(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Variant:
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to))
+	return hit.position if not hit.is_empty() else null
 
 
 ## Who stands on the stage: the room's members, or just you.
@@ -912,6 +1064,7 @@ func _rebuild_tags() -> void:
 
 
 func _process(_delta: float) -> void:
+	_poll_stage_map()
 	# Soldiers breathe a little; tags follow their heads.
 	for i in _stage_models.size():
 		var m := _stage_models[i]
@@ -1111,6 +1264,7 @@ func _refresh_setup() -> void:
 				label.text = "Max Players"
 				value.text = str(int(_opts.get("max_players", 8)))
 	_refresh_start()
+	_update_stage_map()
 
 
 func _refresh_start() -> void:

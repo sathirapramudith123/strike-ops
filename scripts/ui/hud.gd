@@ -69,6 +69,14 @@ var _money_events: VBoxContainer
 var buy_menu: BuyMenu
 ## Hold 4: pick a grenade.
 var grenade_wheel: GrenadeWheel
+# Concept-art HUD pieces (built in code, see _build_concept_hud).
+var squad_list: SquadList
+var objective_markers: ObjectiveMarkers
+var _portrait: TextureRect
+var _card_name: Label
+var _gun_icon: TextureRect
+var _slot_boxes: HBoxContainer
+var _feed_icons: Dictionary = {} # display name -> weapon id
 var _feed_style_mine: StyleBoxFlat
 
 
@@ -103,6 +111,9 @@ func bind_player(player: PlayerController) -> void:
 		Audio.play_local(&"hurt", -4.0, randf_range(0.9, 1.1)))
 	_on_health_changed(player.health.current, player.health.max_health)
 	buy_menu.player = player
+	_card_name.text = player.player_name
+	for w: Weapon in player.weapons.values():
+		_feed_icons[w.data.display_name] = w.data.weapon_id
 	grenade_wheel.throwables = player.throwables
 	if player.throwables:
 		player.throwables.changed.connect(_update_weapon_slots)
@@ -184,10 +195,13 @@ func _ready() -> void:
 	_walk_label.visible = false
 	add_child(_walk_label)
 	_build_money()
+	_build_concept_hud()
 	grenade_wheel = GrenadeWheel.new()
 	add_child(grenade_wheel)
 	var level := get_parent() as Level
 	_top_bar.level = level
+	squad_list.level = level
+	objective_markers.level = level
 	if level and not level.preview_only:
 		_minimap.build.call_deferred(level)
 		_big_map.build.call_deferred(level)
@@ -253,6 +267,7 @@ func _process(delta: float) -> void:
 		var level := get_parent() as Level
 		var viewer: PlayerController = level.spectating() if level and level.spectating() else _player
 		_location_label.text = _minimap.location(viewer.global_position) if viewer and _minimap.level else ""
+	_update_card()
 	if _perf_label.visible:
 		_update_perf()
 
@@ -262,6 +277,9 @@ func _bind_weapon(weapon: Weapon) -> void:
 	if weapon == null:
 		return
 	_weapon_label.text = weapon.data.display_name
+	_gun_icon.texture = IconRenderer.cached_weapon(weapon.data.weapon_id)
+	if _gun_icon.texture == null:
+		IconRenderer.request_weapon(self, weapon.data.weapon_id)
 	_update_weapon_slots()
 	if not weapon.ammo_changed.is_connected(_on_ammo_changed):
 		weapon.ammo_changed.connect(_on_ammo_changed)
@@ -423,8 +441,22 @@ func _on_kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot
 	var local_id := multiplayer.get_unique_id()
 	if killer_id >= 0 and killer_id != victim_id:
 		box.add_child(_feed_label(NetworkManager.get_player_name(killer_id), killer_id))
-		box.add_child(_feed_label("  [%s%s]  " % [weapon_name, " HS" if headshot else ""], -2))
-		box.add_child(_feed_label(NetworkManager.get_player_name(victim_id), victim_id))
+		# The weapon's silhouette (its name until the picture is ready), a skull for a headshot.
+		var gun: Texture2D = IconRenderer.cached_weapon(_feed_icons.get(weapon_name, ""))
+		if gun:
+			var icon := TextureRect.new()
+			icon.texture = gun
+			icon.custom_minimum_size = Vector2(62, 22)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			box.add_child(icon)
+		else:
+			box.add_child(_feed_label("  [%s]  " % weapon_name, -2))
+		if headshot:
+			var skull := LobbyIcon.make("bot", 18, Color(1, 0.85, 0.8))
+			skull.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			box.add_child(skull)
+		box.add_child(_feed_label(" " + NetworkManager.get_player_name(victim_id), victim_id))
 	else:
 		box.add_child(_feed_label(NetworkManager.get_player_name(victim_id), victim_id))
 		box.add_child(_feed_label("  fell", -2))
@@ -466,7 +498,7 @@ func _build_money() -> void:
 	_money_box.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	_money_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	_money_box.offset_left = 24
-	_money_box.offset_bottom = -84
+	_money_box.offset_bottom = -176 # over the player card
 	_money_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_money_box.visible = false
 	add_child(_money_box)
@@ -534,19 +566,8 @@ func _update_weapon_slots() -> void:
 		return
 	for child in _weapon_slots.get_children():
 		child.queue_free()
-	var ws := _player.loadout_weapons()
-	for i in ws.size():
-		if ws[i]:
-			var current := i == _player.current_slot and not (_player.throwables and _player.throwables.is_holding())
-			var l := Label.new()
-			l.text = "%s   %d" % [ws[i].data.display_name.get_slice(" ", 0), i + 1]
-			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-			l.add_theme_font_size_override(&"font_size", 18 if current else 14)
-			l.add_theme_color_override(&"font_color", Color(1, 0.9, 0.55) if current else Color(1, 1, 1, 0.55))
-			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
-			l.add_theme_constant_override(&"outline_size", 4)
-			_weapon_slots.add_child(l)
-	# Grenades under the guns (key 4 takes one in hand; the one in hand is lit).
+	_update_slot_boxes()
+	# Grenades on the right (the guns are in the boxes at the bottom) (key 4 takes one in hand; the one in hand is lit).
 	var t := _player.throwables
 	if t:
 		var first := true
@@ -563,6 +584,182 @@ func _update_weapon_slots() -> void:
 			l.add_theme_color_override(&"font_outline_color", Color.BLACK)
 			l.add_theme_constant_override(&"outline_size", 4)
 			_weapon_slots.add_child(l)
+
+
+## The HUD from the concept art: player card bottom left (portrait, name,
+## health and armour), the weapon panel bottom centre (gun silhouette,
+## name, ammo) with boxes for the other slots, your team down the left
+## (SquadList) and the bomb sites on screen (ObjectiveMarkers).
+func _build_concept_hud() -> void:
+	# Player card: portrait + name over the existing health / armour row.
+	var card := get_node(^"HealthPanel") as PanelContainer
+	card.offset_left = 20
+	card.offset_top = -150
+	card.offset_right = 300
+	card.offset_bottom = -18
+	var box := card.get_node(^"Box")
+	card.remove_child(box)
+	# Health over armour, not side by side, to keep the card narrow.
+	var bars := VBoxContainer.new()
+	bars.name = "Bars"
+	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bars.add_theme_constant_override(&"separation", 0)
+	for g: Node in box.get_children():
+		g.reparent(bars, false)
+	_health_label.custom_minimum_size.x = 54
+	_armor_label.custom_minimum_size.x = 54
+	box.queue_free()
+	var row := HBoxContainer.new()
+	row.name = "Card"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 14)
+	card.add_child(row)
+	var frame := PanelContainer.new()
+	var fs := StyleBoxFlat.new()
+	fs.bg_color = Color(0.1, 0.14, 0.22, 0.9)
+	fs.border_color = Color(0.3, 0.55, 1.0)
+	fs.set_border_width_all(2)
+	fs.set_content_margin_all(2)
+	frame.add_theme_stylebox_override(&"panel", fs)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(frame)
+	_portrait = TextureRect.new()
+	_portrait.name = "Portrait"
+	_portrait.custom_minimum_size = Vector2(84, 84)
+	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	frame.add_child(_portrait)
+	var col := VBoxContainer.new()
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	_card_name = _outlined_label(24, Color.WHITE)
+	_card_name.name = "CardName"
+	col.add_child(_card_name)
+	col.add_child(bars)
+	# Weapon panel to the bottom centre, a silhouette of the gun on its left.
+	var ammo := get_node(^"AmmoPanel") as PanelContainer
+	ammo.anchor_left = 0.5
+	ammo.anchor_right = 0.5
+	ammo.offset_left = -312
+	ammo.offset_right = -6
+	ammo.offset_top = -92
+	ammo.offset_bottom = -18
+	var ammo_box := ammo.get_node(^"Box")
+	ammo.remove_child(ammo_box)
+	var arow := HBoxContainer.new()
+	arow.name = "WeaponRow"
+	arow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	arow.add_theme_constant_override(&"separation", 12)
+	ammo.add_child(arow)
+	_gun_icon = TextureRect.new()
+	_gun_icon.name = "GunIcon"
+	_gun_icon.custom_minimum_size = Vector2(124, 52)
+	_gun_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_gun_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	arow.add_child(_gun_icon)
+	ammo_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arow.add_child(ammo_box)
+	# The other slots: pistol (2), knife (3), grenade (4).
+	_slot_boxes = HBoxContainer.new()
+	_slot_boxes.name = "SlotBoxes"
+	_slot_boxes.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_slot_boxes.offset_left = 4
+	_slot_boxes.offset_right = 242
+	_slot_boxes.offset_top = -86
+	_slot_boxes.offset_bottom = -18
+	_slot_boxes.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_slot_boxes.add_theme_constant_override(&"separation", 6)
+	add_child(_slot_boxes)
+	squad_list = SquadList.new()
+	squad_list.name = "SquadList"
+	squad_list.position = Vector2(16, 262)
+	squad_list.size = Vector2(SquadList.ROW.x, 460)
+	add_child(squad_list)
+	objective_markers = ObjectiveMarkers.new()
+	objective_markers.name = "ObjectiveMarkers"
+	add_child(objective_markers)
+	move_child(objective_markers, 1)
+
+
+## The player card's portrait (rendered from your character) and colours.
+func _update_card() -> void:
+	if _player == null:
+		return
+	if _portrait.texture == null:
+		var look := NetworkManager.look_of(_player.peer_id)
+		_portrait.texture = IconRenderer.cached_portrait(look)
+		if _portrait.texture == null:
+			IconRenderer.request_portrait(self, look)
+	if _gun_icon.texture == null and _weapon:
+		_gun_icon.texture = IconRenderer.cached_weapon(_weapon.data.weapon_id)
+
+
+## Boxes for the slots other than the gun in the weapon panel: the pistol,
+## the knife and the grenades (with the count); the one in hand is lit.
+func _update_slot_boxes() -> void:
+	for c in _slot_boxes.get_children():
+		_slot_boxes.remove_child(c)
+		c.queue_free()
+	if _player == null:
+		return
+	var ws := _player.loadout_weapons()
+	var holding := _player.throwables and _player.throwables.is_holding()
+	for i in range(1, mini(ws.size(), 3)):
+		var w: Weapon = ws[i]
+		if w == null:
+			continue
+		_slot_boxes.add_child(_slot_box(i + 1, IconRenderer.cached_weapon(w.data.weapon_id), "",
+			i == _player.current_slot and not holding))
+		if IconRenderer.cached_weapon(w.data.weapon_id) == null:
+			IconRenderer.request_weapon(self, w.data.weapon_id)
+	var t := _player.throwables
+	if t:
+		var total := 0
+		for kind: int in Throwables.ORDER:
+			total += int(t.counts[kind])
+		_slot_boxes.add_child(_slot_box(4, null, "×%d" % total, holding, true))
+
+
+func _slot_box(key: int, icon: Texture2D, count: String, lit: bool, grenade: bool = false) -> Control:
+	var box := PanelContainer.new()
+	box.custom_minimum_size = Vector2(70, 66)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.03, 0.05, 0.09, 0.72)
+	sb.border_color = Color(1, 0.85, 0.3) if lit else Color(1, 1, 1, 0.15)
+	sb.set_border_width_all(2 if lit else 1)
+	sb.set_corner_radius_all(3)
+	box.add_theme_stylebox_override(&"panel", sb)
+	if icon:
+		var pic := TextureRect.new()
+		pic.texture = icon
+		pic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		pic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(pic)
+	elif grenade:
+		var g := Control.new()
+		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		g.draw.connect(func() -> void:
+			var c := g.size * 0.5 + Vector2(0, 3)
+			g.draw_circle(c, 13.0, Color(0.85, 0.88, 0.9))
+			g.draw_rect(Rect2(c + Vector2(-4, -20), Vector2(8, 8)), Color(0.85, 0.88, 0.9))
+			g.draw_line(c + Vector2(4, -17), c + Vector2(12, -9), Color(0.85, 0.88, 0.9), 2.0))
+		box.add_child(g)
+	var labels := Control.new()
+	labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(labels)
+	var k := _outlined_label(13, Color(1, 1, 1, 0.8))
+	k.text = str(key)
+	k.position = Vector2(50, 40)
+	labels.add_child(k)
+	if count != "":
+		var n := _outlined_label(13, Color(0.8, 1, 0.7))
+		n.text = count
+		n.position = Vector2(2, 40)
+		labels.add_child(n)
+	return box
 
 
 ## Keyboard key bound to `action` ("G"), or "" if none.

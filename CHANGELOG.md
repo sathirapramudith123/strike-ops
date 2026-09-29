@@ -12,6 +12,16 @@ Custom Match, Training and Bot Match on the left; map cards with previews
 (+ Random), game mode and match settings (round time, score limit, bots,
 bot skill, friendly fire, max players) with a big START on the right.
 
+**The selected map behind the lobby:** pick a map and your soldier (and
+everyone in your room) stands on it, at an open spot by a spawn or site.
+
+**New match HUD:** a score bar with team emblems and *ROUND x/y*; your
+team's list with portraits, health and guns; a player card with your
+portrait; a weapon panel with the gun's silhouette and boxes for the
+other slots; gun silhouettes and a skull in the kill feed; A/B markers
+that point the way; teammates outlined in blue with a portrait on their
+name tag; N on the radar.
+
 **Custom match rooms:** create a room, friends join with the INVITE
 address and appear on the stage with their characters and READY / NOT
 READY; room chat; the host sets the map, mode and settings and starts the

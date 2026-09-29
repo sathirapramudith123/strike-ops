@@ -61,6 +61,20 @@ func set_look(look: Dictionary) -> void:
 		_apply_meshes()
 
 
+## A glowing edge in `color` round the soldier (teammates); a transparent
+## colour removes it.
+func set_outline(color: Color) -> void:
+	var on := color.a > 0.0
+	var mat: ShaderMaterial = null
+	if on:
+		mat = ShaderMaterial.new()
+		mat.shader = preload("res://assets/shaders/outline.gdshader")
+		mat.set_shader_parameter(&"color", color)
+	for mi: MeshInstance3D in [_body, _legs[0], _legs[1], _arm_l]:
+		if mi:
+			mi.material_overlay = mat
+
+
 func get_look() -> Dictionary:
 	return _look
 

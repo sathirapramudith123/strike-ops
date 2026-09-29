@@ -186,6 +186,11 @@ func _draw_overlay() -> void:
 	var font := get_theme_default_font()
 	var me := multiplayer.get_unique_id() if multiplayer.has_multiplayer_peer() else 1
 	var viewer := _viewer()
+	if not full_map:
+		# Compass: N on the ring, turning with the map.
+		var n_at := c + Vector2(0, -(r - 11)).rotated(_yaw)
+		_overlay.draw_circle(n_at, 9.0, Color(0.02, 0.03, 0.05, 0.85))
+		_overlay.draw_string(font, n_at + Vector2(-5, 5), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, Color(0.9, 0.92, 1.0))
 	if full_map:
 		# Area names (smallest boxes last, so they sit on top).
 		for i in range(_callouts.size() - 1, -1, -1):

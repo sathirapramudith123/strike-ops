@@ -657,6 +657,8 @@ func _update_team_visuals() -> void:
 	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, local_id)
 	_model.set_team_color(GameConfig.team_color(team))
 	_model.set_look(NetworkManager.look_of(peer_id))
+	# Teammates glow at the edges in the team colour.
+	_model.set_outline(GameConfig.team_color(team).lightened(0.2) if friendly and not is_local else Color.TRANSPARENT)
 	_name_tag.no_depth_test = friendly
 	_name_tag.outline_modulate = Color(0.1, 0.25, 0.6, 0.9) if friendly else Color(0.45, 0.05, 0.05, 0.9)
 
@@ -690,12 +692,48 @@ func _update_name_tag() -> void:
 	# Fade a little with distance so far tags don't clutter the view.
 	_name_tag.modulate.a = clampf(remap(dist, 30.0, TAG_RANGE, 1.0, 0.45), 0.45, 1.0)
 	_tag_health.visible = friendly
+	_update_tag_portrait(friendly)
 	if friendly:
 		var hp := clampf(health.current / health.max_health, 0.0, 1.0)
 		var n := ceili(hp * 10.0)
 		_tag_health.text = "▮".repeat(n) + "▯".repeat(10 - n)
 		_tag_health.modulate = Color(0.45, 0.95, 0.5).lerp(Color(1, 0.3, 0.25), 1.0 - hp)
 		_tag_health.modulate.a = _name_tag.modulate.a
+
+
+## Teammates' tags carry their portrait (IconRenderer) left of the name.
+var _tag_portrait: Sprite3D
+
+
+const TAG_PORTRAIT_SCALE := 0.65 # portrait pixels to name tag pixels
+
+
+func _update_tag_portrait(friendly: bool) -> void:
+	if not friendly:
+		if _tag_portrait:
+			_tag_portrait.visible = false
+		return
+	var look := _model.get_look()
+	var tex := IconRenderer.cached_portrait(look)
+	if tex == null:
+		IconRenderer.request_portrait(self, look)
+		return
+	if _tag_portrait == null:
+		_tag_portrait = Sprite3D.new()
+		_tag_portrait.name = "TagPortrait"
+		_tag_portrait.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		_tag_portrait.no_depth_test = true
+		_tag_portrait.fixed_size = true
+		_tag_portrait.pixel_size = _name_tag.pixel_size * TAG_PORTRAIT_SCALE
+		_tag_portrait.render_priority = 1
+		_name_tag.add_child(_tag_portrait)
+	_tag_portrait.texture = tex
+	_tag_portrait.visible = true
+	# Left of the name: half the name's width plus a little, in pixels.
+	var name_px := _name_tag.font.get_string_size(_name_tag.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+		_name_tag.font_size).x if _name_tag.font else _name_tag.text.length() * _name_tag.font_size * 0.55
+	_tag_portrait.offset = Vector2(-(name_px * 0.5 + 40.0) / TAG_PORTRAIT_SCALE, -6.0 / TAG_PORTRAIT_SCALE)
+	_tag_portrait.modulate.a = _name_tag.modulate.a
 
 
 ## Voice chat indicator on the name tag.
