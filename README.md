@@ -2,7 +2,7 @@
 
 A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macOS), built to **run smoothly on low-end PCs** while still scaling up to great visuals on powerful machines.
 
-> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal with money and a buy menu; 5 guns + knife and 4 grenade types; 8 maps with a map picker + end-of-match vote; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
+> **Status:** 🧪 **v0.9.0 beta** — builds for Windows, Linux, macOS and a Linux dedicated server: FFA, TDM, Bomb Defusal with money, a buy menu and overtime; 6 guns + knife and 4 grenade types, each gun with its own animations; 8 maps with a map picker + end-of-match vote; a character creator; training bots; keyboard/mouse **and controller**; Opus voice chat; 3D audio; anti-cheat. v1.0 follows after real-hardware reports and beta feedback.
 
 ---
 
@@ -43,6 +43,10 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 - 🔫 **Core FPS gameplay** — smooth first-person movement (walk, sprint, crouch, jump, slide, lean, **climb onto crates, cars and low walls**), aim-down-sights, fire modes, recoil & spread, hitscan weapons and a knife.
 - 💣 **Grenades** — HE, Molotov, flashbang and smoke; hold `4` for a **grenade wheel**, and the grenade in hand shows its **flight path and landing spot**.
 - 💰 **Bomb Defusal economy** — money for kills, plants, defuses and rounds; a **buy menu** (`X`) for guns, armour + helmet and grenades; survivors keep their gear.
+- 🧑 **Character creator** — male / female, 15 faces, eyes, mouth, ears, voice, 7 outfits with camouflage and every kit piece (headwear, armour, backpack, gloves, pants, boots); everyone sees your look.
+- 🔧 **Weapon animations** — one system, a profile per gun: sway, bob, equip, per-gun kick, bolt / pump after each shot, reloads (shotgun shell by shell, LMG top cover) and an inspect (`I`) for every gun.
+- 🤖 **Training bots** — 0–15 bots (Easy / Normal / Hard) offline or on your server; they navigate, fight, buy, plant and defuse.
+- 🚪 **Doors and glass** — doors open with `F` and break where they are shot; windows crack, then shatter.
 - 🌐 **Multiplayer** — client/server networking with lag compensation and client-side prediction.
 - 🎮 **Game modes** — Free-for-All, Team Deathmatch, Bomb Defusal (rounds, plant/defuse, money + buy menu), offline Practice.
 - ⚙️ **Graphics presets** — Low / Medium / High / Ultra + auto-detect on first launch.
@@ -336,7 +340,7 @@ New weapons = new `WeaponData` `.tres` in `resources/weapons/` + a viewmodel sce
 godot --headless --path . res://tests/smoke_test.tscn
 ```
 
-The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap, money and the buy menu: prices, limits, rewards, buy time and zone, gear kept by survivors — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps, stairs and doors of every map (Docks: through the warehouse, onto A Long, the quay edge), the Oasis terrace, doors and covered corridor, routes through Factory, Office, Subway (A / B Long into the sites, through the trains, out of a track bed, the CT and T routes) and Train Yard, the radar outline and location names, first-person arms and the reload animations, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
+The smoke test drives the real player through the test map (walk, sprint, jump, crouch, slide, ADS, shooting, reload, ramp, stairs, pause, fall death + respawn, lag-compensation maths, voice codec quality, resampler, proximity voice rules, mic-test loopback, weapon switching, pistol semi-auto, shotgun pellets, sniper scope + one-shot, loadout on respawn, friendly fire, TDM scoring + match end, a full offline Bomb Defusal match — freeze, carry/drop/pickup, plant, defuse, explosion, elimination, halftime swap, money and the buy menu: prices, limits, rewards, buy time and zone, gear kept by survivors — the settings screen (custom graphics, rebinding + swap + persistence, the new key really jumps and the old one doesn't, toggle aim/crouch, crosshair, reset) and the end-of-match map vote, walking the ramps, stairs and doors of every map (Docks: through the warehouse, onto A Long, the quay edge), the Oasis terrace, doors and covered corridor, routes through Factory, Office, Subway (A / B Long into the sites, through the trains, out of a track bed, the CT and T routes) and Train Yard, the radar outline and location names, first-person arms and the reload animations, the weapon animation profiles (equip raise, sway, bob, bolt / pump, shell-by-shell shotgun reload, the LMG's cover, per-gun inspects, arms in the outfit's colours), the win / lose / draw result, character looks (clamping, meshes, camouflage, the Character screen, bots' looks, voices), doors and glass, training bots, and spawns + bomb sites on all maps) and exits with code `0` when all checks pass. For the multiplayer test see *Testing multiplayer locally* below.
 
 ### Phase 4 — multiplayer
 
@@ -385,12 +389,13 @@ Everything goes through the **`Audio`** autoload (`scripts/audio/audio_manager.g
 |---------|--------------|
 | **Gunfire** | Each weapon has its own shot (AR-7, V-10, M-12, LR-50, K-100, P-9); heard up to 150 m (sniper 300 m); distant shots lose their highs |
 | **Footsteps** | One step per stride: walking normal, **sprinting loud (40 m)**, **crouch-walking nearly silent (8 m)** — also for other players, from their movement. Jump, landing (louder the harder you land) and slide sounds |
-| **Reload & handling** | Mag out → mag in → bolt, timed to the reload; dry fire; weapon switch |
+| **Reload & handling** | Each gun's own cues along the reload (mag out → mag in → bolt; shotgun: a click per shell, then the pump; LMG: cover open → box out → box in → cover shut → charge); the sniper's bolt and the shotgun's pump after each shot; dry fire; weapon switch |
 | **Bullets** | Impact sound where bullets hit; enemy bullets flying within 3 m of your head **whiz** past |
 | **Feedback** | Hit marker, headshot "ding", kill confirm (can be turned off), hurt thump when you take damage |
 | **Occlusion** | A ray from your ears to each sound: if a wall is in between, the sound goes to the `SFXOccluded` bus (low-pass + quieter). Long sounds re-check while they play (High quality) |
 | **Reverb zones** | `Area3D`s on physics layer 7 (`audio_zone`) send indoor sounds to `ReverbRoom` or `ReverbHall`: the Docks warehouse, Bunker rooms, reactor hall and tunnel. Add one in `tools/greybox.py` with `m.reverb(pos, size, "room"/"hall", amount)` |
-| **Music** | Menu theme (calm, A minor) and a quiet tense drone in matches (can be turned off); cross-fades between them; results screen plays a **win or lose sting**. Bomb Defusal: round start, bomb planted, defused, round won/lost stings |
+| **Music** | Menu theme (calm, A minor) and a quiet tense drone in matches (can be turned off); cross-fades between them. Match end: a **brass fanfare** with timpani and cymbals when you win, a slow falling **defeat** theme when you lose, a **draw** sting (also when the match ends on time). Bomb Defusal: round start, bomb planted, defused, round won/lost stings |
+| **Player voices** | A grunt when hit, a cry when killed, pitched by the character's voice (normal, deep, rough, high, young…) and body |
 | **UI** | Every button clicks and ticks on hover |
 | **Voices** | Pooled players — Low: 16 at once, High: 40; when all are busy the oldest is reused. Sounds out of range aren't played at all. Nothing plays on a dedicated server |
 
@@ -400,8 +405,8 @@ Everything goes through the **`Audio`** autoload (`scripts/audio/audio_manager.g
 
 | Put the file in | Names |
 |-----------------|-------|
-| `assets/audio/sfx/` | `fire_rifle` `fire_smg` `fire_shotgun` `fire_sniper` `fire_pistol` `dry_fire` `mag_out` `mag_in` `bolt` `equip` `step1`–`step4` `land` `jump` `slide` `impact` `whiz` `hurt` `bomb_beep` `explosion` |
-| `assets/audio/ui/` | `hitmarker` `headshot` `kill` `ui_click` `ui_hover` `bomb_planted` `bomb_defused` `round_start` `round_win` `round_lose` `match_win` `match_lose` |
+| `assets/audio/sfx/` | `fire_rifle` `fire_smg` `fire_shotgun` `fire_sniper` `fire_pistol` `fire_lmg` `dry_fire` `mag_out` `mag_in` `bolt` `shell_in` `pump` `cover_open` `cover_close` `grunt` `grunt_rough` `death_cry` `death_cry_rough` `equip` `step1`–`step4` `land` `jump` `slide` `impact` `whiz` `hurt` `bomb_beep` `explosion` |
+| `assets/audio/ui/` | `hitmarker` `headshot` `kill` `ui_click` `ui_hover` `bomb_planted` `bomb_defused` `round_start` `round_win` `round_lose` `match_win` `match_lose` `match_draw` |
 | `assets/audio/music/` | `menu` `match` (enable *Loop* in the import settings) |
 
 Formats: `.ogg` (music, long sounds), `.wav` (short sounds) or `.mp3`. Keep mono for 3D sounds. Audio files go through Git LFS, and their license goes in `docs/CREDITS.md`.
@@ -811,6 +816,7 @@ The `.gitignore` already excludes engine caches (`.godot/`), builds, logs, secre
 - [x] **Concept-art pass (code only):** armour, health/armour/ammo HUD, faces in the top bar, map banner, painted A/B signs, rugs, fruit stalls, barrels, towers
 - [x] **Maps + CS-style HUD:** Kasbah, Factory, Office, Subway and Train Yard; radar with location names, top bar with player cards; first-person hands, new sniper model; reload animations in first and third person
 - [x] **Gameplay update:** grenades (HE, Molotov, flash, smoke), PUBG-style key layout (lean, walk, knife, grenade slot, fire modes, big map, scope zoom), Bunker + Train Yard rebuilt, grippier movement, gun pulls back at walls, Bomb Defusal money + buy menu, climbing, grenade wheel + throw path
+- [x] **Feel update:** doors and glass, death animation, climbing hands, gun inspect, overtime, name tags, training bots, Docks and Subway rebuilt, character creator, weapon animation profiles, shell-by-shell shotgun, K-100 LMG, win / lose fanfares, editor warnings cleared
 - [ ] **v1.0:** beta feedback, presets tuned from hardware reports (Phase 7b), real art (CC0 packs or an artist), certificates for signing
 
 ---
