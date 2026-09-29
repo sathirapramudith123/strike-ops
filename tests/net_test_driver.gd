@@ -5,6 +5,8 @@ extends Node
 ## client: joins, walks, then shoots the host until the host dies.
 ## Both sides check that state replicated correctly and exit 0 on success.
 
+# _wait_for() polls until a value is returned: "x if ready else null" on purpose.
+@warning_ignore_start("incompatible_ternary")
 const TIMEOUT := 30.0
 
 var _role := "host"
@@ -494,9 +496,9 @@ func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> VoiceP
 		var dt := get_process_delta_time()
 		t += dt
 		speak.call(dt)
-		var pb := VoiceChat.get_playback(other_id)
-		if t > 2.0 and pb and pb.packets_received > 20:
-			got = pb
+		var heard := VoiceChat.get_playback(other_id)
+		if t > 2.0 and heard and heard.packets_received > 20:
+			got = heard
 			break
 	# Keep talking so the other side also gets > 20 packets, even if it
 	# started listening later than we did.
@@ -520,14 +522,14 @@ func _voice_exchange(other_id: int, my_freq: float, their_freq: float) -> VoiceP
 
 ## Voice in both directions used `codec`, and Opus is really smaller.
 func _check_codec(pb: VoicePlayback, codec: int) -> void:
-	var name := VoiceCodec.codec_name(codec)
-	_check(VoiceChat.last_codec_sent == codec, "voice sent with %s" % name)
-	_check(pb != null and pb.last_codec == codec, "voice received as %s" % name)
+	var codec_label := VoiceCodec.codec_name(codec)
+	_check(VoiceChat.last_codec_sent == codec, "voice sent with %s" % codec_label)
+	_check(pb != null and pb.last_codec == codec, "voice received as %s" % codec_label)
 	if pb and pb.packets_received > 0:
 		var avg := float(pb.bytes_received) / pb.packets_received
 		var kbps := avg * 8.0 / 40.0
 		var ok := kbps < 40.0 if codec == VoiceCodec.CODEC_OPUS else kbps > 60.0
-		_check(ok, "%s voice ≈ %.0f kbps (%.0f bytes / 40 ms packet)" % [name, kbps, avg])
+		_check(ok, "%s voice ≈ %.0f kbps (%.0f bytes / 40 ms packet)" % [codec_label, kbps, avg])
 		# ~5 s of real-time voice: nearly all of it must arrive (ENet's
 		# throttle used to drop most unreliable packets under CPU load).
 		_check(pb.packets_received >= 60, "voice arrives without gaps (%d packets)" % pb.packets_received)

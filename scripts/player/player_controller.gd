@@ -678,14 +678,14 @@ func _update_name_tag() -> void:
 	var friendly := Match.is_team_mode() and Match.is_friendly(peer_id, multiplayer.get_unique_id())
 	var to := _name_tag.global_position - viewer.global_position
 	var dist := to.length()
-	var show := friendly
+	var tag_on := friendly
 	if not friendly and dist < TAG_RANGE:
 		var aim := (-viewer.global_basis.z).dot(to / maxf(dist, 0.01))
-		show = dist < TAG_NEAR or aim > cos(deg_to_rad(TAG_AIM_DEGREES))
-		if show and get_tree().has_group(SmokeCloud.GROUP):
-			show = not SmokeCloud.blocks_line(get_tree(), viewer.global_position, _name_tag.global_position)
-	_name_tag.visible = show
-	if not show:
+		tag_on = dist < TAG_NEAR or aim > cos(deg_to_rad(TAG_AIM_DEGREES))
+		if tag_on and get_tree().has_group(SmokeCloud.GROUP):
+			tag_on = not SmokeCloud.blocks_line(get_tree(), viewer.global_position, _name_tag.global_position)
+	_name_tag.visible = tag_on
+	if not tag_on:
 		return
 	# Fade a little with distance so far tags don't clutter the view.
 	_name_tag.modulate.a = clampf(remap(dist, 30.0, TAG_RANGE, 1.0, 0.45), 0.45, 1.0)

@@ -23,9 +23,9 @@ static func buffer(duration: float, rate: int = MIX_RATE) -> PackedFloat32Array:
 ## Envelope: linear attack, then exponential decay (per second).
 static func add_noise(buf: PackedFloat32Array, start: float, duration: float, gain: float,
 		low_pass: float, high_pass: float = 0.0, decay: float = 10.0, attack: float = 0.002,
-		seed: int = 1, rate: int = MIX_RATE) -> void:
+		noise_seed: int = 1, rate: int = MIX_RATE) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = seed
+	rng.seed = noise_seed
 	var first := int(start * rate)
 	var frames := mini(int(duration * rate), buf.size() - first)
 	var lp := 0.0
@@ -73,16 +73,16 @@ static func wavetable(harmonics: PackedFloat32Array, size: int = 1024) -> Packed
 
 
 ## Adds a note played from `table`: attack, sustain, `release` s fade-out at
-## the end, optional exponential decay. With `wrap`, samples past the end of
+## the end, optional exponential decay. With `loop`, samples past the end of
 ## the buffer wrap to the start (seamless music loops).
 static func add_wave(buf: PackedFloat32Array, table: PackedFloat32Array, start: float, duration: float,
 		gain: float, freq: float, attack: float = 0.01, release: float = 0.05, decay: float = 0.0,
-		rate: int = MIX_RATE, wrap: bool = false) -> void:
+		rate: int = MIX_RATE, loop: bool = false) -> void:
 	var size := table.size()
 	var n := buf.size()
 	var first := int(start * rate)
 	var frames := int(duration * rate)
-	if not wrap:
+	if not loop:
 		frames = mini(frames, n - first)
 	var step := freq * size / rate
 	var phase := 0.0
@@ -94,7 +94,7 @@ static func add_wave(buf: PackedFloat32Array, table: PackedFloat32Array, start: 
 		var env := minf(i / attack_frames, 1.0) * minf((frames - i) / release_frames, 1.0) * level
 		level *= decay_per_frame
 		var idx := first + i
-		if wrap:
+		if loop:
 			idx %= n
 		buf[idx] += table[int(phase) % size] * gain * env
 		phase += step

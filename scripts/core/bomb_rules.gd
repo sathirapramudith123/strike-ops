@@ -17,6 +17,7 @@ extends Node
 ## Server-authoritative: clients only send "interact held / released" and
 ## receive a compact state sync (plus local countdowns in between).
 
+@warning_ignore_start("static_called_on_instance") # static helpers on autoloads (NetworkManager, SettingsManager…)
 signal round_changed
 signal round_started(round_number: int)
 signal round_ended(winner_team: int, reason: String)

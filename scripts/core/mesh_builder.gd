@@ -82,7 +82,7 @@ func sphere(mat: StringName, radius: float, pos: Vector3, scale: Vector3 = Vecto
 	m.height = radius * (1.0 if hemisphere else 2.0)
 	m.is_hemisphere = hemisphere
 	m.radial_segments = segments
-	m.rings = maxi(segments / 2, 3)
+	m.rings = maxi(segments >> 1, 3)
 	_add(mat, m, Transform3D(Basis.from_scale(scale), pos))
 
 

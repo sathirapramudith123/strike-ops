@@ -4,6 +4,7 @@ extends RefCounted
 ## copies the system details to the clipboard (in case the page is too long
 ## for a URL). Nothing is sent automatically.
 
+@warning_ignore_start("static_called_on_instance") # autoload helpers (NetworkManager, SettingsManager)
 const ISSUES_URL := "https://github.com/sathirapramudith123/game-develop/issues/new"
 
 

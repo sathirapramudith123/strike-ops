@@ -61,7 +61,7 @@ const _STEP_TABLE: PackedInt32Array = [
 static func encode(samples: PackedFloat32Array) -> PackedByteArray:
 	var n := samples.size()
 	var out := PackedByteArray()
-	out.resize(HEADER_SIZE + (n + 1) / 2)
+	out.resize(HEADER_SIZE + ((n + 1) >> 1))
 	var predictor := int(clampf(samples[0] if n > 0 else 0.0, -1.0, 1.0) * 32767.0)
 	var index := _initial_index(samples)
 	out.encode_s16(0, predictor)

@@ -1,6 +1,7 @@
 extends Control
 ## Main menu: offline practice, host / join multiplayer, and the settings screen.
 
+@warning_ignore_start("static_called_on_instance") # static helpers on autoloads (NetworkManager, SettingsManager…)
 @onready var _main: VBoxContainer = %Main
 @onready var _settings: SettingsMenu = %SettingsMenu
 

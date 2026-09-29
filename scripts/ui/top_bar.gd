@@ -35,7 +35,7 @@ func clock_text() -> Array:
 		GameConfig.Mode.BOMB:
 			var b := Match.bomb
 			var secs := ceili(b.phase_time_left)
-			var t := "%d:%02d" % [secs / 60, secs % 60]
+			var t := "%d:%02d" % [floori(secs / 60.0), secs % 60]
 			if b.phase == BombRules.Phase.PLANTED:
 				return [t, Color(1, 0.35, 0.25)]
 			if b.phase == BombRules.Phase.FREEZE:
@@ -44,7 +44,7 @@ func clock_text() -> Array:
 		_:
 			if Match.time_limit > 0.0:
 				var secs := ceili(Match.time_left)
-				return ["%d:%02d" % [secs / 60, secs % 60], Color.WHITE if secs > 30 else Color(1, 0.45, 0.3)]
+				return ["%d:%02d" % [floori(secs / 60.0), secs % 60], Color.WHITE if secs > 30 else Color(1, 0.45, 0.3)]
 	return ["", Color.WHITE]
 
 
@@ -102,7 +102,7 @@ func _draw_face(rect: Rect2, peer_id: int, team: int) -> void:
 	var gear := GameConfig.team_color(team).darkened(0.55) if team >= 0 else Color(0.2, 0.2, 0.2)
 	draw_rect(Rect2(c + Vector2(-9, 8), Vector2(18, 6)), gear.darkened(0.2)) # shoulders
 	draw_circle(c, 9.0, skin)
-	var style := (h / 7) % 2 + (0 if team == 0 else 2)
+	var style := floori(h / 7.0) % 2 + (0 if team == 0 else 2)
 	match style:
 		0: # helmet
 			draw_circle(c + Vector2(0, -3), 10.0, gear.lightened(0.15))

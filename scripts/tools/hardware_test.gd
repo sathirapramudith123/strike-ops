@@ -14,6 +14,7 @@ extends Node
 ## in STATE_PATH, so a crash in one stage (e.g. a broken Vulkan driver) is
 ## recorded and the test carries on instead of looping.
 
+@warning_ignore_start("static_called_on_instance") # static helpers on autoloads (NetworkManager, SettingsManager…)
 signal finished(report: Dictionary)
 
 const DIR := "user://benchmarks/"

@@ -103,8 +103,8 @@ func build(l: Level) -> void:
 	if callouts:
 		for c in callouts.get_children():
 			if c is Node3D and c.has_meta(&"label") and c.has_meta(&"size"):
-				var size: Vector3 = c.get_meta(&"size")
-				_callouts.append([str(c.get_meta(&"label")), AABB((c as Node3D).global_position - size * 0.5, size)])
+				var box_size: Vector3 = c.get_meta(&"size")
+				_callouts.append([str(c.get_meta(&"label")), AABB((c as Node3D).global_position - box_size * 0.5, box_size)])
 	# Smallest box first, so a site inside a bigger area wins.
 	_callouts.sort_custom(func(a: Array, b: Array) -> bool: return a[1].get_volume() < b[1].get_volume())
 	_layer.queue_redraw()
@@ -193,11 +193,11 @@ func _draw_overlay() -> void:
 			if label.begins_with("Bombsite"):
 				continue
 			var box: AABB = _callouts[i][1]
-			var at := _to_screen(box.get_center(), r)
+			var label_at := _to_screen(box.get_center(), r)
 			var w := font.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
-			_overlay.draw_string_outline(font, at + Vector2(-w / 2, 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3,
+			_overlay.draw_string_outline(font, label_at + Vector2(-w / 2, 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 3,
 				Color(0, 0, 0, 0.7))
-			_overlay.draw_string(font, at + Vector2(-w / 2, 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
+			_overlay.draw_string(font, label_at + Vector2(-w / 2, 5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 13,
 				Color(1, 1, 1, 0.75))
 	# Bomb sites.
 	for site in level.bomb_sites:
@@ -227,9 +227,9 @@ func _draw_overlay() -> void:
 	# The bomb: planted (everyone) or dropped (attackers only).
 	if Match.mode == GameConfig.Mode.BOMB:
 		var b := Match.bomb
-		var show := b.bomb_state == BombRules.BombState.PLANTED \
+		var shown := b.bomb_state == BombRules.BombState.PLANTED \
 			or (b.bomb_state == BombRules.BombState.DROPPED and b.is_attacker(me))
-		if show and (b.bomb_state != BombRules.BombState.PLANTED or fmod(Time.get_ticks_msec() / 400.0, 2.0) < 1.4):
+		if shown and (b.bomb_state != BombRules.BombState.PLANTED or fmod(Time.get_ticks_msec() / 400.0, 2.0) < 1.4):
 			var bp := _to_screen(b.bomb_position, r - 6.0)
 			# Dropped: a plain block. Planted: a block with a ring (blinking).
 			_overlay.draw_rect(Rect2(bp - Vector2(4, 4), Vector2(8, 8)), COLOR_BOMB)

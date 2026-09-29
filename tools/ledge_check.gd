@@ -67,7 +67,7 @@ static func scan(level: Node3D) -> PackedStringArray:
 					var h: float = ledge.height
 					if h > Climb.BORDERLINE_LOW and h < Climb.BORDERLINE_HIGH:
 						var body := ledge.collider as Node
-						var key: String = body.name if body else "?"
+						var key: String = String(body.name) if body else "?"
 						if not seen.has(key):
 							seen[key] = true
 							out.append("%s @ %s (%.2f m) from %s on %s" % [key, (ledge.top as Vector3).snappedf(0.1), h, feet.snappedf(0.1), _floor_names.get(feet, "?")])
@@ -90,7 +90,7 @@ static func _floors(space: PhysicsDirectSpaceState3D, top: Vector3, bottom_y: fl
 		if hit.is_empty():
 			break
 		var p: Vector3 = hit.position
-		var on: String = (hit.collider as Node).name if hit.collider is Node else ""
+		var on: String = String((hit.collider as Node).name) if hit.collider is Node else ""
 		if hit.normal.y > 0.7 and not _out_of_bounds(on) and Climb.has_room(space, p):
 			result.append(p)
 			_floor_names[p] = on

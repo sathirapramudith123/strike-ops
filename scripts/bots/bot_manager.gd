@@ -112,9 +112,10 @@ func _ensure_navigation(level: Level) -> void:
 	if level == null or (is_instance_valid(_nav_region) and _nav_region.get_parent() == level):
 		return
 	var nm := NavigationMesh.new()
-	nm.agent_radius = 0.4
+	# Whole voxels (cell_size 0.25, cell_height 0.1): the baker rounds anything else.
+	nm.agent_radius = 0.5
 	nm.agent_height = 1.8
-	nm.agent_max_climb = 0.35
+	nm.agent_max_climb = 0.3
 	nm.agent_max_slope = 40.0
 	nm.cell_size = 0.25
 	nm.cell_height = 0.1

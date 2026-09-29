@@ -89,7 +89,7 @@ func _process(_delta: float) -> void:
 		if _queue.size() < int(PREBUFFER * VoiceCodec.SAMPLE_RATE):
 			return
 		_started = true
-	var active: Node = _player_3d if _proximity and _player_3d else _player_2d
+	var active: Node = (_player_3d as Node) if _proximity and _player_3d else (_player_2d as Node)
 	if not active.playing:
 		active.play()
 	var playback := active.get_stream_playback() as AudioStreamGeneratorPlayback

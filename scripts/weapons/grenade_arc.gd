@@ -101,25 +101,25 @@ func show_path(path: Dictionary, kind: int) -> void:
 	for i in n - 1:
 		var a := points[i]
 		var b := points[i + 1]
-		var side := (b - a).cross(eye - a).normalized() * WIDTH
+		var across := (b - a).cross(eye - a).normalized() * WIDTH
 		# Fade in near the hand so it doesn't cover the view.
 		var ca := col
 		var cb := col
 		ca.a = clampf(float(i) / 6.0, 0.0, 1.0) * 0.85
 		cb.a = clampf(float(i + 1) / 6.0, 0.0, 1.0) * 0.85
-		_quad(a - side, a + side, b + side, b - side, ca, ca, cb, cb)
+		_quad(a - across, a + across, b + across, b - across, ca, ca, cb, cb)
 	# The ring where it goes off.
 	var end: Vector3 = path.end
 	var up: Vector3 = path.normal
-	var basis := Basis.looking_at(up.cross(Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD), up)
+	var ring_basis := Basis.looking_at(up.cross(Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD), up)
 	var ring := col
 	ring.a = 0.9
 	var segs := 24
 	for i in segs:
 		var a0 := TAU * i / segs
 		var a1 := TAU * (i + 1) / segs
-		var o0 := basis * Vector3(cos(a0), 0, sin(a0))
-		var o1 := basis * Vector3(cos(a1), 0, sin(a1))
+		var o0 := ring_basis * Vector3(cos(a0), 0, sin(a0))
+		var o1 := ring_basis * Vector3(cos(a1), 0, sin(a1))
 		var c := end + up * 0.03
 		_quad(c + o0 * RING_RADIUS, c + o1 * RING_RADIUS, c + o1 * (RING_RADIUS - 0.12), c + o0 * (RING_RADIUS - 0.12),
 			ring, ring, ring, ring)

@@ -312,7 +312,7 @@ func try_fire() -> bool:
 		return true
 	if ammo_in_magazine <= 0:
 		if Input.is_action_just_pressed("shoot"):
-			_play(dry_fire_sound if dry_fire_sound else &"dry_fire", -4.0, 1.0, 10.0)
+			_play(dry_fire_sound as Variant if dry_fire_sound else &"dry_fire" as Variant, -4.0, 1.0, 10.0)
 		if ammo_reserve > 0:
 			reload()
 		return false
@@ -753,11 +753,11 @@ func _inspect_pose(delta: float) -> Dictionary:
 			pose.yaw = 0.3 * first - 0.45 * second
 			pose.offset = Vector3(-0.07, 0.05, -0.02) * first + Vector3(0.02, 0.07, -0.03) * second
 			if not h.is_empty():
-				var show := _smooth(p, 0.1, 0.22) * (1.0 - _smooth(p, 0.38, 0.48))
+				var shown := _smooth(p, 0.1, 0.22) * (1.0 - _smooth(p, 0.38, 0.48))
 				var held: Vector3 = h.left + Vector3(-0.04, 0.07, 0.04) # up off the pump, not back into the view
-				pose.left = (held - h.left) * show
-				pose.mag = (held + Vector3(0.0, 0.035, -0.03) - Vector3(0, -0.07, -0.02)) * show
-				pose.mag_show = 1 if show > 0.05 else 0
+				pose.left = (held - h.left) * shown
+				pose.mag = (held + Vector3(0.0, 0.035, -0.03) - Vector3(0, -0.07, -0.02)) * shown
+				pose.mag_show = 1 if shown > 0.05 else 0
 		"scope": # sniper: raised to look along the scope, then turned over
 			pose.yaw = 1.1 * first - 0.35 * second
 			pose.pitch = 0.15 * first
@@ -1029,7 +1029,7 @@ func _update_flash(delta: float) -> void:
 
 
 func _play_fire() -> void:
-	var sound: Variant = fire_sound if fire_sound else StringName("fire_" + data.weapon_id)
+	var sound: Variant = fire_sound as Variant if fire_sound else StringName("fire_" + data.weapon_id) as Variant
 	_play(sound, 0.0, _rng.randf_range(0.95, 1.05), fire_sound_distance, 12.0)
 
 

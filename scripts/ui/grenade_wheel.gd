@@ -19,9 +19,9 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	var show: bool = throwables != null and is_instance_valid(throwables) and throwables.wheel_visible()
-	if show != visible:
-		visible = show
+	var shown: bool = throwables != null and is_instance_valid(throwables) and throwables.wheel_visible()
+	if shown != visible:
+		visible = shown
 	if visible:
 		queue_redraw()
 

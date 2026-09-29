@@ -15,6 +15,7 @@ extends Node
 ##
 ## Use it on the minimum-spec PC: the "1% low" is what players feel.
 
+@warning_ignore_start("static_called_on_instance") # static helpers on autoloads (NetworkManager, SettingsManager…)
 signal finished(results: Dictionary)
 
 const RESULTS_DIR := "user://benchmarks/"

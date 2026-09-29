@@ -532,11 +532,11 @@ func _start_dedicated_from_args() -> void:
 			local_name = args[name_i + 1]
 			SettingsManager.player_name = local_name
 		var target := args[connect_i + 1]
-		var port := DEFAULT_PORT
+		var join_port := DEFAULT_PORT
 		if target.count(":") == 1:
-			port = target.get_slice(":", 1).to_int()
+			join_port = target.get_slice(":", 1).to_int()
 			target = target.get_slice(":", 0)
-		join(target, port)
+		join(target, join_port)
 		return
 	# The "Linux Server" export has the dedicated_server feature: always a server.
 	if not "--server" in args and not OS.has_feature("dedicated_server"):

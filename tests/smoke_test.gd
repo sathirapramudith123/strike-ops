@@ -3,6 +3,7 @@ extends Node
 ## Run:  godot --headless --path . res://tests/smoke_test.tscn
 ## Exits with code 0 when every check passes, 1 otherwise.
 
+@warning_ignore_start("static_called_on_instance") # static helpers on autoloads (NetworkManager, SettingsManager…)
 const TEST_MAP := "res://scenes/levels/test_map.tscn"
 
 var _failures := 0
@@ -347,7 +348,7 @@ func _test_voice_codec() -> void:
 	for i in n:
 		tone[i] = 0.5 * sin(TAU * 440.0 * i / 16000.0)
 	var packet := VoiceCodec.encode(tone)
-	_check(packet.size() == 3 + n / 2, "ADPCM packet is 4 bits/sample (%d bytes)" % packet.size())
+	_check(packet.size() == 3 + (n >> 1), "ADPCM packet is 4 bits/sample (%d bytes)" % packet.size())
 	var decoded := VoiceCodec.decode(packet, n)
 	var sig := 0.0
 	var err := 0.0

@@ -107,11 +107,11 @@ func _on_body_entered(_body: Node) -> void:
 ## Small low-poly model: an olive-drab frag with a lever, a bottle with a
 ## burning rag, or a can (flash: grey with a white top; smoke: green-grey
 ## with a dark band).
-static func build_model(kind: int) -> Node3D:
+static func build_model(grenade_kind: int) -> Node3D:
 	var root := Node3D.new()
 	root.name = "Model"
-	if kind == Throwables.Kind.FLASH or kind == Throwables.Kind.SMOKE:
-		var smoke := kind == Throwables.Kind.SMOKE
+	if grenade_kind == Throwables.Kind.FLASH or grenade_kind == Throwables.Kind.SMOKE:
+		var smoke := grenade_kind == Throwables.Kind.SMOKE
 		var can := _part(_cylinder(0.032, 0.032, 0.11), Color(0.32, 0.36, 0.3) if smoke else Color(0.45, 0.46, 0.48), 0.6)
 		root.add_child(can)
 		var band := _part(_cylinder(0.034, 0.034, 0.02), Color(0.12, 0.12, 0.12) if smoke else Color(0.9, 0.9, 0.85), 0.6)
@@ -120,7 +120,7 @@ static func build_model(kind: int) -> Node3D:
 		var lever := _part(_box(Vector3(0.014, 0.08, 0.008)), Color(0.4, 0.4, 0.38), 0.4)
 		lever.position = Vector3(0.036, 0.02, 0)
 		root.add_child(lever)
-	elif kind == Throwables.Kind.HE:
+	elif grenade_kind == Throwables.Kind.HE:
 		var body := _part(_sphere(0.055, 0.075), Color(0.25, 0.3, 0.18), 0.7)
 		root.add_child(body)
 		var cap := _part(_cylinder(0.022, 0.022, 0.03), Color(0.35, 0.35, 0.33), 0.4)

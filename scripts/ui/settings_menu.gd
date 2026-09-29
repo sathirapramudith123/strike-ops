@@ -7,6 +7,7 @@ extends Control
 ## Every change is applied and saved immediately (SettingsManager).
 ## The rows are built in code, so adding a setting is one line below.
 
+@warning_ignore_start("static_called_on_instance") # static helpers on autoloads (NetworkManager, SettingsManager…)
 signal closed
 
 const TAB_NAMES: PackedStringArray = ["Graphics", "Display", "Audio", "Voice", "Controls", "Gameplay"]
@@ -250,7 +251,7 @@ func _build_voice() -> void:
 		SettingsManager.voice_enabled = on
 		_apply_voice())
 	_add_option(t, "Transmit", ["Push-to-talk (V / B)", "Voice activation"], SettingsManager.voice_mode, func(i: int) -> void:
-		SettingsManager.voice_mode = i
+		SettingsManager.voice_mode = i as SettingsManager.VoiceMode
 		_apply_voice())
 	var devices: Array[String] = []
 	devices.assign(AudioServer.get_input_device_list())
@@ -617,7 +618,7 @@ func _add_slider(t: String, label: String, lo: float, hi: float, step: float, va
 	v.custom_minimum_size = Vector2(56, 0)
 	v.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	var show_value := func(x: float) -> void:
-		v.text = fmt % (roundi(x * mult) if fmt.contains("%d") else x * mult)
+		v.text = fmt % ((roundi(x * mult) as Variant) if fmt.contains("%d") else (x * mult as Variant))
 	show_value.call(value)
 	s.value_changed.connect(func(x: float) -> void:
 		show_value.call(x)

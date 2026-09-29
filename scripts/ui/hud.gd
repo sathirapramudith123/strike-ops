@@ -368,7 +368,7 @@ func _on_ammo_changed(in_magazine: int, reserve: int) -> void:
 		# Fire mode next to the name when the gun has more than one (B).
 		_weapon_label.text = _weapon.data.display_name + (
 			"  ·  %s" % _weapon.fire_mode().to_upper() if _weapon.data.fire_modes.size() > 1 else "")
-	var low := _weapon and in_magazine <= _weapon.data.magazine_size / 4
+	var low := _weapon and in_magazine <= _weapon.data.magazine_size / 4.0
 	_ammo_label.modulate = Color(1, 0.35, 0.3) if low else Color.WHITE
 
 
@@ -379,7 +379,7 @@ func _update_perf() -> void:
 	var prims := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
 	var vram := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED) / 1048576.0
 	_perf_label.text = "FPS %d  (%.1f ms)\nDraw calls %d  |  Tris %dk\nVRAM %.0f MB\nPreset %s  |  %s" % [
-		fps, frame_ms, draw_calls, prims / 1000, vram,
+		fps, frame_ms, draw_calls, prims / 1000.0, vram,
 		SettingsManager.graphics.display_name, RenderingServer.get_current_rendering_method()]
 	var level := get_parent() as Level
 	if level and level.dynamic_resolution and SettingsManager.dynamic_resolution:

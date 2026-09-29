@@ -142,7 +142,8 @@ func request_toggle(from: Vector3) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
-func _request_toggle(from: Vector3) -> void:
+## (`_from` is ignored: the server uses where it knows the player is.)
+func _request_toggle(_from: Vector3) -> void:
 	if not multiplayer.is_server():
 		return
 	var level := NetworkManager.current_level()

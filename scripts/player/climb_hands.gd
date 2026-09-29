@@ -83,8 +83,8 @@ func _update_arms() -> void:
 		var length := wrist.distance_to(shoulder)
 		var up := (wrist - shoulder).normalized()
 		var arm := _arms[i]
-		var basis := Basis.looking_at(up.cross(Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD), up)
-		arm.global_transform = Transform3D(basis * Basis.from_scale(Vector3(1, length, 1)), mid)
+		var arm_basis := Basis.looking_at(up.cross(Vector3.RIGHT if absf(up.x) < 0.9 else Vector3.FORWARD), up)
+		arm.global_transform = Transform3D(arm_basis * Basis.from_scale(Vector3(1, length, 1)), mid)
 
 
 ## Let go (end of the climb): the hands are gone next frame.
