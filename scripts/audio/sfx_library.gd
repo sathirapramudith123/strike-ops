@@ -9,8 +9,9 @@ extends RefCounted
 
 const NAMES: Array[StringName] = [
 	# Weapons (fire_<weapon_id>)
-	&"fire_rifle", &"fire_smg", &"fire_shotgun", &"fire_sniper", &"fire_pistol", &"fire_knife", &"knife_hit",
-	&"dry_fire", &"mag_out", &"mag_in", &"bolt", &"equip",
+	&"fire_rifle", &"fire_smg", &"fire_shotgun", &"fire_sniper", &"fire_pistol", &"fire_lmg", &"fire_knife",
+	&"knife_hit", &"dry_fire", &"mag_out", &"mag_in", &"bolt", &"equip", &"shell_in", &"pump", &"cover_open",
+	&"cover_close",
 	# Movement
 	&"step1", &"step2", &"step3", &"step4", &"land", &"jump", &"slide",
 	# Bullets
@@ -25,7 +26,7 @@ const NAMES: Array[StringName] = [
 	&"grunt", &"grunt_rough", &"death_cry", &"death_cry_rough",
 	# Bomb Defusal + match
 	&"bomb_beep", &"explosion", &"bomb_planted", &"bomb_defused",
-	&"round_start", &"round_win", &"round_lose", &"match_win", &"match_lose",
+	&"round_start", &"round_win", &"round_lose", &"match_win", &"match_lose", &"match_draw",
 ]
 const FILE_DIRS: PackedStringArray = ["res://assets/audio/sfx/", "res://assets/audio/ui/"]
 const FILE_EXTENSIONS: PackedStringArray = ["ogg", "wav", "mp3"]
@@ -89,6 +90,11 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			PS.add_tone(b, 0.0, 0.2, 0.9, 130.0, 45.0, 22.0)
 			PS.add_noise(b, 0.0, 0.12, 0.8, 0.75, 0.02, 40.0, 0.001, 11)
 			PS.add_noise(b, 0.01, 0.54, 0.35, 0.12, 0.0, 7.0, 0.01, 12)
+		&"fire_lmg":
+			b = PS.buffer(0.6)
+			PS.add_tone(b, 0.0, 0.22, 1.0, 110.0, 38.0, 20.0)
+			PS.add_noise(b, 0.0, 0.13, 0.85, 0.7, 0.02, 36.0, 0.001, 13)
+			PS.add_noise(b, 0.01, 0.58, 0.4, 0.1, 0.0, 6.0, 0.01, 14)
 		&"fire_smg":
 			b = PS.buffer(0.35)
 			PS.add_tone(b, 0.0, 0.12, 0.7, 170.0, 70.0, 35.0)
@@ -139,6 +145,22 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			for t: float in [0.0, 0.1]:
 				PS.add_tone(b, t, 0.1, 0.4, 1800.0 - t * 3000.0, -1.0, 90.0)
 				PS.add_noise(b, t, 0.1, 0.4, 0.9, 0.3, 90.0, 0.0005, 64 + int(t * 10))
+		&"shell_in":
+			b = PS.buffer(0.14)
+			PS.add_noise(b, 0.0, 0.08, 0.5, 0.5, 0.05, 55.0, 0.001, 66)
+			PS.add_tone(b, 0.02, 0.1, 0.35, 1200.0, -1.0, 60.0)
+		&"pump":
+			b = PS.buffer(0.34)
+			for t: float in [0.0, 0.16]:
+				PS.add_noise(b, t, 0.12, 0.6, 0.6 - t, 0.05, 45.0, 0.002, 67 + int(t * 10))
+				PS.add_tone(b, t + 0.01, 0.1, 0.35, 700.0 + t * 1500.0, -1.0, 55.0)
+		&"cover_open", &"cover_close":
+			var shut := sound == &"cover_close"
+			b = PS.buffer(0.22)
+			PS.add_noise(b, 0.0, 0.14, 0.55, 0.8 if shut else 0.5, 0.1, 50.0, 0.001, 68)
+			PS.add_tone(b, 0.0, 0.16, 0.4, 1500.0 if shut else 900.0, -1.0, 40.0)
+			if shut:
+				PS.add_tone(b, 0.0, 0.08, 0.5, 240.0, -1.0, 60.0)
 		&"equip":
 			b = PS.buffer(0.24)
 			PS.add_noise(b, 0.0, 0.2, 0.35, 0.3, 0.02, 18.0, 0.03, 65)
@@ -276,22 +298,48 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 		&"round_start":
 			b = PS.buffer(0.75)
 			_arpeggio(b, [72.0, 76.0, 79.0], 0.12, 0.45, 0.4)
+		# --- Stings: brass (a bright wavetable), timpani and cymbals ---
 		&"round_win":
-			b = PS.buffer(1.1)
-			_arpeggio(b, [72.0, 76.0, 79.0, 84.0], 0.1, 0.7, 0.35)
+			b = PS.buffer(1.5)
+			_brass_line(b, [[0.0, 0.1, 67.0], [0.1, 0.1, 67.0], [0.2, 0.1, 67.0], [0.3, 1.1, 72.0]])
+			_brass_chord(b, 0.3, 1.1, [64.0, 67.0], 0.16)
+			_timpani(b, 0.3, 48.0, 0.5)
+			_cymbal(b, 0.3, 0.3)
 		&"round_lose":
-			b = PS.buffer(1.1)
-			_arpeggio(b, [76.0, 72.0, 69.0, 64.0], 0.14, 0.6, 0.35)
+			b = PS.buffer(1.5)
+			_brass_line(b, [[0.0, 0.3, 67.0], [0.3, 0.3, 63.0], [0.6, 0.85, 60.0]], 0.26)
+			_brass_chord(b, 0.6, 0.85, [51.0, 55.0], 0.14)
+			_timpani(b, 0.6, 36.0, 0.45)
 		&"match_win":
-			b = PS.buffer(2.2)
-			_arpeggio(b, [60.0, 64.0, 67.0, 72.0], 0.12, 0.5, 0.3)
-			for n: float in [72.0, 76.0, 79.0]:
-				PS.add_tone(b, 0.5, 1.7, 0.25, PS.midi_hz(n), -1.0, 1.5, 0.02)
+			# Fanfare: a triplet pick-up, a rising call, then the big major
+			# chord with a timpani roll and a cymbal crash.
+			b = PS.buffer(4.2)
+			_brass_line(b, [[0.0, 0.12, 67.0], [0.13, 0.12, 67.0], [0.26, 0.12, 67.0], [0.4, 0.45, 72.0],
+				[0.9, 0.2, 71.0], [1.12, 0.2, 72.0], [1.34, 0.2, 74.0], [1.58, 2.5, 76.0]], 0.3)
+			_brass_chord(b, 0.4, 0.45, [60.0, 64.0], 0.14)
+			_brass_chord(b, 1.58, 2.5, [60.0, 64.0, 67.0, 72.0, 48.0], 0.13)
+			for t: float in [0.0, 0.13, 0.26]:
+				_timpani(b, t, 43.0, 0.25)
+			_timpani(b, 0.4, 36.0, 0.55)
+			for i in 10: # a roll into the last chord
+				_timpani(b, 1.1 + i * 0.045, 43.0, 0.1 + i * 0.02)
+			_timpani(b, 1.58, 36.0, 0.8)
+			_cymbal(b, 1.58, 0.55)
 		&"match_lose":
-			b = PS.buffer(2.2)
-			_arpeggio(b, [69.0, 67.0, 65.0, 64.0], 0.16, 0.5, 0.3)
-			for n: float in [57.0, 60.0, 64.0]:
-				PS.add_tone(b, 0.64, 1.56, 0.28, PS.midi_hz(n), -1.0, 1.5, 0.02)
+			# Defeat: a slow falling minor line over a low drum, fading out.
+			b = PS.buffer(4.0)
+			_brass_line(b, [[0.0, 0.7, 69.0], [0.75, 0.7, 67.0], [1.5, 0.7, 65.0], [2.25, 1.7, 64.0]], 0.24)
+			_brass_chord(b, 0.0, 1.45, [57.0, 60.0], 0.12)
+			_brass_chord(b, 1.5, 0.7, [53.0, 57.0], 0.12)
+			_brass_chord(b, 2.25, 1.7, [52.0, 56.0, 45.0], 0.13)
+			for t: float in [0.0, 0.75, 1.5]:
+				_timpani(b, t, 33.0, 0.4)
+			_timpani(b, 2.25, 28.0, 0.7)
+		&"match_draw":
+			b = PS.buffer(2.6)
+			_brass_line(b, [[0.0, 0.35, 67.0], [0.4, 0.35, 65.0], [0.8, 1.6, 67.0]], 0.24)
+			_brass_chord(b, 0.8, 1.6, [60.0, 62.0], 0.12)
+			_timpani(b, 0.8, 38.0, 0.45)
 		_:
 			push_warning("SfxLibrary: unknown sound '%s'" % sound)
 			b = PS.buffer(0.05)
@@ -315,6 +363,34 @@ static func _voice(b: PackedFloat32Array, start: float, duration: float, f0: flo
 	PS.add_noise(b, start, duration * 0.8, 0.12, 0.2, 0.02, decay * 1.5, 0.01, 77)
 	if rough:
 		PS.add_noise(b, start, duration, 0.3, 0.12, 0.01, decay, 0.02, 91)
+
+
+## Brass-like notes: [[start, length, midi note], …].
+static func _brass_line(b: PackedFloat32Array, notes: Array, gain: float = 0.3) -> void:
+	var table := PS.wavetable(PackedFloat32Array([1.0, 0.85, 0.65, 0.5, 0.36, 0.24, 0.15, 0.1, 0.06]))
+	var total := b.size() / float(PS.MIX_RATE)
+	for n: Array in notes:
+		var start: float = n[0]
+		var length := minf(n[1], total - start)
+		PS.add_wave(b, table, start, length, gain, PS.midi_hz(n[2]), 0.03, minf(0.25, length * 0.4))
+
+
+static func _brass_chord(b: PackedFloat32Array, start: float, length: float, notes: Array, gain: float) -> void:
+	var line := []
+	for note: float in notes:
+		line.append([start, length, note])
+	_brass_line(b, line, gain)
+
+
+## A timpani hit: a low tone that drops a little, with a soft thud.
+static func _timpani(b: PackedFloat32Array, start: float, note: float, gain: float) -> void:
+	var f := PS.midi_hz(note)
+	PS.add_tone(b, start, minf(1.2, b.size() / float(PS.MIX_RATE) - start), gain, f * 1.05, f, 3.5, 0.004)
+	PS.add_noise(b, start, 0.08, gain * 0.5, 0.15, 0.0, 40.0, 0.001, 88)
+
+
+static func _cymbal(b: PackedFloat32Array, start: float, gain: float) -> void:
+	PS.add_noise(b, start, minf(2.0, b.size() / float(PS.MIX_RATE) - start), gain, 1.0, 0.45, 2.2, 0.002, 89)
 
 
 ## Notes (MIDI) one after another, each ringing out.

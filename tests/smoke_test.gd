@@ -40,6 +40,7 @@ func _run() -> void:
 	await _test_weapon_switching()
 	await _test_new_controls()
 	await _test_shotgun_and_sniper()
+	await _test_weapon_animations()
 	await _test_loadout_on_respawn()
 	await _test_grenades()
 	await _test_grenade_wheel_and_arc()
@@ -746,6 +747,148 @@ func _test_shotgun_and_sniper() -> void:
 	await _frames(5)
 	_check(target.health.is_dead, "one sniper body shot kills")
 	_player.apply_loadout("rifle")
+
+
+## The animation system (WeaponAnim profiles): equip raise, idle sway, walk
+## bob, bolt / pump after a shot, reloads (shell by shell, the LMG's cover),
+## per-weapon inspects, the LMG, arms in the outfit's colours.
+func _test_weapon_animations() -> void:
+	var missing := GameConfig.WEAPONS.keys().filter(func(id: String) -> bool: return not WeaponAnim.PROFILES.has(id))
+	_check(missing.is_empty(), "every weapon has an animation profile %s" % str(missing))
+	_reset_player(Vector3(0, 0.1, 6))
+	_player.apply_loadout("rifle")
+	await _frames(40)
+	_player.apply_loadout("smg")
+	await _frames(2)
+	var w := _player.current_weapon
+	_check(w.position.y < w._hip_position.y - 0.04, "equip: the gun comes up from low (%.3f)" % (w.position.y - w._hip_position.y))
+	await _frames(50)
+	_check(absf(w.position.y - w._hip_position.y) < 0.02, "equip: then sits in the hands")
+	var still := w.position
+	await _frames(45)
+	_check(w.position.distance_to(still) > 0.0003 and w.position.distance_to(still) < 0.02, "idle: the gun sways a little (breathing)")
+	var xs: Array[float] = []
+	Input.action_press(&"move_forward")
+	for i in 60:
+		await _frames(1)
+		xs.append(w.position.x)
+	Input.action_release(&"move_forward")
+	_check(xs.max() - xs.min() > 0.005, "walking: the gun bobs with the steps (%.3f)" % (xs.max() - xs.min()))
+
+	# Sniper: the right hand works the bolt after a shot; shotgun: the pump.
+	_reset_player(Vector3(0, 0.1, 6))
+	_player.apply_loadout("sniper")
+	await _frames(50)
+	w = _player.current_weapon
+	var arm_r := w.get_node(^"ArmR") as Node3D
+	w._cooldown = 0.0 # the cooldown of its last shot waited while it was put away
+	_check(w.try_fire(), "sniper fires")
+	var reach := 0.0
+	for i in 40:
+		await _frames(1)
+		reach = maxf(reach, arm_r.position.length())
+	_check(reach > 0.08, "sniper: the right hand leaves the grip to work the bolt (%.2f m)" % reach)
+	_player.apply_loadout("shotgun")
+	await _frames(50)
+	w = _player.current_weapon
+	var arm_l := w.get_node(^"ArmL") as Node3D
+	w._cooldown = 0.0
+	w.try_fire()
+	var rack := 0.0
+	for i in 40:
+		await _frames(1)
+		rack = maxf(rack, arm_l.position.z)
+	_check(rack > 0.03, "shotgun: the left hand racks the pump after a shot (%.2f)" % rack)
+
+	# Shotgun: shell by shell; firing stops the reload with what is in.
+	await _frames(30)
+	w.ammo_in_magazine = 2
+	w.ammo_reserve = 20
+	w.reload()
+	var full_time := w.data.reload_start + 4 * w.data.shell_time + w.data.reload_end
+	_check(is_equal_approx(w._reload_total, full_time), "shotgun: reload length grows with the shells missing (%.2f s)" % w._reload_total)
+	await _frames(int((w.data.reload_start + w.data.shell_time * 1.5) * 60.0))
+	_check(w.is_reloading and w.ammo_in_magazine == 3 and w.ammo_reserve == 19, "shotgun: one shell goes in at a time (%d)" % w.ammo_in_magazine)
+	await _frames(int(w.data.shell_time * 60.0))
+	var loaded := w.ammo_in_magazine
+	_check(w.try_fire() and not w.is_reloading and w.ammo_in_magazine == loaded - 1,
+		"shotgun: firing stops the reload (%d in, fired one)" % loaded)
+	await _frames(60)
+	w.ammo_in_magazine = 5
+	w.reload()
+	await _frames(int((w._reload_total + 0.2) * 60.0))
+	_check(not w.is_reloading and w.ammo_in_magazine == 6, "shotgun: a full reload tops it up")
+
+	# LMG: in the loadout, 100 rounds, slower to walk with, the cover lifts to reload.
+	_player.apply_loadout("lmg")
+	await _frames(70)
+	w = _player.current_weapon
+	_check(w.data.weapon_id == "lmg" and w.ammo_in_magazine == 100 and w.data.move_speed_multiplier < 1.0,
+		"LMG: in the loadout, a 100-round box, heavier to carry")
+	_check(Economy.ITEMS.has("lmg") and "lmg" in GameConfig.PRIMARY_WEAPONS, "LMG: in the buy menu and the loadout list")
+	w.ammo_in_magazine = 40
+	w.reload()
+	var cover := w.get_node(^"Cover") as Node3D
+	var lifted := 0.0
+	var mag_low := 0.0
+	for i in int(w.data.reload_time * 60.0) + 20:
+		await _frames(1)
+		lifted = minf(lifted, cover.rotation.x)
+		mag_low = minf(mag_low, (w.get_node(^"Magazine") as Node3D).position.y)
+	_check(lifted < -0.9 and mag_low < -0.2 and w.ammo_in_magazine == 100,
+		"LMG reload: cover up (%.2f), box out (%.2f), belt in, cover shut" % [lifted, mag_low])
+	_check(absf(cover.rotation.x) < 0.1, "LMG: the cover is shut again")
+
+	# Inspects: SMG checks its magazine, the shotgun shows a shell, the LMG lifts its cover.
+	_player.apply_loadout("smg")
+	await _frames(40)
+	w = _player.current_weapon
+	w.start_inspect()
+	var mag_drop := 0.0
+	for i in 100:
+		await _frames(1)
+		mag_drop = minf(mag_drop, (w.get_node(^"Magazine") as Node3D).position.y)
+	_check(mag_drop < -0.03, "inspect (SMG): the magazine is checked (%.2f)" % mag_drop)
+	_player.apply_loadout("shotgun")
+	await _frames(40)
+	w = _player.current_weapon
+	w.start_inspect()
+	var shell_seen := false
+	for i in 80:
+		await _frames(1)
+		shell_seen = shell_seen or (w.get_node(^"Magazine") as Node3D).visible
+	_check(shell_seen, "inspect (shotgun): a shell is held up to look at")
+	_player.apply_loadout("lmg")
+	await _frames(70)
+	w = _player.current_weapon
+	w.start_inspect()
+	lifted = 0.0
+	for i in 90:
+		await _frames(1)
+		lifted = minf(lifted, (w.get_node(^"Cover") as Node3D).rotation.x)
+	_check(lifted < -0.8, "inspect (LMG): the cover is lifted to show the belt")
+
+	# First-person arms wear the outfit.
+	var saved: Array = NetworkManager.roster[1].look
+	var winter := CharacterLook.with_outfit(CharacterLook.default_look(), 4)
+	NetworkManager.roster[1].look = CharacterLook.pack(winter)
+	_player.apply_loadout("rifle")
+	await _frames(3)
+	w = _player.current_weapon
+	_check((w.get_node(^"ArmR") as MeshInstance3D).mesh == WeaponModel.get_arm_mesh("rifle", false, winter),
+		"first-person arms wear the outfit's sleeves and gloves")
+	NetworkManager.roster[1].look = saved
+	_player.apply_loadout("rifle")
+	await _frames(40)
+
+	# Win / lose / draw at the end of a match (the time-up text too).
+	var team := Match.get_team(1)
+	var mine := GameConfig.TEAM_NAMES[team] if team >= 0 and team < 2 else ""
+	if Match.is_team_mode() and mine != "":
+		_check(Audio.match_result("Time's up — %s team wins!" % mine) == "win", "match end: time-up win plays the win sound")
+	_check(Audio.match_result("Draw!") == "draw" and Audio.match_result("Time's up — Draw!") == "draw",
+		"match end: a draw has its own sound")
+	_check(Audio.match_result("Somebody Else wins!") == "lose", "match end: a loss plays the lose sound")
 
 
 func _test_loadout_on_respawn() -> void:

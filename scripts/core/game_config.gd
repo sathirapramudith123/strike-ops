@@ -63,12 +63,14 @@ const WEAPONS := {
 	"smg": "res://scenes/weapons/smg.tscn",
 	"shotgun": "res://scenes/weapons/shotgun.tscn",
 	"sniper": "res://scenes/weapons/sniper.tscn",
+	"lmg": "res://scenes/weapons/lmg.tscn",
 	"pistol": "res://scenes/weapons/pistol.tscn",
 	"knife": "res://scenes/weapons/knife.tscn",
 }
-const PRIMARY_WEAPONS: PackedStringArray = ["rifle", "smg", "shotgun", "sniper"]
+const PRIMARY_WEAPONS: PackedStringArray = ["rifle", "smg", "shotgun", "sniper", "lmg"]
 const PRIMARY_NAMES := {
 	"rifle": "AR-7 Assault Rifle", "smg": "V-10 SMG", "shotgun": "M-12 Shotgun", "sniper": "LR-50 Sniper",
+	"lmg": "K-100 LMG",
 }
 const SECONDARY_WEAPON := "pistol"
 ## Slot 3 for everyone.

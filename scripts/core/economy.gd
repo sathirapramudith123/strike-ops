@@ -51,6 +51,7 @@ const ITEMS := {
 	"smg": { "name": "V-10 SMG", "price": 1250, "kind": "primary" },
 	"shotgun": { "name": "M-12 Shotgun", "price": 1100, "kind": "primary" },
 	"sniper": { "name": "LR-50 Sniper", "price": 4750, "kind": "primary" },
+	"lmg": { "name": "K-100 LMG", "price": 5200, "kind": "primary" },
 	"vest": { "name": "Kevlar Vest", "price": 650, "kind": "armor" },
 	"vest_helmet": { "name": "Kevlar + Helmet", "price": 1000, "kind": "armor" },
 	"he": { "name": "HE Grenade", "price": 300, "kind": "grenade", "grenade": Throwables.Kind.HE },
@@ -60,7 +61,7 @@ const ITEMS := {
 }
 ## Buy menu layout: columns of item ids.
 const MENU := [
-	["rifle", "smg", "shotgun", "sniper"],
+	["rifle", "smg", "shotgun", "sniper", "lmg"],
 	["vest", "vest_helmet"],
 	["he", "flash", "smoke", "molotov"],
 ]

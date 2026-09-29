@@ -36,6 +36,16 @@ extends Resource
 @export var magazine_size: int = 30
 @export var starting_reserve: int = 120
 @export var reload_time: float = 2.0
+## Shotgun: load one shell at a time (reload_start, then shell_time per
+## shell, then reload_end to pump); firing stops the reload with what is in.
+@export var shell_reload: bool = false
+@export var shell_time: float = 0.45
+@export var reload_start: float = 0.3
+@export var reload_end: float = 0.4
+
+@export_group("Handling")
+## Walking speed while this weapon is out (heavy guns are slower).
+@export_range(0.5, 1.0, 0.01) var move_speed_multiplier: float = 1.0
 
 @export_group("Accuracy (degrees)")
 @export var hip_spread: float = 2.5

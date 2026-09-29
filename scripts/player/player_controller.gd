@@ -345,7 +345,8 @@ func _physics_process(delta: float) -> void:
 		if absf(lean) > 0.3:
 			speed = minf(speed, walk_speed * 0.7)
 		if current_weapon:
-			speed *= lerpf(1.0, current_weapon.data.ads_move_speed_multiplier, current_weapon.ads_blend)
+			speed *= current_weapon.data.move_speed_multiplier \
+				* lerpf(1.0, current_weapon.data.ads_move_speed_multiplier, current_weapon.ads_blend)
 
 		var target := wish_dir * speed
 		var accel := air_acceleration

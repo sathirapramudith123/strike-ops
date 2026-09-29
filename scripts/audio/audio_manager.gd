@@ -374,8 +374,20 @@ func _round_sting(winner_team: int) -> void:
 func _on_match_ended(text: String) -> void:
 	if not is_active():
 		return
-	stop_music(2.0)
-	play_ui(&"match_win" if _local_won(text) else &"match_lose", -2.0)
+	stop_music(1.0)
+	match match_result(text):
+		"win": play_ui(&"match_win", -1.0)
+		"draw": play_ui(&"match_draw", -2.0)
+		_: play_ui(&"match_lose", -1.0)
+
+
+## "win", "lose" or "draw" for the local player, from the match-end text
+## ("Blue team wins!", "Time's up — Nuwan wins!", "Draw!").
+func match_result(text: String) -> String:
+	var t := text.trim_prefix("Time's up — ")
+	if t.begins_with("Draw"):
+		return "draw"
+	return "win" if _local_won(t) else "lose"
 
 
 func _local_won(text: String) -> bool:

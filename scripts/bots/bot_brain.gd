@@ -452,7 +452,9 @@ func _buy() -> void:
 	var id := player.peer_id
 	var money := Economy.money_of(id)
 	if player.primary_id == "":
-		if money >= 2700 + 650:
+		if money >= 5200 + 1000 and randf() < 0.25:
+			eco._server_buy(id, "lmg") # now and then someone brings the LMG
+		elif money >= 2700 + 650:
 			eco._server_buy(id, "rifle")
 		elif money >= 1250 + 650:
 			eco._server_buy(id, "smg")

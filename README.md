@@ -383,7 +383,7 @@ Everything goes through the **`Audio`** autoload (`scripts/audio/audio_manager.g
 
 | Feature | How it works |
 |---------|--------------|
-| **Gunfire** | Each weapon has its own shot (AR-7, V-10, M-12, LR-50, P-9); heard up to 150 m (sniper 300 m); distant shots lose their highs |
+| **Gunfire** | Each weapon has its own shot (AR-7, V-10, M-12, LR-50, K-100, P-9); heard up to 150 m (sniper 300 m); distant shots lose their highs |
 | **Footsteps** | One step per stride: walking normal, **sprinting loud (40 m)**, **crouch-walking nearly silent (8 m)** — also for other players, from their movement. Jump, landing (louder the harder you land) and slide sounds |
 | **Reload & handling** | Mag out → mag in → bolt, timed to the reload; dry fire; weapon switch |
 | **Bullets** | Impact sound where bullets hit; enemy bullets flying within 3 m of your head **whiz** past |
@@ -569,7 +569,7 @@ Match flow: the server runs the clock and score → **results screen** (winner +
 |---|---|
 | Start | **$800** each half (halftime resets money and gear), max **$16,000**. Everyone starts with the pistol and knife |
 | Buy | Press **`X`** near your side's spawn during the freeze time and the first **20 s** of the round (the HUD shows `X Buy (18s)`). Click an item; the menu closes when buy time ends or you leave the spawn |
-| Guns | AR-7 **$2700**, V-10 SMG **$1250**, M-12 Shotgun **$1100**, LR-50 Sniper **$4750** (a new gun replaces the old primary) |
+| Guns | AR-7 **$2700**, V-10 SMG **$1250**, M-12 Shotgun **$1100**, LR-50 Sniper **$4750**, K-100 LMG **$5200** (a new gun replaces the old primary) |
 | Armour | Kevlar **$650**, Kevlar + Helmet **$1000** (helmet alone **$350** with a full vest). Without a helmet, head hits ignore armour |
 | Grenades | HE **$300**, Flash **$200** (max 2), Smoke **$300**, Molotov **$400** — 1 of each other kind, 4 in total |
 | Round win | **$3250**, or **$3500** by exploding / defusing the bomb |
@@ -588,9 +588,23 @@ Everything is server-authoritative (`scripts/core/bomb_rules.gd`): clients only 
 |--------|------|--------|------|-------------|-----|-----|-------|
 | AR-7 | Assault rifle | 24 | ×2 | 78 % | 650 | 30 | All-rounder |
 | V-10 | SMG | 17 | ×1.6 | 60 % | 900 | 32 | Fast, accurate while moving, short range |
-| M-12 | Shotgun | 9 × 13 | ×1.5 | 45 % | 70 | 6 | Pellets in one packet, deadly up close |
+| M-12 | Shotgun | 9 × 13 | ×1.5 | 45 % | 70 | 6 | Pellets in one packet, deadly up close; **loads shell by shell** (fire to stop reloading), pump after each shot |
 | LR-50 | Sniper | 110 | ×2 | 95 % | 45 | 5 | One-shot chest/stomach kill, **scope overlay** (4× zoom) |
+| K-100 | LMG | 26 | ×2 | 80 % | 720 | 100 | Belt-fed box, 5 s reload (cover up, box swap, cover down), 14 % slower to walk with |
 | P-9 | Pistol | 30 | ×2 | 50 % | 400 (semi) | 12 | Secondary for everyone |
+
+**Weapon animations** (`scripts/weapons/weapon_anim.gd`) — one animation system for every gun, each with its own profile: idle sway (breathing), walk / run bob, the gun lagging a little behind the mouse, an equip raise, fire kick (back, up, rotation) and how fast it settles, the reload tilt (pistol 4° … sniper 10°) and hand speed, sounds along the reload, and its own inspect (`I`):
+
+| Gun | Feel | Fire | Reload | Inspect |
+|-----|------|------|--------|---------|
+| P-9 pistol | light, fast hands | small kick, quick recovery | mag out → mag in → slide | quick turns, press-check |
+| V-10 SMG | close, steady | fast, controlled | quick mag change, charging handle | the magazine dropped and checked |
+| AR-7 rifle | firm, slight sway | stronger kick | mag out → in → charging handle | turned over, handle eased back |
+| M-12 shotgun | heavy | big kick, **pump** after each shot | **shell by shell**, pump | a shell held up |
+| LR-50 sniper | steady, minimal sway | heavy kick, **bolt** worked by the right hand | mag change, bolt | raised to look along the scope |
+| K-100 LMG | heavy, slow hands, big bob | sustained | cover up, box out / in, cover down, charge | cover lifted to show the belt |
+
+The viewmodel is four pieces (gun, magazine, right arm, left arm; the LMG adds its top cover). First-person gloves and sleeves follow your character's outfit.
 
 **Damage model** — `damage = base × distance falloff × hit zone`, then armour:
 

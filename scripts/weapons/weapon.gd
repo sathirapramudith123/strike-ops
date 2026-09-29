@@ -71,10 +71,32 @@ var _burst_left: int = 0
 ## Knife swing, 1 → 0 over SWING_TIME.
 var _swing: float = 0.0
 const SWING_TIME := 0.35
+## Animation profile (WeaponAnim) and its state.
+var _anim: Dictionary = {}
+var _right_arm: MeshInstance3D
+var _cover: MeshInstance3D
+var _time := 0.0
+var _bob_phase := 0.0
+var _look_lag := Vector2.ZERO
+var _last_cam_basis := Basis.IDENTITY
+var _has_cam_basis := false
+var _equip_left := 0.0
+var _cycle_left := 0.0
+var _cycle_sound := false
+var _kick_roll := 0.0
+var _left_hand := Vector3.ZERO
+var _right_hand := Vector3.ZERO
+## Reload bookkeeping: full length, sounds along it, shells loaded so far.
+var _reload_total := 0.0
+var _cue_index := 0
+var _shells_loaded := 0
+var _server_reload_start := 0.0
 
 
 func _ready() -> void:
 	_hip_position = position
+	_anim = WeaponAnim.profile(data.weapon_id)
+	_reload_total = data.reload_time
 	ammo_in_magazine = data.magazine_size
 	ammo_reserve = data.starting_reserve
 	if muzzle_flash:
@@ -84,8 +106,11 @@ func _ready() -> void:
 		# so the reload can be animated (see _animate_reload).
 		_add_part("Model", WeaponModel.get_mesh(data.weapon_id, false))
 		_magazine = _add_part("Magazine", WeaponModel.get_magazine_mesh(data.weapon_id))
-		_add_part("ArmR", WeaponModel.get_arm_mesh(data.weapon_id, false))
+		_right_arm = _add_part("ArmR", WeaponModel.get_arm_mesh(data.weapon_id, false))
 		_left_arm = _add_part("ArmL", WeaponModel.get_arm_mesh(data.weapon_id, true))
+		_cover = _add_part("Cover", WeaponModel.get_cover_mesh(data.weapon_id))
+		if _cover:
+			_cover.position = WeaponModel.COVER_HINGE
 		if data.weapon_id == "shotgun" and _magazine:
 			_magazine.visible = false # the shell only shows while loading
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
@@ -111,11 +136,28 @@ func equip(player: PlayerController, camera: Camera3D) -> void:
 	# Remote players show a third-person gun instead of the viewmodel.
 	for mesh in _viewmodel_meshes:
 		mesh.visible = player.is_local
+	if player.is_local:
+		_apply_arm_look()
+		# The raise: from low and tipped down up into the hands.
+		_equip_left = float(_anim.equip)
+		_has_cam_basis = false
 	ammo_changed.emit(ammo_in_magazine, ammo_reserve)
+
+
+## First-person gloves and sleeves in the player's outfit (CharacterLook).
+func _apply_arm_look() -> void:
+	if _right_arm == null:
+		return
+	var look: Dictionary = NetworkManager.look_of(_player.peer_id)
+	_right_arm.mesh = WeaponModel.get_arm_mesh(data.weapon_id, false, look)
+	if _left_arm:
+		_left_arm.mesh = WeaponModel.get_arm_mesh(data.weapon_id, true, look)
 
 
 func unequip() -> void:
 	_inspect_left = 0.0
+	_cycle_left = 0.0
+	_equip_left = 0.0
 	_burst_left = 0
 	zoom_index = 0
 	is_aiming = false
@@ -152,11 +194,7 @@ func _physics_process(delta: float) -> void:
 		zoom_index = 0
 	ads_blend = move_toward(ads_blend, 1.0 if is_aiming else 0.0, delta / maxf(data.ads_time, 0.01))
 
-	if is_reloading:
-		_reload_timer -= delta
-		_reload_sound_step()
-		if _reload_timer <= 0.0:
-			_finish_reload()
+	_tick_reload(delta)
 
 	if can_act:
 		_handle_trigger()
@@ -176,10 +214,7 @@ var bot_trigger: bool = false
 
 func _bot_process(delta: float) -> void:
 	is_aiming = false
-	if is_reloading:
-		_reload_timer -= delta
-		if _reload_timer <= 0.0:
-			_finish_reload()
+	_tick_reload(delta)
 	if bot_trigger and not holstered and not _player.health.is_dead and Match.can_shoot():
 		try_fire()
 	current_spread = _compute_spread()
@@ -260,8 +295,13 @@ func set_holstered(on: bool) -> void:
 ## Fires one shot if possible. Returns true if a shot was fired.
 func try_fire() -> bool:
 	_inspect_left = 0.0
-	if _cooldown > 0.0 or is_reloading or _player.is_sprinting:
+	if _cooldown > 0.0 or _player.is_sprinting:
 		return false
+	if is_reloading:
+		# Shotgun: firing stops the reload with the shells already in.
+		if not (data.shell_reload and ammo_in_magazine > 0):
+			return false
+		_stop_shell_reload()
 	if data.melee:
 		_cooldown = 60.0 / data.fire_rate
 		_swing = 1.0
@@ -282,6 +322,10 @@ func try_fire() -> bool:
 	_fire_ray()
 	_bloom = minf(_bloom + data.spread_per_shot, data.max_bloom)
 	_kick = 1.0
+	_kick_roll = randf_range(-1.0, 1.0) # not _rng: that stream is the bullet spread
+	if _anim.cycle != "" and not _player.is_bot:
+		_cycle_left = WeaponAnim.cycle_time(data) # bolt / pump after the shot
+		_cycle_sound = false
 
 	var recoil_mult := lerpf(1.0, data.ads_recoil_multiplier, ads_blend)
 	_player.add_recoil(
@@ -304,16 +348,64 @@ func reload() -> void:
 	if is_reloading or ammo_in_magazine >= data.magazine_size or ammo_reserve <= 0:
 		return
 	is_reloading = true
-	_reload_timer = data.reload_time
+	_cycle_left = 0.0
+	_reload_total = _reload_length()
+	_reload_timer = _reload_total
+	_shells_loaded = 0
+	_cue_index = 0
+	_reload_sounds_left = 0
 	if reload_sound:
 		_play(reload_sound, -4.0, 1.0, 15.0)
-		_reload_sounds_left = 0
-	else:
-		_play(&"mag_out", -4.0, 1.0, 15.0)
-		_reload_sounds_left = 2
-	reload_started.emit(data.reload_time)
+		_cue_index = 99
+	elif data.shell_reload:
+		_reload_sounds_left = 1 # the pump at the end
+	reload_started.emit(_reload_total)
 	if not multiplayer.is_server() and NetworkManager.is_online():
 		_server_reload.rpc_id(1)
+
+
+## Seconds this reload takes: the magazine's reload time, or the shotgun's
+## start + a shell per missing round + the pump.
+func _reload_length() -> float:
+	if not data.shell_reload:
+		return data.reload_time
+	var shells := mini(data.magazine_size - ammo_in_magazine, ammo_reserve)
+	return data.reload_start + shells * data.shell_time + data.reload_end
+
+
+## Runs the reload clock (local player and bots): sounds on cue, the
+## shotgun's shells one by one, the magazine at the end.
+func _tick_reload(delta: float) -> void:
+	if not is_reloading:
+		return
+	_reload_timer -= delta
+	if data.shell_reload:
+		var elapsed := _reload_total - _reload_timer
+		var due := int(floor((elapsed - data.reload_start) / data.shell_time))
+		while _shells_loaded < due and ammo_in_magazine < data.magazine_size and ammo_reserve > 0:
+			_shells_loaded += 1
+			ammo_in_magazine += 1
+			ammo_reserve -= 1
+			_play(&"shell_in", -5.0, _rng.randf_range(0.95, 1.05), 12.0)
+			ammo_changed.emit(ammo_in_magazine, ammo_reserve)
+		if _reload_sounds_left > 0 and _reload_timer <= data.reload_end * 0.8:
+			_reload_sounds_left = 0
+			_play(&"pump", -4.0, 1.0, 15.0)
+		if _reload_timer <= 0.0:
+			is_reloading = false
+			reload_finished.emit()
+		return
+	_reload_sound_step()
+	if _reload_timer <= 0.0:
+		_finish_reload()
+
+
+## Shotgun: stop loading (to fire) with the shells already in.
+func _stop_shell_reload() -> void:
+	is_reloading = false
+	reload_finished.emit()
+	if not multiplayer.is_server() and NetworkManager.is_online():
+		_server_shells.rpc_id(1, _shells_loaded)
 
 
 ## Server: a client started reloading. The server keeps its own copy of the
@@ -326,12 +418,31 @@ func _server_reload() -> void:
 		return
 	is_reloading = true
 	# 10% tolerance for network jitter.
-	_server_reload_done_at = NetworkManager.server_time() + data.reload_time * 0.9
+	_server_reload_start = NetworkManager.server_time()
+	_server_reload_done_at = _server_reload_start + _reload_length() * 0.9
+
+
+## Server: a client stopped loading shells after `count` (to fire). It gets
+## at most what the time since it started allows.
+@rpc("any_peer", "call_remote", "reliable")
+func _server_shells(count: int) -> void:
+	if not multiplayer.is_server() or multiplayer.get_remote_sender_id() != _player.peer_id or not is_reloading:
+		return
+	_server_load_shells(count)
+
+
+func _server_load_shells(count: int) -> void:
+	var elapsed := NetworkManager.server_time() - _server_reload_start
+	var allowed := int(floor((elapsed - data.reload_start * 0.5) / (data.shell_time * 0.8))) + 1
+	var loaded := clampi(mini(count, allowed), 0, mini(data.magazine_size - ammo_in_magazine, ammo_reserve))
+	ammo_in_magazine += loaded
+	ammo_reserve -= loaded
+	is_reloading = false
 
 
 ## Reload progress 0..1 (0 when not reloading).
 func get_reload_progress() -> float:
-	return 1.0 - _reload_timer / data.reload_time if is_reloading else 0.0
+	return clampf(1.0 - _reload_timer / maxf(_reload_total, 0.01), 0.0, 1.0) if is_reloading else 0.0
 
 
 ## Full magazine and reserve (on respawn).
@@ -423,10 +534,13 @@ func _server_fire(render_time: float, origin: Vector3, dirs: PackedVector3Array)
 		return
 	# Server-side ammo: the server's copy of this weapon counts every shot.
 	if is_reloading:
-		if now < _server_reload_done_at:
+		if data.shell_reload:
+			_server_load_shells(data.magazine_size) # a full load, as far as the time allows
+		elif now < _server_reload_done_at:
 			NetworkManager.report_violation(_player.peer_id, "fired while reloading")
 			return
-		_finish_reload()
+		else:
+			_finish_reload()
 	if not data.melee:
 		if ammo_in_magazine <= 0:
 			NetworkManager.report_violation(_player.peer_id, "fired with an empty magazine")
@@ -570,8 +684,11 @@ func _wall_distance_pull(target: Vector3) -> float:
 	return clampf(pull, 0.0, MAX_WALL_PULL)
 
 
-## Inspect (I): turn the gun to look at one side, then the other (the knife
-## is flipped in the hand). Any action cancels it.
+## Inspect (I): each gun its own way (WeaponAnim "inspect"): the pistol is
+## turned side to side, the SMG's magazine checked, the rifle turned and its
+## charging handle eased back, the shotgun shows a shell, the sniper is
+## raised to look along the scope, the LMG's cover is lifted to show the
+## belt, the knife is flipped. Any action cancels it.
 const INSPECT_TIME := 2.6
 var _inspect_left := 0.0
 
@@ -590,44 +707,133 @@ func cancel_inspect() -> void:
 	_inspect_left = 0.0
 
 
-## Pose offsets for the inspect: { offset, yaw, pitch, roll }.
+## Pose for the inspect: gun { offset, yaw, pitch, roll }, hands { left,
+## right } (offsets from where they hold the gun), magazine offset (and
+## whether it shows, -1 = leave it), LMG cover angle.
 func _inspect_pose(delta: float) -> Dictionary:
-	var pose := { "offset": Vector3.ZERO, "yaw": 0.0, "pitch": 0.0, "roll": 0.0 }
+	var pose := { "offset": Vector3.ZERO, "yaw": 0.0, "pitch": 0.0, "roll": 0.0, "left": Vector3.ZERO,
+		"right": Vector3.ZERO, "mag": Vector3.ZERO, "mag_show": -1, "cover": 0.0 }
 	if _inspect_left <= 0.0:
 		return pose
 	if is_aiming or is_reloading or holstered:
 		_inspect_left = 0.0
 		return pose
+	var before := 1.0 - _inspect_left / INSPECT_TIME
 	_inspect_left = maxf(_inspect_left - delta, 0.0)
 	var p := 1.0 - _inspect_left / INSPECT_TIME
 	var first := _smooth(p, 0.0, 0.15) * (1.0 - _smooth(p, 0.45, 0.55))
 	var second := _smooth(p, 0.5, 0.62) * (1.0 - _smooth(p, 0.85, 1.0))
-	if data.melee:
-		# Flip the blade over, then a look along its edge.
-		pose.pitch = TAU * _smooth(p, 0.3, 0.6)
-		pose.yaw = 0.8 * first - 0.4 * second
-		pose.offset = Vector3(-0.1, 0.06, -0.05) * maxf(first, second)
-		return pose
-	pose.yaw = 0.75 * first - 0.35 * second
-	pose.roll = 0.5 * first - 0.6 * second
-	pose.pitch = 0.2 * second
-	pose.offset = Vector3(-0.08, 0.05, -0.02) * first + Vector3(0.02, 0.07, -0.04) * second
+	var h: Dictionary = WeaponModel.HANDS.get(data.weapon_id, {})
+	var charge: Vector3 = WeaponModel.CHARGE.get(data.weapon_id, Vector3.ZERO)
+	match String(_anim.inspect):
+		"flip": # the blade flipped over, then a look along its edge
+			pose.pitch = TAU * _smooth(p, 0.3, 0.6)
+			pose.yaw = 0.8 * first - 0.4 * second
+			pose.offset = Vector3(-0.1, 0.06, -0.05) * maxf(first, second)
+			return pose
+		"rotate": # pistol: quick turns, a press-check of the slide
+			pose.yaw = 0.9 * first - 0.5 * second
+			pose.roll = 0.6 * first - 0.7 * second
+			pose.offset = Vector3(-0.06, 0.05, -0.03) * first + Vector3(0.02, 0.06, -0.03) * second
+			pose.offset.z += 0.012 * sin(clampf((p - 0.68) / 0.1, 0.0, 1.0) * PI)
+			return pose
+		"mag_check": # SMG: tip it, drop the magazine a little, look, push it home
+			pose.roll = -0.5 * first - 0.5 * second
+			pose.yaw = 0.35 * first - 0.3 * second
+			pose.offset = Vector3(-0.07, 0.06, -0.02) * first + Vector3(0.02, 0.07, -0.03) * second
+			if not h.is_empty():
+				var to_mag: Vector3 = h.mag - h.left
+				var reach := _smooth(p, 0.08, 0.18) * (1.0 - _smooth(p, 0.46, 0.56))
+				var drop := _smooth(p, 0.2, 0.3) * (1.0 - _smooth(p, 0.36, 0.44))
+				pose.left = to_mag * reach + Vector3(0, -0.06, 0) * drop
+				pose.mag = Vector3(0, -0.06, 0) * drop
+			_inspect_cue(before, p, 0.36, &"mag_in")
+		"shells": # shotgun: turned to the camera, a shell held up to look at
+			pose.roll = 0.45 * first
+			pose.yaw = 0.3 * first - 0.45 * second
+			pose.offset = Vector3(-0.07, 0.05, -0.02) * first + Vector3(0.02, 0.07, -0.03) * second
+			if not h.is_empty():
+				var show := _smooth(p, 0.1, 0.22) * (1.0 - _smooth(p, 0.38, 0.48))
+				var held: Vector3 = h.left + Vector3(-0.04, 0.07, 0.04) # up off the pump, not back into the view
+				pose.left = (held - h.left) * show
+				pose.mag = (held + Vector3(0.0, 0.035, -0.03) - Vector3(0, -0.07, -0.02)) * show
+				pose.mag_show = 1 if show > 0.05 else 0
+		"scope": # sniper: raised to look along the scope, then turned over
+			pose.yaw = 1.1 * first - 0.35 * second
+			pose.pitch = 0.15 * first
+			pose.roll = -0.6 * second
+			pose.offset = Vector3(-0.13, 0.1, 0.03) * first + Vector3(0.02, 0.07, -0.03) * second
+			if not h.is_empty():
+				pose.right = (charge - h.grip) * (_smooth(p, 0.62, 0.7) * (1.0 - _smooth(p, 0.8, 0.88))) * 0.8
+		"belt": # LMG: the cover lifted, the belt shown, the cover shut
+			pose.roll = 0.35 * first
+			pose.yaw = 0.3 * first - 0.4 * second
+			pose.offset = Vector3(-0.06, 0.06, -0.02) * first + Vector3(0.02, 0.07, -0.03) * second
+			var lift := _smooth(p, 0.12, 0.24) * (1.0 - _smooth(p, 0.4, 0.48))
+			pose.cover = -1.25 * lift
+			if not h.is_empty():
+				# Up to the front of the cover (up, not back: the forearm would fill the view).
+				var at_cover := Vector3(-0.02, 0.075, 0.04)
+				pose.left = at_cover * (_smooth(p, 0.04, 0.12) * (1.0 - _smooth(p, 0.48, 0.56)))
+				pose.left += Vector3(0, 0.05, 0.0) * lift
+			_inspect_cue(before, p, 0.14, &"cover_open")
+			_inspect_cue(before, p, 0.44, &"cover_close")
+		_: # rifle: turned side to side, the charging handle eased back
+			pose.yaw = 0.75 * first - 0.35 * second
+			pose.roll = 0.5 * first - 0.6 * second
+			pose.pitch = 0.2 * second
+			pose.offset = Vector3(-0.08, 0.05, -0.02) * first + Vector3(0.02, 0.07, -0.04) * second
+			if not h.is_empty():
+				var at := _smooth(p, 0.6, 0.66) * (1.0 - _smooth(p, 0.78, 0.84))
+				pose.left = (charge - (h.left as Vector3)) * at + Vector3(0, 0, 0.04) * _smooth(p, 0.66, 0.72) \
+					* (1.0 - _smooth(p, 0.74, 0.78))
 	return pose
 
 
+func _inspect_cue(before: float, now: float, at: float, sound: StringName) -> void:
+	if before < at and now >= at:
+		_play(sound, -8.0, 1.0, 10.0)
+
+
+## The viewmodel every frame: the WeaponAnim profile's idle sway, walk /
+## run bob, lag behind the mouse, the equip raise, fire kick, the bolt /
+## pump cycle, reload and inspect poses, pulled back from walls.
 func _update_viewmodel(delta: float) -> void:
-	_kick = move_toward(_kick, 0.0, delta * 12.0)
+	var a := _anim
+	_time += delta
+	_kick = move_toward(_kick, 0.0, delta * float(a.recover))
 	var inspect := _inspect_pose(delta)
-	var target := _hip_position.lerp(ads_position, ads_blend) + (inspect.offset as Vector3)
-	target.z += _kick * 0.06
-	target.y += _kick * 0.01
+	var aim := ads_blend
+	var target := _hip_position.lerp(ads_position, aim) + (inspect.offset as Vector3)
+	target.z += _kick * float(a.kick_back)
+	target.y += _kick * float(a.kick_up)
 	# Knife: a slash from the right across to the left and back.
 	_swing = move_toward(_swing, 0.0, delta / SWING_TIME)
 	var slash := sin((1.0 - _swing) * PI) if _swing > 0.0 else 0.0
 	target += Vector3(-0.16, 0.04, -0.1) * slash
-	rotation.y = lerpf(rotation.y, 0.9 * slash + inspect.yaw, clampf(delta * 20.0, 0.0, 1.0))
-	var pose := _animate_reload(get_reload_progress() if is_reloading else -1.0)
-	target += pose.offset
+	# Idle sway (breathing), much less when aiming.
+	var loose := 1.0 - 0.85 * aim
+	var sway := float(a.sway) * loose
+	target += Vector3(sin(_time * 1.3) * 0.004, sin(_time * 2.6) * 0.0028, 0.0) * sway
+	# Walk / run bob with the steps (bigger when sprinting, heavy guns more).
+	var ground_speed := Vector2(_player.velocity.x, _player.velocity.z).length() if _player.is_on_floor() else 0.0
+	_bob_phase += delta * ground_speed * 1.8
+	var bob := float(a.bob) * clampf(ground_speed / 5.0, 0.0, 1.5) * loose
+	target += Vector3(sin(_bob_phase) * 0.011, -absf(cos(_bob_phase)) * 0.009, 0.0) * bob
+	# The gun lags a little behind the mouse.
+	_update_look_lag(delta)
+	var lag := _look_lag * float(a.lag) * (1.0 - 0.7 * aim)
+	target += Vector3(lag.x * 0.05, -lag.y * 0.04, 0.0)
+	# Equip: raised from low, tipped down.
+	var raise := 0.0
+	if _equip_left > 0.0:
+		_equip_left = maxf(_equip_left - delta, 0.0)
+		raise = smoothstep(0.0, 1.0, _equip_left / maxf(float(a.equip), 0.01))
+	target += Vector3(0.03, -0.22, 0.06) * raise
+	var pose := _animate_reload(get_reload_progress() if is_reloading else -1.0, inspect)
+	var cycle := _animate_cycle(delta)
+	target += (pose.offset as Vector3) + (cycle.offset as Vector3)
+	rotation.y = lerpf(rotation.y, 0.9 * slash + float(inspect.yaw) + lag.x * 0.12, clampf(delta * 20.0, 0.0, 1.0))
 	# Lower the weapon while sprinting.
 	if _player.is_sprinting and not is_reloading:
 		target += Vector3(-0.05, -0.08, 0.05)
@@ -637,8 +843,16 @@ func _update_viewmodel(delta: float) -> void:
 	target += Vector3(0.0, -_wall_pull * 0.2, _wall_pull)
 	position = position.lerp(target, clampf(delta * 18.0, 0.0, 1.0))
 	var k := clampf(delta * 14.0, 0.0, 1.0)
-	rotation.x = lerpf(rotation.x, _kick * 0.08 + pose.pitch - _wall_pull * 0.8 + inspect.pitch, k)
-	rotation.z = lerpf(rotation.z, pose.roll + inspect.roll, k)
+	rotation.x = lerpf(rotation.x, _kick * float(a.kick_rot) + float(pose.pitch) + float(cycle.pitch) - _wall_pull * 0.8
+		+ float(inspect.pitch) - raise * 0.9 + lag.y * 0.08, k)
+	rotation.z = lerpf(rotation.z, float(pose.roll) + float(inspect.roll) + float(cycle.roll)
+		+ _kick * _kick_roll * float(a.kick_roll) + sin(_bob_phase) * 0.02 * bob - raise * 0.3, k)
+	# Hands: where the reload / cycle / inspect want them, at the gun's hand speed.
+	var hk := clampf(delta * 30.0 * float(a.hands), 0.0, 1.0)
+	if _left_arm:
+		_left_arm.position = _left_arm.position.lerp(_left_hand + (inspect.left as Vector3), hk)
+	if _right_arm:
+		_right_arm.position = _right_arm.position.lerp(_right_hand + (inspect.right as Vector3), hk)
 	# Looking through a scope: the HUD draws the scope, hide the gun (also
 	# while a grenade is in hand).
 	var show_model := not is_scoped() and not holstered
@@ -649,62 +863,156 @@ func _update_viewmodel(delta: float) -> void:
 			_magazine.visible = false
 
 
-## First-person reload: the gun rolls to show its side, the left hand pulls
-## the magazine out and down, fetches a new one and seats it (the "mag in"
-## sound plays at 55 %), then goes back; a small jolt for the bolt at 85 %.
-## Shotgun: the hand feeds three shells into the loading port. `p` = reload
-## progress 0..1, or < 0 when not reloading. Returns the gun pose.
-func _animate_reload(p: float) -> Dictionary:
+## How much the view turned this frame (yaw, pitch), eased back to zero.
+func _update_look_lag(delta: float) -> void:
+	if _camera == null:
+		return
+	var b := _camera.global_basis.orthonormalized()
+	if _has_cam_basis:
+		var turn := (_last_cam_basis.inverse() * b).get_euler()
+		_look_lag += Vector2(turn.y, turn.x)
+	_last_cam_basis = b
+	_has_cam_basis = true
+	_look_lag = _look_lag.lerp(Vector2.ZERO, clampf(delta * 9.0, 0.0, 1.0)).limit_length(0.35)
+
+
+## After a shot: the sniper's right hand works the bolt, the shotgun's
+## left hand racks the pump (sound a third of the way in).
+func _animate_cycle(delta: float) -> Dictionary:
 	var pose := { "offset": Vector3.ZERO, "pitch": 0.0, "roll": 0.0 }
-	var hand := Vector3.ZERO
+	if _cycle_left <= 0.0 or is_reloading:
+		_cycle_left = 0.0
+		return pose
+	var total := WeaponAnim.cycle_time(data)
+	_cycle_left = maxf(_cycle_left - delta, 0.0)
+	var c := 1.0 - _cycle_left / total
+	if not _cycle_sound and c >= 0.3:
+		_cycle_sound = true
+		_play(&"bolt" if _anim.cycle == "bolt" else &"pump", -5.0, 1.0, 15.0)
+	var h: Dictionary = WeaponModel.HANDS.get(data.weapon_id, {})
+	if h.is_empty():
+		return pose
+	if _anim.cycle == "bolt":
+		var to_bolt: Vector3 = (WeaponModel.CHARGE[data.weapon_id] as Vector3) - (h.grip as Vector3)
+		var reach := _smooth(c, 0.0, 0.22) * (1.0 - _smooth(c, 0.8, 1.0))
+		var pull := _smooth(c, 0.25, 0.45) * (1.0 - _smooth(c, 0.55, 0.75))
+		_right_hand = to_bolt * reach + Vector3(0, 0.015, 0.08) * pull
+		pose.roll = 0.12 * reach
+		pose.pitch = -0.04 * reach
+	else:
+		var rack := _smooth(c, 0.08, 0.4) * (1.0 - _smooth(c, 0.45, 0.8))
+		_left_hand = Vector3(0, 0, 0.08) * rack
+		pose.offset = Vector3(0, 0.005, 0.015) * rack
+		pose.pitch = 0.05 * rack
+	return pose
+
+
+## First-person reload after the gun's profile: it rolls towards you by its
+## tilt, the left hand pulls the magazine out and down, fetches a new one
+## and seats it, then works the charging handle / slide (the sniper's right
+## hand the bolt). Shotgun: one shell per shell_time fed into the port, a
+## pump at the end. LMG: the hand lifts the top cover, swaps the box, shuts
+## the cover, charges. `p` = progress 0..1, or < 0 when not reloading.
+## Sets the hand targets and the magazine; returns the gun pose.
+func _animate_reload(p: float, inspect: Dictionary) -> Dictionary:
+	var pose := { "offset": Vector3.ZERO, "pitch": 0.0, "roll": 0.0 }
+	_left_hand = Vector3.ZERO
+	_right_hand = Vector3.ZERO
 	var mag := Vector3.ZERO
-	var mag_visible := true
+	var mag_visible := data.weapon_id != "shotgun"
+	var cover := 0.0
 	if p >= 0.0 and WeaponModel.HANDS.has(data.weapon_id):
 		var h: Dictionary = WeaponModel.HANDS[data.weapon_id]
 		var to_mag: Vector3 = h.mag - h.left
+		var charge: Vector3 = WeaponModel.CHARGE.get(data.weapon_id, Vector3.ZERO)
 		var tilt := _smooth(p, 0.0, 0.12) * (1.0 - _smooth(p, 0.82, 1.0))
 		# Raise the gun towards the centre and roll its underside to the camera.
-		pose.roll = -0.45 * tilt
+		# (The LMG rolls its top towards you instead, to look into the feed tray.)
+		pose.roll = deg_to_rad(float(_anim.tilt)) * 3.5 * tilt * (1.0 if data.weapon_id == "lmg" else -1.0)
 		pose.pitch = -0.08 * tilt
 		pose.offset = Vector3(-0.07, 0.05, -0.03) * tilt
-		if data.weapon_id == "shotgun":
-			# Three shells: from below up into the port and back down.
-			var cycle := fposmod((p - 0.1) / 0.24, 1.0) if p > 0.1 and p < 0.82 else -1.0
-			if cycle >= 0.0:
+		if data.shell_reload:
+			var elapsed := _reload_total - _reload_timer
+			var feeding := elapsed > data.reload_start and _reload_timer > data.reload_end
+			var cycle := fposmod((elapsed - data.reload_start) / data.shell_time, 1.0)
+			mag_visible = false
+			if feeding:
+				# A shell from below up into the port, then down for the next.
 				var up := sin(cycle * PI)
-				hand = to_mag * up + Vector3(0, -0.18, 0.06) * (1.0 - up)
-				mag = hand - to_mag
+				_left_hand = to_mag * up + Vector3(0, -0.18, 0.06) * (1.0 - up)
+				mag = _left_hand - to_mag
 				mag_visible = cycle < 0.55
-			else:
+			elif _reload_timer <= data.reload_end: # rack the pump
+				var t := 1.0 - _reload_timer / maxf(data.reload_end, 0.01)
+				_left_hand = Vector3(0, 0, 0.08) * sin(t * PI)
+		elif data.weapon_id == "lmg":
+			# Up to the front of the cover (up, not back: the forearm would fill the view).
+			var at_cover := Vector3(-0.02, 0.075, 0.04)
+			cover = -1.3 * _smooth(p, 0.1, 0.2) * (1.0 - _smooth(p, 0.68, 0.76))
+			var drop := Vector3(0, -0.32, 0.1)
+			if p < 0.1:
+				_left_hand = at_cover * _smooth(p, 0.02, 0.1)
+			elif p < 0.2:
+				_left_hand = at_cover + Vector3(0, 0.05, 0.0) * _smooth(p, 0.1, 0.2)
+			elif p < 0.3:
+				_left_hand = (at_cover + Vector3(0, 0.05, 0.0)).lerp(to_mag, _smooth(p, 0.2, 0.3))
+			elif p < 0.42:
+				var t := _smooth(p, 0.3, 0.42)
+				_left_hand = to_mag + drop * t
+				mag = drop * t
+			elif p < 0.52:
+				_left_hand = to_mag + drop
 				mag_visible = false
-			if p >= 0.86 and p < 0.96: # rack the pump
-				hand = Vector3(0, 0, 0.07) * sin((p - 0.86) / 0.1 * PI)
+			elif p < 0.62:
+				var t := 1.0 - _smooth(p, 0.52, 0.62)
+				_left_hand = to_mag + drop * t
+				mag = drop * t
+			elif p < 0.68:
+				_left_hand = to_mag.lerp(at_cover + Vector3(0, 0.05, 0.0), _smooth(p, 0.62, 0.68))
+			elif p < 0.76:
+				_left_hand = (at_cover + Vector3(0, 0.05, 0.0)).lerp(at_cover, _smooth(p, 0.68, 0.74))
+			elif p < 0.84:
+				_left_hand = at_cover * (1.0 - _smooth(p, 0.76, 0.84))
+			elif p < 0.96:
+				var t := _smooth(p, 0.84, 0.88) * (1.0 - _smooth(p, 0.92, 0.96))
+				_left_hand = (charge - (h.left as Vector3)) * t + Vector3(0, 0, 0.06) * sin(clampf((p - 0.87) / 0.06, 0.0, 1.0) * PI)
 		else:
 			var drop := Vector3(0, -0.34, 0.08)
 			if p < 0.12:
-				hand = to_mag * _smooth(p, 0.0, 0.12)
+				_left_hand = to_mag * _smooth(p, 0.0, 0.12)
 			elif p < 0.3:
 				var t := _smooth(p, 0.12, 0.3)
-				hand = to_mag + drop * t
+				_left_hand = to_mag + drop * t
 				mag = drop * t
 			elif p < 0.42:
-				hand = to_mag + drop
+				_left_hand = to_mag + drop
 				mag_visible = false # the old magazine is gone, reaching for a new one
 			elif p < 0.55:
 				var t := 1.0 - _smooth(p, 0.42, 0.55)
-				hand = to_mag + drop * t
+				_left_hand = to_mag + drop * t
 				mag = drop * t
 			elif p < 0.7:
-				hand = to_mag * (1.0 - _smooth(p, 0.55, 0.7))
-			if p >= 0.84 and p < 0.92: # bolt / charging handle
-				pose.offset.z += 0.02 * sin((p - 0.84) / 0.08 * PI)
-	elif data.weapon_id == "shotgun":
-		mag_visible = false
-	if _left_arm:
-		_left_arm.position = hand
+				_left_hand = to_mag * (1.0 - _smooth(p, 0.55, 0.7))
+			if data.weapon_id == "sniper":
+				# The right hand works the bolt to chamber a round.
+				var reach := _smooth(p, 0.7, 0.76) * (1.0 - _smooth(p, 0.9, 0.96))
+				var pull := sin(clampf((p - 0.76) / 0.12, 0.0, 1.0) * PI)
+				_right_hand = (charge - (h.grip as Vector3)) * reach + Vector3(0, 0.015, 0.08) * pull
+			elif p >= 0.72 and p < 0.94:
+				# The left hand to the charging handle / slide and a pull back.
+				var reach := _smooth(p, 0.72, 0.8) * (1.0 - _smooth(p, 0.88, 0.94))
+				var pull := sin(clampf((p - 0.8) / 0.08, 0.0, 1.0) * PI)
+				_left_hand = (charge - (h.left as Vector3)) * reach + Vector3(0, 0, 0.05) * pull
+				pose.offset.z += 0.012 * pull
+	# The inspect can move the magazine (SMG check) or show a shell.
+	mag += inspect.mag as Vector3
+	if int(inspect.mag_show) >= 0:
+		mag_visible = int(inspect.mag_show) == 1
+	if _cover:
+		_cover.rotation.x = lerpf(_cover.rotation.x, cover + float(inspect.cover), 0.35)
 	if _magazine:
 		_magazine.position = mag
-		if _magazine.visible != mag_visible and not is_scoped():
+		if _magazine.visible != mag_visible and not is_scoped() and not holstered:
 			_magazine.visible = mag_visible and _player != null and _player.is_local
 	return pose
 
@@ -732,17 +1040,13 @@ func _play(sound: Variant, volume_db: float = 0.0, pitch: float = 1.0,
 	Audio.play_3d(sound, global_position, volume_db, max_distance, pitch, unit_size)
 
 
-## Magazine in at 55 % of the reload, bolt / slide at 85 %.
+## Reload sounds on the profile's cues (magazine out / in, cover, bolt).
 func _reload_sound_step() -> void:
-	if _reload_sounds_left <= 0:
-		return
-	var progress := 1.0 - _reload_timer / maxf(data.reload_time, 0.01)
-	if _reload_sounds_left == 2 and progress >= 0.55:
-		_reload_sounds_left = 1
-		_play(&"mag_in", -4.0, 1.0, 15.0)
-	elif _reload_sounds_left == 1 and progress >= 0.85:
-		_reload_sounds_left = 0
-		_play(&"bolt", -4.0, 1.0, 15.0)
+	var cues: Array = _anim.reload_cues
+	var progress := get_reload_progress()
+	while _cue_index < cues.size() and progress >= float(cues[_cue_index][0]):
+		_play(StringName(cues[_cue_index][1]), -4.0, 1.0, 15.0)
+		_cue_index += 1
 
 
 func _spawn_impact(pos: Vector3, normal: Vector3) -> void:

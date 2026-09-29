@@ -26,14 +26,25 @@ const HANDS := {
 		"mag": Vector3(0, -0.14, -0.02) },
 	"pistol": { "grip": Vector3(0, -0.07, 0.07), "grip_tilt": -15.0, "left": Vector3(-0.03, -0.075, 0.075), "left_kind": "support",
 		"mag": Vector3(0, -0.15, 0.1) },
+	"lmg": { "grip": Vector3(0, -0.09, 0.12), "grip_tilt": -15.0, "left": Vector3(0, -0.015, -0.3), "left_kind": "under",
+		"mag": Vector3(-0.03, -0.13, -0.03) },
 	# Knife: one hand only (left_kind "none").
 	"knife": { "grip": Vector3(0, -0.02, 0.04), "grip_tilt": -10.0, "left": Vector3.ZERO, "left_kind": "none",
 		"mag": Vector3.ZERO },
 }
 
 
+## What the hands work on besides the magazine (weapon space): the
+## charging handle / bolt / slide; the LMG's top cover hinge.
+const CHARGE := {
+	"rifle": Vector3(0.036, 0.02, 0.03), "smg": Vector3(-0.03, 0.03, -0.1), "pistol": Vector3(0, 0.02, 0.06),
+	"sniper": Vector3(0.088, 0.04, 0.13), "lmg": Vector3(0.042, 0.02, -0.03), "shotgun": Vector3(0, -0.035, -0.3),
+}
+const COVER_HINGE := Vector3(0, 0.053, 0.08)
+
+
 static func has_model(weapon_id: String) -> bool:
-	return weapon_id in ["rifle", "smg", "shotgun", "sniper", "pistol", "knife"]
+	return weapon_id in ["rifle", "smg", "shotgun", "sniper", "pistol", "knife", "lmg"]
 
 
 ## The whole gun (third person). `with_magazine = false`: the viewmodel's
@@ -49,8 +60,11 @@ static func get_mesh(weapon_id: String, with_magazine: bool = true) -> ArrayMesh
 			"sniper": _sniper(b)
 			"pistol": _pistol(b)
 			"knife": _knife(b)
+			"lmg": _lmg(b)
 		if with_magazine and weapon_id != "shotgun" and weapon_id != "knife":
 			_magazine(b, weapon_id)
+		if with_magazine and weapon_id == "lmg":
+			_cover(b, COVER_HINGE)
 		_cache[key] = b.build()
 	return _cache[key]
 
@@ -67,8 +81,32 @@ static func get_magazine_mesh(weapon_id: String) -> ArrayMesh:
 	return _cache.get(key)
 
 
+## LMG top cover, in hinge space (the viewmodel lifts it to load the belt).
+static func get_cover_mesh(weapon_id: String) -> ArrayMesh:
+	if weapon_id != "lmg":
+		return null
+	if not _cache.has("lmg:cover"):
+		var b := MeshBuilder.new()
+		_cover(b, Vector3.ZERO)
+		_cache["lmg:cover"] = b.build()
+	return _cache["lmg:cover"]
+
+
+static func _cover(b: MeshBuilder, at: Vector3) -> void:
+	b.box(&"steel", Vector3(0.066, 0.022, 0.2), at + Vector3(0, 0.011, -0.1))
+	b.box(&"polymer", Vector3(0.03, 0.01, 0.16), at + Vector3(0, 0.027, -0.1)) # rail
+	b.box(&"steel", Vector3(0.012, 0.012, 0.03), at + Vector3(-0.036, 0.01, -0.19)) # latch
+
+
 static func _magazine(b: MeshBuilder, weapon_id: String) -> void:
 	match weapon_id:
+		"lmg":
+			# Box magazine hanging under the left side, the belt running up into the feed tray.
+			b.box(&"olive", Vector3(0.07, 0.1, 0.12), Vector3(-0.012, -0.1, -0.03))
+			b.box(&"polymer", Vector3(0.072, 0.012, 0.122), Vector3(-0.012, -0.146, -0.03))
+			for i in 5:
+				b.box(&"brass", Vector3(0.012, 0.012, 0.05), Vector3(-0.045 + i * 0.004, -0.045 + i * 0.016, -0.03 + i * 0.001),
+					Vector3(0, 0, -25))
 		"rifle":
 			b.box(&"polymer", Vector3(0.035, 0.14, 0.06), Vector3(0, -0.1, -0.06), Vector3(15, 0, 0))
 			b.box(&"polymer", Vector3(0.037, 0.02, 0.064), Vector3(0, -0.168, -0.042), Vector3(15, 0, 0))
@@ -90,11 +128,15 @@ static func _magazine(b: MeshBuilder, weapon_id: String) -> void:
 ## forearm running back out of view. Right = on the grip; left = on the
 ## fore-end / pump / front grip (pistol: round the right hand). Separate
 ## meshes so the left hand can fetch a new magazine while reloading.
-static func get_arm_mesh(weapon_id: String, left: bool) -> ArrayMesh:
-	var key := weapon_id + (":L" if left else ":R")
+## `look` (CharacterLook) colours the gloves and sleeves like the player's
+## outfit; empty = the default black gloves and green sleeves.
+static func get_arm_mesh(weapon_id: String, left: bool, look: Dictionary = {}) -> ArrayMesh:
+	var key := weapon_id + (":L" if left else ":R") + ("" if look.is_empty() else ":" + _arm_look_key(look))
 	if not _arms_cache.has(key) and HANDS.has(weapon_id):
 		var h: Dictionary = HANDS[weapon_id]
 		var b := MeshBuilder.new()
+		if not look.is_empty():
+			_define_arm_look(b, look)
 		if not left:
 			_right_hand(b, h.grip, h.grip_tilt)
 		else:
@@ -105,6 +147,25 @@ static func get_arm_mesh(weapon_id: String, left: bool) -> ArrayMesh:
 				_: _left_hand_support(b, h.left)
 		_arms_cache[key] = b.build()
 	return _arms_cache.get(key)
+
+
+static func _arm_look_key(look: Dictionary) -> String:
+	var clean: Dictionary = CharacterLook.sanitize(look)
+	return "%d,%d,%d,%d" % [clean.body, clean.face, clean.outfit, clean.gloves]
+
+
+## Gloves in the look's colour (bare hands for "None"), sleeves in the
+## outfit's shirt colour and camouflage.
+static func _define_arm_look(b: MeshBuilder, look: Dictionary) -> void:
+	var clean: Dictionary = CharacterLook.sanitize(look)
+	var glove: Dictionary = CharacterLook.GLOVES[int(clean.gloves)]
+	var outfit: Dictionary = CharacterLook.OUTFITS[int(clean.outfit)]
+	var skin: Color = CharacterLook.face_of(clean).skin
+	var gc: Color = glove.color
+	var glove_color := skin if gc.r < 0.0 else gc
+	b.define(&"glove", glove_color)
+	b.define(&"glove_pad", skin if bool(glove.fingerless) else glove_color.lightened(0.12))
+	b.define(&"sleeve", outfit.shirt, 0.0, int(outfit.pattern))
 
 
 ## Fist round a pistol grip, thumb over the top, forearm back and down-right.
@@ -266,6 +327,29 @@ static func _sniper(b: MeshBuilder) -> void: # LR-50 (big-scope bolt-action)
 		b.cylinder_z(&"steel", 0.005, 0.16, Vector3(sx * 0.016, -0.05, -0.33))
 		b.sphere(&"gear", 0.009, Vector3(sx * 0.016, -0.05, -0.41))
 	b.box(&"steel", Vector3(0.05, 0.014, 0.03), Vector3(0, -0.045, -0.25))
+
+
+static func _lmg(b: MeshBuilder) -> void: # K-100 (belt-fed, box magazine, bipod)
+	b.box(&"steel", Vector3(0.068, 0.1, 0.44), Vector3(0, 0.0, 0.0)) # receiver
+	b.box(&"steel", Vector3(0.05, 0.02, 0.1), Vector3(0, 0.055, 0.13)) # rear of the top (behind the cover)
+	b.box(&"polymer", Vector3(0.074, 0.075, 0.2), Vector3(0, -0.005, -0.31)) # handguard
+	for z in [-0.24, -0.29, -0.34, -0.39]:
+		b.box(&"steel", Vector3(0.076, 0.012, 0.02), Vector3(0, 0.02, z)) # heat vents
+	b.cylinder_z(&"steel", 0.014, 0.36, Vector3(0, 0.015, -0.5)) # barrel
+	b.cylinder_z(&"polymer", 0.02, 0.05, Vector3(0, 0.015, -0.66)) # flash hider
+	b.box(&"steel", Vector3(0.012, 0.05, 0.012), Vector3(0, 0.045, -0.52)) # front sight post base
+	b.box(&"steel", Vector3(0.016, 0.07, 0.04), Vector3(0, 0.1, -0.12)) # carry handle post
+	b.box(&"steel", Vector3(0.016, 0.014, 0.16), Vector3(0, 0.135, -0.16)) # carry handle
+	b.box(&"polymer", Vector3(0.035, 0.1, 0.045), Vector3(0, -0.09, 0.12), Vector3(-15, 0, 0)) # grip
+	b.box(&"steel", Vector3(0.008, 0.012, 0.06), Vector3(0, -0.058, 0.06)) # trigger guard
+	b.box(&"steel", Vector3(0.012, 0.014, 0.04), Vector3(0.042, 0.02, -0.03)) # charging handle
+	b.box(&"polymer", Vector3(0.05, 0.085, 0.22), Vector3(0, -0.02, 0.33)) # stock
+	b.box(&"gear", Vector3(0.054, 0.11, 0.02), Vector3(0, -0.025, 0.45)) # butt pad
+	b.box(&"steel", Vector3(0.06, 0.03, 0.03), Vector3(0, -0.06, -0.02)) # feed tray / magazine well
+	for sx in [-1.0, 1.0]: # folded bipod
+		b.cylinder_z(&"steel", 0.006, 0.2, Vector3(sx * 0.02, -0.05, -0.47))
+		b.sphere(&"gear", 0.01, Vector3(sx * 0.02, -0.05, -0.57))
+	_iron_sights(b, 0.055, 0.14, 0.06, -0.52)
 
 
 static func _pistol(b: MeshBuilder) -> void: # P-9

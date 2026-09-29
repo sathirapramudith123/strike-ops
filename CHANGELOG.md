@@ -2,6 +2,27 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**Weapon animations:** one system, a profile per gun. Idle sway, walk / run
+bob, the gun lagging behind the mouse, an equip raise, per-gun fire kick and
+recovery, reload tilt and hand speed, reload sounds on cue. The sniper's
+right hand works the bolt after every shot, the shotgun racks its pump. The
+rifle / SMG / pistol reloads end on the charging handle / slide. Each gun
+inspects its own way (SMG magazine check, a shotgun shell held up, the
+sniper raised to the scope, the LMG's cover lifted). First-person gloves
+and sleeves follow your character's outfit.
+
+**Shotgun loads shell by shell:** firing stops the reload with the shells
+already in (the server counts them by time).
+
+**New gun: K-100 LMG** ($5200): 100-round belt box, 720 RPM, 5 s reload
+(cover up, box swap, cover down), slower to walk with. In the buy menu, the
+loadout list and bots' shopping.
+
+**Win / lose sounds:** a brass fanfare with timpani and cymbals when you win
+the match, a slow falling defeat theme when you lose, a draw sting, and
+fuller round win / lose stings. Fixed: when a match ended on time, the
+winners heard the losing sound.
+
 **Character creator:** main menu → Character. Male or female body, 15 faces
 (skin, hair, beards), eye colour, mouth, ears and a voice (your grunts and
 death cry), and a clothing kit: 7 outfits (Tactical, Military, Urban,

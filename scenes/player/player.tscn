@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/core/health.gd" id="2_health"]
@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/weapons/pistol.tscn" id="9_pistol"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/knife.tscn" id="10_knife"]
 [ext_resource type="Script" path="res://scripts/player/player_model.gd" id="10_model"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/lmg.tscn" id="11_lmg"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 resource_local_to_scene = true
@@ -94,6 +95,8 @@ near = 0.02
 [node name="Shotgun" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("7_shotgun")]
 
 [node name="Sniper" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("8_sniper")]
+
+[node name="Lmg" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("11_lmg")]
 
 [node name="Pistol" parent="Head/Camera3D/WeaponHolder" instance=ExtResource("9_pistol")]
 
