@@ -586,10 +586,10 @@ func _trace_through_breakables(space: PhysicsDirectSpaceState3D, origin: Vector3
 
 ## Server: trace every pellet with lag compensation, apply damage, broadcast effects.
 func _server_process_shot(origin: Vector3, dirs: PackedVector3Array, render_time: float) -> void:
-	# Teammates are not hit — bullets pass through them.
+	# Teammates are not hit — bullets pass through them (unless friendly fire is on).
 	var players: Array = get_tree().get_nodes_in_group(&"player")
 	var teammates: Array = players.filter(
-		func(p: PlayerController) -> bool: return p != _player and Match.is_friendly(_player.peer_id, p.peer_id))
+		func(p: PlayerController) -> bool: return p != _player and Match.shields(_player.peer_id, p.peer_id))
 	var space := get_world_3d().direct_space_state
 	var hit_positions := PackedVector3Array()
 	var hit_normals := PackedVector3Array()

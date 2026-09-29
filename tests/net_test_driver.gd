@@ -35,6 +35,8 @@ func _ready() -> void:
 		"cheat_client": _run_cheat_client()
 		"mixed_host": _run_mixed_host()
 		"mixed_client": _run_mixed_client()
+		"room_host": _run_room_host()
+		"room_client": _run_room_client()
 		_: _run_client()
 
 
@@ -631,6 +633,96 @@ func _run_mixed_client() -> void:
 
 ## Frequency from the time between the first and last zero crossing
 ## (sub-sample accurate), so short packets still give a precise answer.
+# -----------------------------------------------------------------------------
+# Custom match room: through the real lobby — create, join, chat, ready, start.
+# -----------------------------------------------------------------------------
+
+var _chat_lines: Array[String] = []
+
+
+func _lobby() -> Node:
+	var scene := get_tree().current_scene
+	return scene if scene and scene.name == "MainMenu" else null
+
+
+func _run_room_host() -> void:
+	SettingsManager.host_port = _port
+	NetworkManager.local_name = "Host"
+	SettingsManager.player_name = "Host"
+	NetworkManager.room_chat.connect(func(from: String, text: String) -> void: _chat_lines.append(from + ": " + text))
+	get_tree().change_scene_to_file(NetworkManager.MAIN_MENU)
+	var menu: Node = await _wait_for(func() -> Variant: return _lobby())
+	await _frames(5)
+	menu._select_play("custom")
+	menu._pick_map(GameConfig.map_path("factory"))
+	menu._pick_mode(GameConfig.Mode.TDM)
+	menu._opts.bots = 2
+	(menu.find_child("StartButton", true, false) as Button).pressed.emit()
+	_check(NetworkManager.in_room and multiplayer.is_server(), "room created from the lobby (Custom Match)")
+	_check(NetworkManager.room.map == GameConfig.map_path("factory") and NetworkManager.room.mode == GameConfig.Mode.TDM,
+		"room settings: Factory, Team Deathmatch")
+	var joined: Variant = await _wait_for(func() -> Variant: return true if NetworkManager.roster.size() == 2 else null)
+	_check(joined == true, "a player joins the room (still in the lobby, no map)")
+	var client_id := -1
+	for id: int in NetworkManager.roster:
+		if id != 1:
+			client_id = id
+	_check(not NetworkManager.roster[client_id].get("ready", true), "the new player starts NOT READY")
+	await _frames(10)
+	_check(menu._stage_models.size() == 2, "both soldiers stand on the lobby stage")
+	var heard: Variant = await _wait_for(func() -> Variant: return true if _chat_lines.has("Client: hello room") else null)
+	_check(heard == true, "room chat reaches the host")
+	NetworkManager.send_chat("welcome")
+	var got_ready: Variant = await _wait_for(func() -> Variant:
+		return true if NetworkManager.roster.get(client_id, {}).get("ready", false) else null)
+	_check(got_ready == true, "the player gets READY")
+	await _frames(5)
+	var tag := menu.find_child("Tag_%d" % client_id, true, false) as Node
+	_check(tag != null and (tag.find_child("State", true, false) as Label).text == "READY", "the lobby shows READY over them")
+	(menu.find_child("StartButton", true, false) as Button).pressed.emit()
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	_check(level != null and NetworkManager.current_map == GameConfig.map_path("factory") and Match.mode == GameConfig.Mode.TDM,
+		"START MATCH: everyone loads Factory, Team Deathmatch")
+	var client_in: Variant = await _wait_for(func() -> Variant: return level.get_player(client_id))
+	_check(client_in != null, "the room's player spawns in the match")
+	await _frames(20)
+	_check(Match.bots.count() == 2 and Match.get_team(1) >= 0 and Match.get_team(client_id) >= 0,
+		"room settings applied: 2 bots, teams assigned")
+	# Stay a while: the client checks its side after its first frames in the map.
+	await get_tree().create_timer(5.0).timeout
+	_finish()
+
+
+func _run_room_client() -> void:
+	await get_tree().create_timer(1.0).timeout
+	NetworkManager.local_name = "Client"
+	SettingsManager.player_name = "Client"
+	NetworkManager.room_chat.connect(func(from: String, text: String) -> void: _chat_lines.append(from + ": " + text))
+	get_tree().change_scene_to_file(NetworkManager.MAIN_MENU)
+	var menu: Node = await _wait_for(func() -> Variant: return _lobby())
+	await _frames(5)
+	menu._select_play("custom")
+	await _frames(2)
+	(menu.find_child("AddressEdit", true, false) as LineEdit).text = "127.0.0.1:%d" % _port
+	(menu.find_child("JoinButton", true, false) as Button).pressed.emit()
+	var in_room: Variant = await _wait_for(func() -> Variant: return true if NetworkManager.in_room else null)
+	_check(in_room == true and _lobby() != null, "joined the room, still in the lobby")
+	await _frames(10)
+	_check(NetworkManager.room.get("map", "") == GameConfig.map_path("factory"), "the client sees the host's map (Factory)")
+	var start := menu.find_child("StartButton", true, false) as Button
+	_check(start.disabled and start.text == "WAITING FOR HOST", "only the host can start")
+	NetworkManager.send_chat("hello room")
+	var heard: Variant = await _wait_for(func() -> Variant: return true if _chat_lines.has("Host: welcome") else null)
+	_check(heard == true, "room chat reaches the client")
+	(menu.find_child("ReadyButton", true, false) as Button).button_pressed = true
+	var level: Level = await _wait_for(func() -> Variant: return _level())
+	_check(level != null and NetworkManager.current_map == GameConfig.map_path("factory"), "the host started: Factory loads")
+	var me: Variant = await _wait_for(func() -> Variant: return level.player if level else null)
+	_check(me != null and Match.mode == GameConfig.Mode.TDM, "in the match (Team Deathmatch)")
+	await _frames(30)
+	_finish()
+
+
 static func _estimate_frequency(samples: PackedFloat32Array) -> float:
 	var crossings: Array[float] = []
 	for i in range(1, samples.size()):

@@ -101,7 +101,7 @@ func _physics_process(delta: float) -> void:
 		if health.is_dead or target == null:
 			continue
 		var victim := target as PlayerController
-		if victim and source and victim != source and Match.is_friendly(source.peer_id, victim.peer_id):
+		if victim and source and Match.shields(source.peer_id, victim.peer_id):
 			continue
 		if covers(target.global_position):
 			health.take_damage(DPS * TICK, source, false, Throwables.NAMES[Throwables.Kind.MOLOTOV], 1.0, false)

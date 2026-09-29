@@ -19,18 +19,26 @@ extends Node
 signal connection_failed(reason: String)
 signal server_disconnected
 signal roster_changed
+## Custom match room (before the match): settings or members changed.
+signal room_changed
+## A chat line in the room.
+signal room_chat(from_name: String, text: String)
 ## killer_id is -1 for environmental deaths (falling).
 signal kill_feed(killer_id: int, victim_id: int, weapon_name: String, headshot: bool)
 
 enum Mode { OFFLINE, HOST, DEDICATED, CLIENT }
 
-const PROTOCOL_VERSION := 6
+const PROTOCOL_VERSION := 7
 const DEFAULT_PORT := 7777
 const DEFAULT_MAX_PLAYERS := 16
 const DEFAULT_MAP := "res://scenes/levels/test_map.tscn"
 ## Offline game mode (Practice, or a mode against bots) and the bots to add
 ## when the first level of a session loads (main menu / --bots).
 var offline_mode: int = GameConfig.Mode.PRACTICE
+## Offline match settings (Bot Match): -1 = the mode's defaults.
+var offline_score_limit: int = -1
+var offline_time_limit: float = -1.0
+var offline_friendly_fire: bool = false
 var start_bots: int = 0
 const MAIN_MENU := "res://scenes/main/main_menu.tscn"
 const CONNECT_TIMEOUT := 10.0
@@ -69,6 +77,15 @@ var _ping_timer: float = 0.0
 var _roster_timer: float = 0.0
 var _connect_timer: float = -1.0
 var _violations: Dictionary = {} # server: peer_id -> Array[float] timestamps
+
+## Custom match room: players gather in the lobby (characters, ready,
+## chat) while the host picks the map, mode and settings, then the host
+## starts the match for everyone. `room` is the host's settings, synced.
+var in_room: bool = false
+var room: Dictionary = {}
+const ROOM_KEYS: PackedStringArray = ["map", "mode", "time_limit", "score_limit", "bots", "bot_skill",
+	"friendly_fire", "max_players"]
+const CHAT_MAX := 120
 
 
 func _ready() -> void:
@@ -116,15 +133,20 @@ func server_time() -> float:
 	return _local_time() + _clock_offset
 
 
-## Offline: Practice on your own, or `game_mode` against `bots` training bots.
-func start_offline(map_path: String = DEFAULT_MAP, bots: int = 0, game_mode: int = -1) -> void:
+## Offline: Practice on your own, or `game_mode` against `bots` training
+## bots (with its score / time limits, -1 = defaults, and friendly fire).
+func start_offline(map_path: String = DEFAULT_MAP, bots: int = 0, game_mode: int = -1,
+		score_limit: int = -1, time_limit: float = -1.0, friendly_fire: bool = false) -> void:
 	_reset_peer()
 	mode = Mode.OFFLINE
 	current_map = map_path
 	offline_mode = game_mode if bots > 0 and game_mode >= 0 else GameConfig.Mode.PRACTICE
+	offline_score_limit = score_limit if offline_mode != GameConfig.Mode.PRACTICE else -1
+	offline_time_limit = time_limit if offline_mode != GameConfig.Mode.PRACTICE else -1.0
+	offline_friendly_fire = friendly_fire
 	start_bots = bots
 	Match.configure(offline_mode)
-	get_tree().change_scene_to_file(map_path)
+	_goto_map(map_path)
 
 
 ## `game_mode` = -1 keeps whatever Match.configure() set last (default FFA).
@@ -148,8 +170,115 @@ func host(port: int = DEFAULT_PORT, max_players: int = DEFAULT_MAX_PLAYERS,
 	print("[net] %s server listening on port %d (max %d players, %s on %s)" % [
 		"Dedicated" if dedicated else "Listen", port, max_players,
 		GameConfig.MODE_NAMES[Match.mode], GameConfig.map_name(map_path)])
-	get_tree().change_scene_to_file(map_path)
+	_goto_map(map_path)
 	return OK
+
+
+## Hosts a Custom match room: the server runs in the lobby until
+## start_room_match(). `settings` = the room (ROOM_KEYS).
+func host_room(port: int, settings: Dictionary) -> Error:
+	_reset_peer()
+	var max_players := clampi(int(settings.get("max_players", 8)), 2, DEFAULT_MAX_PLAYERS)
+	var peer := ENetMultiplayerPeer.new()
+	var err := peer.create_server(port, max_players)
+	if err != OK:
+		last_error = "Could not host on port %d (%s)." % [port, error_string(err)]
+		return err
+	multiplayer.multiplayer_peer = peer
+	mode = Mode.HOST
+	in_room = true
+	room = sanitize_room(settings)
+	room.max_players = max_players
+	Match.configure(room.mode as GameConfig.Mode)
+	_add_local_entry()
+	roster[1].ready = true
+	print("[net] Room open on port %d (max %d players)" % [port, max_players])
+	room_changed.emit()
+	roster_changed.emit()
+	return OK
+
+
+## A valid room from anything (the menu, the network).
+static func sanitize_room(raw: Dictionary) -> Dictionary:
+	var map_path: String = str(raw.get("map", GameConfig.MAPS[0].path))
+	if GameConfig.map_index(map_path) < 0:
+		map_path = GameConfig.MAPS[0].path
+	var game_mode := clampi(int(raw.get("mode", GameConfig.Mode.TDM)), GameConfig.Mode.FFA, GameConfig.Mode.BOMB)
+	if game_mode == GameConfig.Mode.BOMB and not GameConfig.map_info(map_path).get("bomb", false):
+		game_mode = GameConfig.Mode.TDM
+	return {
+		"map": map_path, "mode": game_mode,
+		"time_limit": clampf(float(raw.get("time_limit", 600.0)), 0.0, 3600.0),
+		"score_limit": clampi(int(raw.get("score_limit", 50)), 1, 500),
+		"bots": clampi(int(raw.get("bots", 0)), 0, BotManager.MAX_BOTS),
+		"bot_skill": clampi(int(raw.get("bot_skill", 1)), 0, 2),
+		"friendly_fire": bool(raw.get("friendly_fire", false)),
+		"max_players": clampi(int(raw.get("max_players", 8)), 2, DEFAULT_MAX_PLAYERS),
+	}
+
+
+## Host: change the room's settings (everyone sees them).
+func set_room(settings: Dictionary) -> void:
+	if not in_room or not multiplayer.is_server():
+		return
+	var keep_max: int = room.get("max_players", 8)
+	room = sanitize_room(settings)
+	room.max_players = keep_max
+	Match.configure(room.mode as GameConfig.Mode)
+	_room_state.rpc(room)
+	room_changed.emit()
+
+
+## Client: ready / not ready.
+func set_ready(on: bool) -> void:
+	if not in_room:
+		return
+	if multiplayer.is_server():
+		_apply_ready(1, on)
+	else:
+		_request_ready.rpc_id(1, on)
+
+
+func _apply_ready(id: int, on: bool) -> void:
+	if roster.has(id):
+		roster[id].ready = on
+		broadcast_roster()
+
+
+## A line in the room chat (everyone in the room sees it).
+func send_chat(text: String) -> void:
+	var clean := text.strip_edges().strip_escapes().substr(0, CHAT_MAX)
+	if clean.is_empty() or not is_online():
+		return
+	if multiplayer.is_server():
+		_relay_chat(1, clean)
+	else:
+		_request_chat.rpc_id(1, clean)
+
+
+func _relay_chat(from_id: int, text: String) -> void:
+	var from_name := get_player_name(from_id)
+	room_chat.emit(from_name, text)
+	_chat.rpc(from_name, text)
+
+
+## Host: start the match with the room's settings — everyone loads the map.
+func start_room_match() -> void:
+	if not in_room or not multiplayer.is_server():
+		return
+	in_room = false
+	var r := room
+	Match.configure(r.mode as GameConfig.Mode, r.score_limit, r.time_limit if r.mode != GameConfig.Mode.BOMB else 0.0)
+	Match.friendly_fire = r.friendly_fire
+	Match.bots.difficulty = r.bot_skill
+	start_bots = r.bots
+	# Teams for the chosen mode, balanced.
+	for id: int in roster:
+		roster[id].team = GameConfig.TEAM_NONE
+	for id: int in roster:
+		roster[id].team = Match.assign_team(id)
+	print("[net] Room starts: %s on %s" % [GameConfig.MODE_NAMES[r.mode], GameConfig.map_name(r.map)])
+	change_map(r.map)
 
 
 func join(address: String, port: int = DEFAULT_PORT) -> Error:
@@ -237,9 +366,9 @@ func change_map(map_path: String) -> void:
 	_ready_peers.clear()
 	_level = null
 	for id: int in roster:
-		if id != 1:
+		if id != 1 and not BotManager.is_bot(id):
 			_client_load_map.rpc_id(id, map_path)
-	get_tree().change_scene_to_file(map_path)
+	_goto_map(map_path)
 
 
 ## Sends an RPC to every peer that has finished loading the level.
@@ -262,7 +391,8 @@ func on_level_loaded(level: Level) -> void:
 	_level = level
 	if multiplayer.is_server():
 		if mode == Mode.OFFLINE:
-			Match.configure(offline_mode)
+			Match.configure(offline_mode, offline_score_limit, offline_time_limit)
+			Match.friendly_fire = offline_friendly_fire
 		Match.start_match()
 		if mode != Mode.DEDICATED:
 			if not roster.has(1):
@@ -366,7 +496,11 @@ func _register_player(player_name: String, protocol: int, primary: String, opus:
 	roster[id].look = CharacterLook.pack(CharacterLook.unpack(look))
 	roster[id].team = Match.assign_team(id)
 	print("[net] %s (%d) joined" % [roster[id].name, id])
-	_client_load_map.rpc_id(id, current_map)
+	if in_room:
+		roster[id].ready = false
+		_room_state.rpc_id(id, room)
+	else:
+		_client_load_map.rpc_id(id, current_map)
 	broadcast_roster()
 
 
@@ -410,9 +544,40 @@ func _report_ping(ms: int) -> void:
 # -----------------------------------------------------------------------------
 
 @rpc("authority", "call_remote", "reliable")
+func _room_state(settings: Dictionary) -> void:
+	in_room = true
+	room = sanitize_room(settings)
+	room.max_players = int(settings.get("max_players", 8))
+	Match.configure(room.mode as GameConfig.Mode)
+	room_changed.emit()
+
+
+@rpc("authority", "call_remote", "reliable")
+func _chat(from_name: String, text: String) -> void:
+	room_chat.emit(from_name, text)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_ready(on: bool) -> void:
+	if multiplayer.is_server() and in_room:
+		_apply_ready(multiplayer.get_remote_sender_id(), on)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _request_chat(text: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var clean := text.strip_edges().strip_escapes().substr(0, CHAT_MAX)
+	var id := multiplayer.get_remote_sender_id()
+	if not clean.is_empty() and roster.has(id):
+		_relay_chat(id, clean)
+
+
+@rpc("authority", "call_remote", "reliable")
 func _client_load_map(map_path: String) -> void:
+	in_room = false
 	current_map = map_path
-	get_tree().change_scene_to_file(map_path)
+	_goto_map(map_path)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -483,6 +648,8 @@ func _reset_peer() -> void:
 		multiplayer.multiplayer_peer.close()
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	roster.clear()
+	in_room = false
+	room = {}
 	_ready_peers.clear()
 	_level = null
 	_clock_offset = 0.0
@@ -510,6 +677,34 @@ func look_of(peer_id: int) -> Dictionary:
 func _sanitize_name(raw: String, id: int) -> String:
 	var clean := raw.strip_edges().strip_escapes().substr(0, 16)
 	return clean if not clean.is_empty() else "Player %d" % id
+
+
+## Loads a map behind the loading screen (map name, progress, steps), then
+## switches to it. Headless (servers, tests): straight away.
+func _goto_map(map_path: String) -> void:
+	if DisplayServer.get_name() == "headless" or not ResourceLoader.exists(map_path):
+		get_tree().change_scene_to_file(map_path)
+		return
+	var screen := LoadingScreen.open(get_tree(), map_path)
+	if ResourceLoader.load_threaded_request(map_path) != OK:
+		get_tree().change_scene_to_file(map_path)
+		return
+	var progress: Array = []
+	while true:
+		var status := ResourceLoader.load_threaded_get_status(map_path, progress)
+		if status == ResourceLoader.THREAD_LOAD_LOADED:
+			break
+		if status != ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+			get_tree().change_scene_to_file(map_path)
+			return
+		screen.set_load_progress(float(progress[0]) if not progress.is_empty() else 0.0)
+		await get_tree().process_frame
+	screen.set_step(1) # building the level
+	var packed := ResourceLoader.load_threaded_get(map_path) as PackedScene
+	await get_tree().process_frame
+	if current_map != map_path:
+		return # another map was asked for meanwhile
+	get_tree().change_scene_to_packed(packed)
 
 
 func _local_time() -> float:

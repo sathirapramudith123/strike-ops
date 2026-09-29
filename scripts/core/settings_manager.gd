@@ -125,6 +125,20 @@ var grenade_arc: bool = true
 
 # Multiplayer
 var player_name: String = "Player"
+## XP: 100 a match, 250 a win, 20 a kill; a level every 1000.
+static func xp_of(stats: Dictionary) -> int:
+	return int(stats.get("matches", 0)) * 100 + int(stats.get("wins", 0)) * 250 + int(stats.get("kills", 0)) * 20
+
+
+static func level_of(stats: Dictionary) -> int:
+	return 1 + floori(xp_of(stats) / 1000.0)
+
+
+## Lobby match settings (Bot Match / Custom match): time limit (s, 0 =
+## none), score limit (0 = the mode's default), friendly fire, room size.
+var lobby: Dictionary = { "time_limit": 600.0, "score_limit": 0, "friendly_fire": false, "max_players": 8 }
+## Career stats on this PC (lobby Profile tab, level + XP in the top bar).
+var profile: Dictionary = { "matches": 0, "wins": 0, "kills": 0, "deaths": 0 }
 ## The player's appearance (Character screen; see CharacterLook).
 var character: Dictionary = CharacterLook.default_look()
 var last_join_address: String = "127.0.0.1"
@@ -433,6 +447,8 @@ func save() -> void:
 
 	_config.set_value("network", "player_name", player_name)
 	_config.set_value("player", "character", character)
+	_config.set_value("player", "profile", profile)
+	_config.set_value("player", "lobby", lobby)
 	_config.set_value("network", "last_join_address", last_join_address)
 	_config.set_value("network", "host_port", host_port)
 	_config.set_value("network", "host_mode", host_mode)
@@ -505,6 +521,13 @@ func _load_all(first_launch: bool) -> void:
 
 	player_name = _config.get_value("network", "player_name", player_name)
 	character = CharacterLook.sanitize(_config.get_value("player", "character", character))
+	var saved_lobby: Variant = _config.get_value("player", "lobby", lobby)
+	if saved_lobby is Dictionary:
+		lobby.merge(saved_lobby as Dictionary, true)
+	var saved_profile: Variant = _config.get_value("player", "profile", profile)
+	if saved_profile is Dictionary:
+		for key: String in profile:
+			profile[key] = maxi(int((saved_profile as Dictionary).get(key, 0)), 0)
 	last_join_address = _config.get_value("network", "last_join_address", last_join_address)
 	host_port = _config.get_value("network", "host_port", host_port)
 	host_mode = _config.get_value("network", "host_mode", host_mode)

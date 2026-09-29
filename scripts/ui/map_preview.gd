@@ -12,6 +12,11 @@ const SIZE := Vector2i(384, 216)
 static var _cache: Dictionary = {}
 
 
+## The preview if it was already rendered this session (else null).
+static func cached(map_path: String) -> Texture2D:
+	return _cache.get(map_path)
+
+
 ## Returns the preview texture (null in headless mode). `host` is any node in
 ## the tree to attach the temporary viewport to.
 static func render(host: Node, map_path: String) -> Texture2D:

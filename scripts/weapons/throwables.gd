@@ -454,7 +454,7 @@ func _server_blast(pos: Vector3) -> void:
 		if health.is_dead or target == null:
 			continue
 		var victim := target as PlayerController
-		if victim and victim != _player and Match.is_friendly(_player.peer_id, victim.peer_id):
+		if victim and Match.shields(_player.peer_id, victim.peer_id):
 			continue
 		var best := INF
 		for h: float in [0.3, 1.0, 1.5]: # feet, chest, head

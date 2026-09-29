@@ -368,8 +368,8 @@ func _test_voice_codec() -> void:
 	_check(absi(out16.size() - 1600) <= 1, "48 kHz → 16 kHz resampler (%d samples)" % out16.size())
 
 	# Proximity relay rule.
-	var near := _level.spawn_player(201, "Near", Transform3D(Basis.IDENTITY, _player.global_position + Vector3(5, 0, 0)))
-	var far := _level.spawn_player(202, "Far", Transform3D(Basis.IDENTITY, _player.global_position + Vector3(0, 0, 60)))
+	var _near := _level.spawn_player(201, "Near", Transform3D(Basis.IDENTITY, _player.global_position + Vector3(5, 0, 0)))
+	var _far := _level.spawn_player(202, "Far", Transform3D(Basis.IDENTITY, _player.global_position + Vector3(0, 0, 60)))
 	var players := _level.get_players()
 	var prox := VoiceChat.recipients_for(1, VoiceChat.Channel.PROXIMITY, players)
 	_check(201 in prox and not 202 in prox, "proximity voice only reaches nearby players")
@@ -1166,6 +1166,11 @@ func _test_friendly_fire_and_match_end() -> void:
 	_check(mate.health.current == mate.health.max_health, "no friendly fire (teammate untouched)")
 	_check(enemy.health.current < enemy.health.max_health, "bullet passes through teammate and hits the enemy")
 	_check(Match.is_friendly(1, 401) and not Match.is_friendly(1, 402), "is_friendly follows teams")
+	_check(Match.shields(1, 401) and not Match.shields(1, 402) and not Match.shields(1, 1),
+		"teammates are shielded from each other's damage")
+	Match.friendly_fire = true
+	_check(not Match.shields(1, 401), "friendly fire on: teammates can be hit")
+	Match.friendly_fire = false
 	# Grenades follow the same rule: an HE between them only hurts the enemy.
 	var enemy_hp := enemy.health.current
 	_player.throwables._server_blast(Vector3(-20, 0.1, 12.5))
@@ -1995,7 +2000,7 @@ func _test_controller() -> void:
 
 	# Aim assist: slower over an enemy, only for controller players.
 	_reset_player(Vector3(0, 0.1, 10))
-	var enemy := _level.spawn_player(406, "Target", Transform3D(Basis.IDENTITY, Vector3(0, 0, 4)))
+	var _enemy := _level.spawn_player(406, "Target", Transform3D(Basis.IDENTITY, Vector3(0, 0, 4)))
 	await _frames(3)
 	GamepadInput.using_pad = true
 	var on_target := _player.aim_assist_factor()

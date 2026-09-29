@@ -57,6 +57,23 @@ func _ready() -> void:
 	bots = BotManager.new()
 	bots.name = "Bots"
 	add_child(bots)
+	match_ended.connect(_record_profile)
+
+
+## Your career stats (SettingsManager.profile) when a match ends: played,
+## won, your kills and deaths. Not for Practice or a dedicated server.
+func _record_profile(text: String) -> void:
+	if mode == GameConfig.Mode.PRACTICE or NetworkManager.is_dedicated():
+		return
+	var me := multiplayer.get_unique_id()
+	var entry: Dictionary = NetworkManager.roster.get(me, {})
+	var p := SettingsManager.profile
+	p.matches = int(p.matches) + 1
+	if Audio.match_result(text) == "win":
+		p.wins = int(p.wins) + 1
+	p.kills = int(p.kills) + int(entry.get("kills", 0))
+	p.deaths = int(p.deaths) + int(entry.get("deaths", 0))
+	SettingsManager.save()
 
 
 func _process(delta: float) -> void:
@@ -91,6 +108,7 @@ func configure(new_mode: GameConfig.Mode, new_score_limit: int = -1, new_time_li
 	# results timer change its map.
 	time_left = time_limit
 	_results_timer = -1.0
+	friendly_fire = false
 
 
 ## Server: called by NetworkManager whenever a level finishes loading.
@@ -147,6 +165,15 @@ func get_team(peer_id: int) -> int:
 
 
 ## True when `a` must not damage `b` (same player, or teammates in team modes).
+## Server: teammates can hurt each other (Custom match setting; off by default).
+var friendly_fire: bool = false
+
+
+## True when `attacker` may not damage `victim` (same team, friendly fire off).
+func shields(attacker: int, victim: int) -> bool:
+	return attacker != victim and not friendly_fire and is_friendly(attacker, victim)
+
+
 func is_friendly(a: int, b: int) -> bool:
 	if a == b:
 		return true

@@ -304,7 +304,7 @@ Then open **Godot → Import → select `project.godot` → Import & Edit**, and
 | `scripts/core/graphics_preset.gd` | `GraphicsPreset` resource type (render scale, FSR, AA, shadows, LOD, SSAO/SSR/SDFGI, fog…) |
 | `resources/settings/graphics_presets/*.tres` | The Low / Medium / High / Ultra presets (edit in the Inspector) |
 | `resources/audio/default_bus_layout.tres` | Audio buses; `MicCapture` (muted, with `AudioEffectCapture`) is where voice chat reads the microphone; `SFXOccluded` (low-pass), `ReverbRoom` / `ReverbHall` feed `SFX`; limiter on `Master` |
-| `scenes/main/main_menu.tscn` | Main menu (offline / host / join) + settings panel (quality, fullscreen, V-Sync, volumes, voice chat & microphone) |
+| `scenes/main/main_menu.tscn` | The lobby (see *The lobby* below) + the settings screen |
 
 **Using the settings in a level:**
 
@@ -346,11 +346,11 @@ The smoke test drives the real player through the test map (walk, sprint, jump, 
 
 **Playing online**
 
-| Main menu button | What it does |
-|------------------|--------------|
-| **Play Offline** | Single player on the test map (no network) |
-| **Host Game** | Starts a *listen server* on the chosen port (default **7777/UDP**) and joins it yourself |
-| **Join** | Connects to `IP` or `IP:port` (e.g. `192.168.1.20:7777`) |
+| Lobby | What it does |
+|-------|--------------|
+| **Quick Play** | *Join a match*: connects to `IP` or `IP:port` (e.g. `192.168.1.20:7777`). *Host now*: starts a listen server on port **7777/UDP** with the chosen map, mode and settings; others join any time |
+| **Custom Match** | *Create room*: a lobby room — friends join with the address from **INVITE**, stand on the stage with their characters, chat and press **READY**; the host picks the map, mode and settings and presses **START MATCH** for everyone. *Join a room*: the same address field |
+| **Training** / **Bot Match** | Offline: on your own, or the chosen mode against bots |
 
 - **LAN:** friends join with your local IP (`ipconfig` / `ip a`).
 - **Internet:** forward **UDP 7777** on your router to the host PC, or use a VPN such as Tailscale / ZeroTier / Radmin VPN.
@@ -566,7 +566,7 @@ Match flow: the server runs the clock and score → **results screen** (winner +
 
 *Random* rolls a look, *Done* saves it (`SettingsManager.character`). The look travels to the server when you join (roster `look`, 13 small numbers) and everyone sees it; bots get a random one (every third bot is a woman). The team colour stays on the shoulder pads, armbands, a chest patch and the helmet band, so teams are told apart whatever people wear. Built in code like the rest (`scripts/player/character_look.gd` = the options, `character_mesh.gd` = the meshes, cached per look; camouflage is painted by `assets/shaders/model.gdshader` from 3D noise, no textures).
 
-**Training bots** (`scripts/bots/`) — set **Bots** (0–15) and the skill (**Easy / Normal / Hard**) in the main menu. *Play Offline* then plays the chosen mode (FFA, TDM or Bomb Defusal) against them; with 0 bots it is Practice as before. Hosting adds them to your server (they balance the teams), and the host can add / remove bots in the `Esc` menu. A dedicated server takes `--bots N --bot-skill 0-2`. Bots are real players in the roster (`BOT Nuwan`…, "BOT" in the ping column) run by the server: they walk a navigation mesh baked from the map when it loads (< 0.1 s), see you only with a clear line (not through walls or smoke), react after a moment, turn at a limited speed with an aim error that shrinks, fire in bursts while strafing, turn round when shot, open doors in their way, get unstuck, reload, and in Bomb Defusal buy a gun and armour, take the bomb to a site and plant it, hold sites, defuse and guard the bomb. Skill sets reaction time, turn speed, aim error, headshot chance and sight range.
+**Training bots** (`scripts/bots/`) — set **Bots** (1–15) and **Bot Skill** (**Easy / Normal / Hard**) in the lobby's Match Settings. *Bot Match* plays the chosen mode (FFA, TDM or Bomb Defusal) against them; *Training* is on your own. Hosting (Quick Play → Host now, or a Custom Match room) adds them to your server (they balance the teams), and the host can add / remove bots in the `Esc` menu. A dedicated server takes `--bots N --bot-skill 0-2`. Bots are real players in the roster (`BOT Nuwan`…, "BOT" in the ping column) run by the server: they walk a navigation mesh baked from the map when it loads (< 0.1 s), see you only with a clear line (not through walls or smoke), react after a moment, turn at a limited speed with an aim error that shrinks, fire in bursts while strafing, turn round when shot, open doors in their way, get unstuck, reload, and in Bomb Defusal buy a gun and armour, take the bomb to a site and plant it, hold sites, defuse and guard the bomb. Skill sets reaction time, turn speed, aim error, headshot chance and sight range.
 
 **Money and the buy menu** (`scripts/core/economy.gd`, `scripts/ui/buy_menu.gd`) — Bomb Defusal only; the other modes keep free loadouts.
 
@@ -650,7 +650,19 @@ All stats live in `resources/weapons/*.tres` (edit in the Inspector). Add a weap
 | Subway | Underground station, 3 lanes, bomb defusal | Riverside station: three platforms run from T spawn (east, the Exit stairs) to CT spawn (west, the ticket hall with turnstiles) — A Long (upper, north), Mid (the central island round a stairwell) and B Long (lower, south) — with metro trains parked on the tracks between them: walk through their open doors or drop into a track bed and jump out; A (north) and B (south) are platforms beside a terminating train, reached through two openings from A / B Long and by CT from the ticket hall; tunnel mouths with red signals, tiled pillars, equipment cases for cover |
 | Train Yard | Outdoor, 3 lanes, bomb defusal | Mid is the rail yard: freight cars and a locomotive on three tracks under a gantry crane, the C1 warehouse along its side; A is inside a warehouse on a raised floor, reached along the A Long loading dock (upper) or A Main; B is a lower yard at the end of the B Long rail cut or down the B stairs; a water tower on the CT side; T west, CT east |
 
-**Map selection screen** — main menu → **Map: … ▸** opens a grid of map cards with a live top-down **preview** (rendered once from the real map and cached), players, style, supported modes and a description. Maps without bomb sites are greyed out in Bomb Defusal. The choice is saved in your settings. Map metadata lives in `GameConfig.MAPS` (`scripts/core/game_config.gd`); the screen is `scenes/ui/map_select.tscn` + `scripts/ui/map_select.gd`, previews come from `scripts/ui/map_preview.gd`.
+**The lobby** (`scenes/main/main_menu.tscn` + `scripts/ui/main_menu.gd`) — the STRIKE OPS main menu:
+
+| Part | What it has |
+|------|-------------|
+| Top bar | Logo, tabs **Lobby · Loadout · Character · Profile · Settings**, your name, level and XP, quit |
+| Stage | A small 3D warehouse behind the menu with your soldier (your character and gun) — in a room, everyone in it with their name, a crown for the host and **READY / NOT READY**; **CHANGE** under yours opens the Character screen |
+| Left | **Quick Play**, **Custom Match**, **Training**, **Bot Match** |
+| Right | **Map selection** cards with a live top-down preview (rendered once from the real map and cached, `scripts/ui/map_preview.gd`) + **Random**; **Game mode** (Team Deathmatch, Bomb Defuse, Free For All — maps without bomb sites can't take Bomb Defuse); **Match settings**: round time, score limit (rounds to win in Bomb Defuse), bots, bot skill, **friendly fire**, max players (rooms); the big **START** button |
+| Bottom | Room chat and messages; in a room **INVITE** (copies the address), **READY**, **LEAVE ROOM** |
+| Loadout | Your primary for FFA / TDM with bars for damage, fire rate, DPS, magazine, range and mobility |
+| Profile | Your name and career on this PC: matches, wins, kills, deaths, K/D; **level and XP** (100 a match, 250 a win, 20 a kill) |
+
+Choices are saved in your settings. **Loading screen** (`scripts/ui/loading_screen.gd`): maps load on a background thread behind the map's picture, its name, mode and player count, a progress bar and the steps *Loading assets → Building geometry → Setting up spawns → Preparing match*, with a tip.
 
 **Add a map:** build it in `tools/greybox.py` (or by hand in the editor with `scripts/levels/level.gd` on the root, Blue/Red/FFA spawn markers and `A`/`B` bomb site markers), then add one entry to `GameConfig.MAPS` — it then appears in the picker, the rotation, the vote, `--map <id>` and the benchmark automatically.
 
@@ -660,7 +672,7 @@ All maps except the Test Range are generated by **`tools/greybox.py`** (boxes, r
 
 ### Testing multiplayer locally
 
-- **Automated:** `tools/run_net_test.sh /path/to/godot` runs three host + client pairs on localhost. First, it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **follows the map vote** to the next map, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client buys a vest in the buy menu, walks to site B and plants, the host walks over and defuses (Blue 1–0), the client buys an SMG with its round money and eliminates the host (1–1), keeps the SMG, then plants again and the bomb explodes — Red wins 2–1 on both sides. A third pair is a **hacked client** that fires at the legal rate but never reloads: the server accepts exactly one magazine (30 hits) and kicks it, and the kick reason appears in its main menu.
+- **Automated:** `tools/run_net_test.sh /path/to/godot` runs host + client pairs on localhost (the last one opens a **Custom match room through the real lobby**: create, join, chat both ways, READY, START MATCH → both load the room's map and mode with its bots). First, it plays a **Team Deathmatch** round: teams auto-balance, the client walks, both talk over **proximity voice** (test tones must arrive at the right frequency, speaking indicators on/off), the client kills the host, the score limit ends the match on both sides, the server **follows the map vote** to the next map, both players respawn there, and the client disconnects cleanly. A second pair then plays **Bomb Defusal** with real key presses: the client buys a vest in the buy menu, walks to site B and plants, the host walks over and defuses (Blue 1–0), the client buys an SMG with its round money and eliminates the host (1–1), keeps the SMG, then plants again and the bomb explodes — Red wins 2–1 on both sides. A third pair is a **hacked client** that fires at the legal rate but never reloads: the server accepts exactly one magazine (30 hits) and kicks it, and the kick reason appears in its main menu.
 - **By hand:** in the Godot editor use **Debug → Customize Run Instances…** → 2–3 instances, press **F5**, then *Host* in one window and *Join* `127.0.0.1` in the others.
 
 ---

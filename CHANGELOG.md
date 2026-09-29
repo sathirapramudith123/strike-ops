@@ -2,6 +2,27 @@
 
 ## Unreleased — 5 new maps, CS-style HUD, hands and reload animations
 
+**STRIKE OPS:** the game has a name — window title, lobby, loading
+screen, exported files (StrikeOps.exe …), installer and server. Your
+settings folder is unchanged, so nothing is lost.
+
+**New lobby:** a top bar with tabs (Lobby, Loadout, Character, Profile,
+Settings), your level and XP; your soldier on a lit 3D stage; Quick Play,
+Custom Match, Training and Bot Match on the left; map cards with previews
+(+ Random), game mode and match settings (round time, score limit, bots,
+bot skill, friendly fire, max players) with a big START on the right.
+
+**Custom match rooms:** create a room, friends join with the INVITE
+address and appear on the stage with their characters and READY / NOT
+READY; room chat; the host sets the map, mode and settings and starts the
+match for everyone.
+
+**Loading screen:** maps load in the background behind the map's picture,
+name and mode, with a progress bar, the loading steps and a tip.
+
+**Also:** friendly fire can be turned on for a match; career stats and
+levels on the Profile tab.
+
 **Weapon animations:** one system, a profile per gun. Idle sway, walk / run
 bob, the gun lagging behind the mouse, an equip raise, per-gun fire kick and
 recovery, reload tilt and hand speed, reload sounds on cue. The sniper's
