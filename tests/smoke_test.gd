@@ -1758,6 +1758,22 @@ func _test_maps() -> void:
 	await _load_map("res://scenes/levels/factory.tscn")
 	_check(_level.art == null and _level.art_replaced == 0, "--no-art: factory draws the greybox")
 	Level.art_disabled = false
+	# Map detail (High/Ultra): photo sky, skyline and smoke come and go with
+	# the option, and the map's own sky comes back.
+	var saved_detail := SettingsManager.graphics.map_detail
+	SettingsManager.graphics.map_detail = true
+	await _load_map("res://scenes/levels/factory.tscn")
+	var env := _level.world_environment.environment
+	_check(_level.detail != null and env.sky.sky_material is PanoramaSkyMaterial
+		and _level.detail.find_children("*", "CPUParticles3D", true, false).size() == 7,
+		"factory: map detail adds the photo sky, skyline and chimney smoke")
+	_check(_level.detail.find_children("*", "CollisionObject3D", true, false).is_empty(),
+		"factory: map detail has no collision (looks only)")
+	SettingsManager.graphics.map_detail = false
+	_level._apply_graphics(SettingsManager.graphics)
+	_check(_level.detail == null and env.sky.sky_material is ProceduralSkyMaterial,
+		"turning Map detail off removes it and restores the map's sky")
+	SettingsManager.graphics.map_detail = saved_detail
 	# Back to the art for the factory routes below (they keep a loaded map).
 	await _load_map("res://scenes/levels/factory.tscn")
 	await _frames(40)

@@ -14,6 +14,15 @@ unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
 merged by the static batcher). Benchmark `--no-art` compares it with the
 greybox.
 
+**Factory on High/Ultra — the concept-art look begins:** a real photo
+sky with clouds, green mountains on the horizon, an industrial skyline
+with cranes, tanks and red-and-white chimneys around the factory, smoke
+drifting from the chimneys and warmer sunlight. It's a new graphics
+option, *Map detail* (on for High and Ultra), and it's looks only —
+nothing in it can hide a player, so Low players see the same fight.
+On every preset: yellow railings, proper roofs and a big red **A**
+painted on the silo at A.
+
 **New lobby:** a top bar with tabs (Lobby, Loadout, Character, Profile,
 Settings), your level and XP; your soldier on a lit 3D stage; Quick Play,
 Custom Match, Training and Bot Match on the left; map cards with previews

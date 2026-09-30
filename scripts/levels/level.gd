@@ -50,6 +50,8 @@ var batch_stats: Dictionary = {}
 var art: Node3D
 ## How many greybox meshes the art replaced.
 var art_replaced: int = 0
+## The map's High/Ultra detail layer while GraphicsPreset.map_detail is on.
+var detail: MapDetail
 
 @onready var hud: Hud = $HUD
 @onready var pause_menu: PauseMenu = $PauseMenu
@@ -62,6 +64,7 @@ func _ready() -> void:
 		pause_menu.queue_free()
 		if world_environment:
 			SettingsManager.apply_to_environment(world_environment.environment)
+		_update_detail()
 		return
 	players_root = Node3D.new()
 	players_root.name = "Players"
@@ -238,6 +241,27 @@ func _load_art(geometry: Node3D) -> void:
 	geometry.add_child(art)
 
 
+## Adds or removes the map's detail layer (assets/maps/<map>/<map>_detail.tscn)
+## to follow the Map detail graphics option.
+func _update_detail() -> void:
+	var want := SettingsManager.graphics.map_detail and not art_disabled and not NetworkManager.is_dedicated()
+	if want == (detail != null):
+		return
+	if detail:
+		detail.restore()
+		detail.queue_free()
+		detail = null
+		return
+	var id := scene_file_path.get_file().get_basename()
+	var path := "%s/%s/%s_detail.tscn" % [ART_DIR, id, id]
+	if id == "" or not ResourceLoader.exists(path):
+		return
+	detail = (load(path) as PackedScene).instantiate() as MapDetail
+	detail.name = "Detail"
+	add_child(detail)
+	detail.apply(self)
+
+
 ## Bounding box of the map geometry (used to frame previews).
 func world_bounds() -> AABB:
 	var box := AABB()
@@ -258,6 +282,7 @@ func spectating() -> PlayerController:
 
 
 func _apply_graphics(_preset: GraphicsPreset) -> void:
+	_update_detail()
 	StaticBatcher.set_detail_distance(_detail_batches, SettingsManager.graphics.draw_distance_scale)
 	var lights := get_node_or_null("Lights")
 	if lights:

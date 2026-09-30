@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/levels/map_detail.gd" id="1_detail"]
+[ext_resource type="PackedScene" path="res://assets/maps/factory/factory_detail.glb" id="2_far"]
+[ext_resource type="Texture2D" path="res://assets/maps/factory/sky.jpg" id="3_sky"]
+
+[node name="FactoryDetail" type="Node3D"]
+script = ExtResource("1_detail")
+sky_texture = ExtResource("3_sky")
+sky_sun_u = 0.595
+sun_color = Color(1, 0.93, 0.8, 1)
+sun_energy = 1.35
+smoke_points = PackedVector3Array(37, 24.5, -45, -30, 32.5, -50, 30, 28.5, 50, -120, 42.5, 105, 150, 38.5, 25, 75, 45.5, -160, -160, 36.5, -75)
+fog_density = 0.0009
+fog_color = Color(0.62, 0.72, 0.86, 1)
+
+[node name="Skyline" parent="." instance=ExtResource("2_far")]

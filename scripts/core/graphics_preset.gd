@@ -38,6 +38,10 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA, CUSTOM }
 @export_range(0.0, 1.0, 0.05) var particle_amount: float = 1.0
 ## Procedural surface detail (noise, wood grain, stone tiles) in the level shader.
 @export var surface_detail: bool = true
+## A map's extra detail layer (sky, skyline, props, smoke), on maps that
+## have one: assets/maps/<map>/<map>_detail.tscn. Looks only — it never
+## blocks a line of sight, so Low players see what High players see.
+@export var map_detail: bool = false
 
 @export_group("Shadows")
 @export var shadows_enabled: bool = true
