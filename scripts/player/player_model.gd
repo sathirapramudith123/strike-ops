@@ -25,7 +25,10 @@ var _reload_time := 0.0
 var _reload_left := 0.0
 var _armor: ShaderMaterial
 var _phase: float = 0.0
-var _speed: float = 0.0 # smoothed ground speed
+var _vel := Vector2.ZERO # smoothed ground velocity (world x, z)
+var _speed: float = 0.0
+var _air: float = 0.0 # 0 on the ground … 1 in the air
+var _land: float = 0.0 # landing dip, fades out
 var _crouch: float = 0.0 # 0 standing … 1 crouched
 var _last_pos: Vector3
 var _has_last: bool = false
@@ -200,7 +203,10 @@ func reset_pose() -> void:
 		leg.rotation = Vector3.ZERO
 	for shin: MeshInstance3D in _shins:
 		shin.rotation = Vector3.ZERO
+	_vel = Vector2.ZERO
 	_speed = 0.0
+	_air = 0.0
+	_land = 0.0
 	_has_last = false
 	_arm_l.rotation = Vector3.ZERO
 	_gun.visible = true
@@ -236,48 +242,78 @@ func _drop_gun() -> void:
 
 ## Walk cycle from how far the player moved (works for remote players too).
 ## Positions change at the physics rate, not every drawn frame, so the
-## speed is smoothed over a few frames. The legs step in time with the
+## velocity is smoothed over a few frames. The legs step in time with the
 ## distance covered (a stride as long as the swing reaches — no sliding
-## feet): the thigh swings, the knee bends as the leg comes through, the
-## body bobs twice a cycle. Crouching lowers the model onto bent knees
-## (both feet on the ground, one knee lower).
+## feet) and in the direction of travel: forwards and backwards the thighs
+## swing and the knee bends as the leg comes through, sideways the legs
+## step out to the side (open, close). The weight shifts from foot to foot and the body
+## bobs twice a cycle. In the air the knees tuck up, with a dip on landing;
+## crouching lowers the model onto bent knees (both feet on the ground,
+## one knee lower). All procedural — no skeleton, cheap on low-end PCs.
 func animate(delta: float, crouching: bool) -> void:
 	if _dead or delta <= 0.0:
 		return
 	_animate_reload(delta)
 	var pos := global_position
-	var moved := 0.0
+	var moved := Vector2.ZERO
 	if _has_last:
-		moved = Vector2(pos.x - _last_pos.x, pos.z - _last_pos.z).length()
-		if moved > 3.0:
-			moved = 0.0 # teleport / respawn
+		moved = Vector2(pos.x - _last_pos.x, pos.z - _last_pos.z)
+		if moved.length() > 3.0:
+			moved = Vector2.ZERO # teleport / respawn
 	_last_pos = pos
 	_has_last = true
-	_speed = lerpf(_speed, moved / delta, 1.0 - exp(-delta * 8.0))
+	_vel = _vel.lerp(moved / delta, 1.0 - exp(-delta * 8.0))
+	_speed = _vel.length()
 	if _speed < 0.05:
 		_speed = 0.0
+	# Which way, relative to where the soldier faces (-Z is forward).
+	var local := global_basis.orthonormalized().transposed() * Vector3(_vel.x, 0.0, _vel.y)
+	var fwd := -local.z / maxf(_speed, 0.001)
+	var side := local.x / maxf(_speed, 0.001)
+	# Feet on the ground? (one short ray, world layer only)
+	var grounded := true
+	if is_inside_tree() and get_world_3d():
+		var q := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.3, pos + Vector3.DOWN * 0.35, 1)
+		grounded = not get_world_3d().direct_space_state.intersect_ray(q).is_empty()
+	if grounded and _air > 0.6:
+		_land = 1.0
+	_air = move_toward(_air, 0.0 if grounded else 1.0, delta * 7.0)
+	_land = move_toward(_land, 0.0, delta * 5.0)
 	_crouch = move_toward(_crouch, 1.0 if crouching else 0.0, delta * 6.0)
-	var amount := clampf(_speed / 4.0, 0.0, 1.0)
+	var amount := clampf(_speed / 4.0, 0.0, 1.0) * (1.0 - _air)
 	# Thigh swing either way; one step covers the ground the feet span (a
 	# little more: running has a moment with both feet off the ground).
 	var swing := lerpf(0.22, 0.5, clampf(_speed / 6.5, 0.0, 1.0)) * (1.0 - 0.45 * _crouch)
 	var step := maxf(2.0 * (-KNEE.y + 0.45) * sin(swing) * lerpf(1.0, 1.4, amount), 0.25)
+	if not grounded:
+		step = INF # no stepping in the air
 	_phase = fmod(_phase + _speed * delta * PI / step, TAU)
+	# The knee lifts while the leg travels in the direction of movement.
+	var lead := signf(fwd) if absf(fwd) >= absf(side) else signf(side)
 	var k := clampf(delta * 16.0, 0.0, 1.0)
 	for i in 2:
 		var ph := _phase + PI * i
+		var s := sin(ph) * swing * amount
 		# Crouch pose: thighs forward, shins folded back under, one knee lower.
-		var thigh := sin(ph) * swing * amount + _crouch * (1.05 - 0.35 * i)
-		var knee := -maxf(cos(ph), 0.0) * (0.35 + 0.6 * amount) * amount - 0.08 * amount - _crouch * 1.75
+		var thigh := s * fwd + _crouch * (1.05 - 0.35 * i)
+		var knee := -maxf(cos(ph) * lead, 0.0) * (0.35 + 0.6 * amount) * amount - 0.08 * amount - _crouch * 1.75
+		# Stepping sideways: each leg swings out to its own side and back
+		# (open, close — never crossing).
+		var out := (-1.0 if i == 0 else 1.0) * maxf(sin(ph), 0.0) * swing * amount * absf(side) * 0.9
+		# In the air: knees drawn up, one more than the other.
+		thigh = lerpf(thigh, 0.55 - 0.3 * i, _air)
+		knee = lerpf(knee, -1.0 + 0.35 * i, _air)
 		_legs[i].rotation.x = lerpf(_legs[i].rotation.x, thigh, k)
+		_legs[i].rotation.z = lerpf(_legs[i].rotation.z, out * (1.0 - _air), k)
 		_shins[i].rotation.x = lerpf(_shins[i].rotation.x, knee, k)
-	var drop := CROUCH_DROP * _crouch
+	var drop := CROUCH_DROP * _crouch + 0.09 * _land * _land
 	var bob := -absf(cos(_phase)) * 0.035 * amount + 0.02 * amount
-	_body.position.y = bob - drop
-	_arm_l.position.y = L_SHOULDER.y + bob - drop
-	_gun.position.y = GUN_POS.y + bob - drop
+	var sway := sin(_phase) * 0.025 * amount # weight over the standing foot
+	_body.position = Vector3(sway, bob - drop, 0.0)
+	_arm_l.position = L_SHOULDER + Vector3(sway, bob - drop, 0.0)
+	_gun.position = GUN_POS + Vector3(sway, bob - drop, 0.0)
 	for i in 2:
-		_legs[i].position.y = HIP.y + bob - drop
+		_legs[i].position = Vector3((-1.0 if i == 0 else 1.0) * HIP.x + sway, HIP.y + bob - drop, 0.0)
 
 
 ## Reload: gun tips over, left hand drops to pull the magazine, goes down

@@ -25,6 +25,8 @@ name tag; N on the radar.
 **Walking players:** other players and bots now really walk — the legs
 bend at the knee and step in time with how fast they move (before, the
 legs hardly moved at high frame rates and the soldier slid along).
+They step sideways when strafing, tuck their knees up when they jump
+and dip on landing, and shift their weight from foot to foot.
 Crouching drops them onto bent knees.
 
 **Custom match rooms:** create a room, friends join with the INVITE

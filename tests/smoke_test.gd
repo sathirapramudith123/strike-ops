@@ -2307,21 +2307,44 @@ func _test_characters() -> void:
 	_check(camo, "looks: woodland pants carry the camouflage pattern")
 	# Walk cycle: positions change on 60 Hz ticks but frames draw at 144 FPS
 	# (remote players) — the legs must still swing and the knees bend.
+	var ground := StaticBody3D.new()
+	var ground_shape := CollisionShape3D.new()
+	var ground_box := BoxShape3D.new()
+	ground_box.size = Vector3(20, 1, 20)
+	ground_shape.shape = ground_box
+	ground.add_child(ground_shape)
+	ground.position = Vector3(0, -500.5, 0)
+	add_child(ground)
 	var walker := PlayerModel.new()
 	add_child(walker)
+	walker.global_position = Vector3(0, -500, 4)
+	await get_tree().physics_frame
 	var thighs := [walker.get_node("LegL"), walker.get_node("LegR")]
 	var swing := 0.0
 	var bend := 0.0
-	for f in 288:
+	var spread := 0.0
+	for f in 576:
 		if f % 12 in [0, 2, 5, 7, 10]:
-			walker.position.z -= 5.0 / 60.0
+			if f < 288:
+				walker.position.z -= 5.0 / 60.0 # forwards
+			else:
+				walker.position.x += 4.0 / 60.0 # strafing right
 		walker.animate(1.0 / 144.0, false)
-		if f > 100:
-			for thigh: Node3D in thighs:
+		for thigh: Node3D in thighs:
+			if f > 100 and f < 288:
 				swing = maxf(swing, absf(thigh.rotation.x))
 				bend = minf(bend, (thigh.get_node("Shin") as Node3D).rotation.x)
+			elif f > 400:
+				spread = maxf(spread, absf(thigh.rotation.z))
 	_check(swing > 0.25 and bend < -0.3, "walk cycle: legs swing and knees bend at 144 FPS (swing %.2f, knee %.2f)" % [swing, bend])
+	_check(spread > 0.15, "walk cycle: strafing steps the legs out to the side (%.2f)" % spread)
+	walker.position.y += 1.5 # a jump
+	for f in 30:
+		walker.animate(1.0 / 60.0, false)
+	_check((thighs[0] as Node3D).rotation.x > 0.35 and (thighs[0].get_node("Shin") as Node3D).rotation.x < -0.6,
+		"walk cycle: knees tuck up in the air")
 	walker.queue_free()
+	ground.queue_free()
 	var r1 := CharacterLook.random(42)
 	_check(r1 == CharacterLook.random(42) and CharacterLook.random(42, 1).body == 1, "looks: random looks repeat per seed")
 
