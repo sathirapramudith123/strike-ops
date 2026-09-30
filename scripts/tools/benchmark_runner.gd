@@ -10,7 +10,8 @@ extends Node
 ## Run it:
 ##   • Settings → Graphics → "Run benchmark"
 ##   • godot --path . -- --benchmark [--duration 10] [--bots 12] [--maps office,docks]
-##     (add --quit to exit when done, --no-batching to compare without
+##     (add --quit to exit when done, --no-art to draw the greybox instead
+##     of the maps' Blender art, --no-batching to compare without
 ##     StaticBatcher; use a real window, not --headless)
 ##
 ## Use it on the minimum-spec PC: the "1% low" is what players feel.
@@ -67,6 +68,7 @@ static func from_args(args: PackedStringArray) -> BenchmarkRunner:
 					r.maps.append(GameConfig.map_path(id.strip_edges()))
 			"--quit": r.quit_when_done = true
 			"--no-batching": Level.batching_disabled = true # A/B comparison
+			"--no-art": Level.art_disabled = true # greybox instead of the maps' art
 			"--dynamic-resolution": r.dynamic_resolution = true
 			"--preset":
 				r.preset_override = ["low", "medium", "high", "ultra"].find(value.to_lower())
@@ -131,6 +133,7 @@ func _run() -> void:
 		"preset": tested.display_name,
 		"overrides": graphics_overrides,
 		"batching": not Level.batching_disabled,
+		"map_art": not Level.art_disabled,
 		"renderer": RenderingServer.get_current_rendering_method(),
 		"gpu": RenderingServer.get_video_adapter_name(),
 		"cpu": OS.get_processor_name(),

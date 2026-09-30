@@ -25,6 +25,12 @@ const DEFAULT_PLAYER_SCENE := "res://scenes/player/player.tscn"
 @export var static_batching: bool = true
 ## Benchmark A/B switch (`--no-batching`).
 static var batching_disabled: bool = false
+## Real art for a map, built in Blender over its blockout (README → Real 3D
+## art): res://assets/maps/<map>/<map>.glb. It replaces the greybox meshes
+## that use the same materials (Mat_brick …); collision stays the greybox's.
+const ART_DIR := "res://assets/maps"
+## Draw the greybox even when the map has art (`--no-art`, blockout export).
+static var art_disabled: bool = false
 ## Set before adding to the tree to load the map for a menu preview only:
 ## no players, network, HUD or menus (see MapPreview).
 var preview_only: bool = false
@@ -40,12 +46,17 @@ var _detail_batches: Array[MeshInstance3D] = []
 var dynamic_resolution: DynamicResolution
 ## What StaticBatcher did (shown by the benchmark / tests).
 var batch_stats: Dictionary = {}
+## The map's art scene under Geometry (null when the map has none).
+var art: Node3D
+## How many greybox meshes the art replaced.
+var art_replaced: int = 0
 
 @onready var hud: Hud = $HUD
 @onready var pause_menu: PauseMenu = $PauseMenu
 
 
 func _ready() -> void:
+	_load_art(get_node_or_null("Geometry") as Node3D)
 	if preview_only:
 		hud.queue_free()
 		pause_menu.queue_free()
@@ -192,6 +203,39 @@ func _update_spectator() -> void:
 	if target != _spectating:
 		_spectating = target
 		target.camera.current = true
+
+
+## Swaps the greybox look for the map's art, if it has any: greybox meshes
+## whose material the art also has (by name) are hidden — their big boxes
+## still become occluders — and the art goes under Geometry, so StaticBatcher
+## merges it like the greybox. Doors and glass aren't under Geometry.
+func _load_art(geometry: Node3D) -> void:
+	if art_disabled or geometry == null or NetworkManager.is_dedicated():
+		return
+	var id := scene_file_path.get_file().get_basename()
+	var path := "%s/%s/%s.glb" % [ART_DIR, id, id]
+	if id == "" or not ResourceLoader.exists(path):
+		return
+	art = (load(path) as PackedScene).instantiate() as Node3D
+	art.name = "Art"
+	var art_materials := {}
+	for mi: MeshInstance3D in art.find_children("*", "MeshInstance3D", true, false):
+		for s in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(s)
+			if m:
+				art_materials[m.resource_name] = true
+			# Photo textures seen at a glance angle (floors, long walls)
+			# blur without it; cheap next to the fill cost.
+			if m is BaseMaterial3D:
+				(m as BaseMaterial3D).texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	for mi: MeshInstance3D in geometry.find_children("*", "MeshInstance3D", true, false):
+		var m := mi.get_active_material(0) if mi.mesh else null
+		if m and art_materials.has(m.resource_scene_unique_id):
+			StaticBatcher.add_occluder(geometry, mi)
+			mi.visible = false # (StaticBatcher skips hidden meshes)
+			mi.queue_free()
+			art_replaced += 1
+	geometry.add_child(art)
 
 
 ## Bounding box of the map geometry (used to frame previews).

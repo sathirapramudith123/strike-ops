@@ -1743,6 +1743,26 @@ func _test_maps() -> void:
 	_check(body.is_reloading() and (body.get_node(^"ArmL") as Node3D).rotation.x < -0.1,
 		"third person: the reload swings the left arm down")
 
+	# Factory's Blender art (assets/maps/factory) replaces the greybox look;
+	# it is batched like the greybox, the big boxes stay occluders and the
+	# collision stays the greybox's. --no-art draws the greybox.
+	await _load_map("res://scenes/levels/factory.tscn")
+	await _frames(40)
+	_check(_level.art != null and _level.art_replaced > 500,
+		"factory: Blender art replaces %d greybox meshes" % _level.art_replaced)
+	var art_batched := _level.art.find_children("*", "MeshInstance3D", true, false).is_empty()
+	var occluders := _level.find_children("*", "OccluderInstance3D", true, false).size()
+	_check(art_batched and occluders > 20, "factory: art merged by StaticBatcher, %d occluders kept" % occluders)
+	_check(_player.is_on_floor(), "factory: the player stands on the greybox collision under the art")
+	Level.art_disabled = true
+	await _load_map("res://scenes/levels/factory.tscn")
+	_check(_level.art == null and _level.art_replaced == 0, "--no-art: factory draws the greybox")
+	Level.art_disabled = false
+	# Back to the art for the factory routes below (they keep a loaded map).
+	await _load_map("res://scenes/levels/factory.tscn")
+	await _frames(40)
+	_open_all_doors()
+
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
 			["factory", Vector3(4.8, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.z < -29.5, "through the Lanka Steel doors to A"],

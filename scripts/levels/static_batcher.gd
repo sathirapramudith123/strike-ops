@@ -47,7 +47,7 @@ static func batch(root: Node3D, draw_distance_scale: float = 1.0) -> Dictionary:
 		(g.tool as SurfaceTool).append_from(mi.mesh, 0, mi.global_transform)
 		g.count += 1
 		sources.append(mi)
-		_maybe_add_occluder(root, mi)
+		add_occluder(root, mi)
 
 	var batches := Node3D.new()
 	batches.name = "Batches"
@@ -85,7 +85,8 @@ static func set_detail_distance(details: Array[MeshInstance3D], draw_distance_sc
 		d.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_DISABLED
 
 
-static func _maybe_add_occluder(root: Node3D, mi: MeshInstance3D) -> void:
+## An occluder for a big solid greybox box (walls, buildings), else nothing.
+static func add_occluder(root: Node3D, mi: MeshInstance3D) -> void:
 	var box := mi.mesh as BoxMesh
 	if box == null:
 		return

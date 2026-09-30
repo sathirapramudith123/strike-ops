@@ -6,6 +6,14 @@
 screen, exported files (StrikeOps.exe …), installer and server. Your
 settings folder is unchanged, so nothing is lost.
 
+**Factory in real textures:** the Factory map now has real 3D art built
+in Blender — brick, concrete, corrugated iron, rusty and painted steel,
+weathered wood and plaster (free Poly Haven textures) instead of the
+flat greybox colours. The layout, collision, doors and glass are
+unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
+merged by the static batcher). Benchmark `--no-art` compares it with the
+greybox.
+
 **New lobby:** a top bar with tabs (Lobby, Loadout, Character, Profile,
 Settings), your level and XP; your soldier on a lit 3D stage; Quick Play,
 Custom Match, Training and Bot Match on the left; map cards with previews

@@ -56,3 +56,7 @@
 # as ordinary files, not LFS pointers — keep them out of the LFS rule above,
 # or clones with Git LFS see them as permanently modified.
 assets/textures/surfaces_*.png -filter -diff -merge binary
+# Map blockouts and map art (tools/export_blockout.gd, Blender → assets/maps)
+# are ordinary files too, like every other binary in this repo.
+assets/blockouts/*.glb -filter -diff -merge binary
+assets/maps/** -filter -diff -merge binary

@@ -27,6 +27,7 @@ func _run() -> void:
 	for id: String in ids:
 		var level := (load(GameConfig.map_path(id)) as PackedScene).instantiate() as Level
 		level.preview_only = true
+		Level.art_disabled = true # the greybox is the blockout
 		root.add_child(level)
 		await process_frame
 		var out := _flatten(level, id)
