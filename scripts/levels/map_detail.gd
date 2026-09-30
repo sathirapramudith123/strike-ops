@@ -1,11 +1,11 @@
 class_name MapDetail
 extends Node3D
-## A map's extra detail layer for High/Ultra (GraphicsPreset.map_detail):
+## A map's extra detail layer (GraphicsPreset.map_detail, on by default):
 ## assets/maps/<map>/<map>_detail.tscn with this script on the root. The
 ## Level adds it when the option is on and frees it (restore()) when it is
 ## turned off. Children are looks only — the skyline outside the walls,
 ## props flat on walls or on existing cover — never collision, and never
-## anything that hides a player (Low players must see the same).
+## anything that hides a player (players with it off must see the same).
 ##
 ## Besides its children it can swap the sky for a panorama photo, tint the
 ## sun and add chimney smoke (cheap CPU particles, scaled by the Particles

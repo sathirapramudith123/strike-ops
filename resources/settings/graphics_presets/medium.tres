@@ -31,3 +31,4 @@ glow = true
 volumetric_fog = false
 depth_of_field = false
 dynamic_lights = true
+map_detail = true

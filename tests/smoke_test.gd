@@ -1758,8 +1758,11 @@ func _test_maps() -> void:
 	await _load_map("res://scenes/levels/factory.tscn")
 	_check(_level.art == null and _level.art_replaced == 0, "--no-art: factory draws the greybox")
 	Level.art_disabled = false
-	# Map detail (High/Ultra): photo sky, skyline and smoke come and go with
+	# Map detail: photo sky, skyline and smoke come and go with
 	# the option, and the map's own sky comes back.
+	_check(SettingsManager.load_preset(GraphicsPreset.Quality.LOW).map_detail
+		and SettingsManager.load_preset(GraphicsPreset.Quality.MEDIUM).map_detail,
+		"Map detail is on for Low and Medium too (it is light)")
 	var saved_detail := SettingsManager.graphics.map_detail
 	SettingsManager.graphics.map_detail = true
 	await _load_map("res://scenes/levels/factory.tscn")
