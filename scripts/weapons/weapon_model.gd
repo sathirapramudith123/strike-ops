@@ -53,17 +53,17 @@ const REAL_DIR := "res://assets/weapons"
 ## weapon's ads_position (the sight's height on this model).
 const REAL_HANDS := {
 	"rifle": { "grip": Vector3(0, -0.085, 0.1), "left": Vector3(0, -0.02, -0.225), "mag": Vector3(0, -0.19, -0.065),
-		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.3) },
+		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.22), "red_dot": true },
 	"smg": { "grip": Vector3(0, -0.08, 0.08), "left": Vector3(0, -0.005, -0.19), "left_kind": "under", "mag": Vector3(0, -0.19, -0.12),
-		"muzzle": Vector3(0, 0.022, -0.3), "ads": Vector3(0, -0.085, -0.24) },
+		"muzzle": Vector3(0, 0.022, -0.3), "sight": Vector3(0, 0.064, -0.05), "red_dot": true, "ads_z": -0.17 },
 	"shotgun": { "grip": Vector3(0, -0.06, 0.14), "left": Vector3(0, -0.03, -0.26), "muzzle": Vector3(0, 0.035, -0.543),
-		"ads": Vector3(0, -0.053, -0.36) },
+		"sight": Vector3(0, 0.049, -0.02), "red_dot": true, "ads_z": -0.2 },
 	"sniper": { "grip": Vector3(0, -0.08, 0.14), "left": Vector3(0, -0.06, -0.2), "mag": Vector3(0, -0.09, -0.04),
 		"muzzle": Vector3(0, 0.0, -0.747), "ads": Vector3(0, -0.058, -0.25) },
 	"lmg": { "grip": Vector3(0, -0.09, 0.12), "left": Vector3(0, -0.07, -0.225), "mag": Vector3(0, -0.2, -0.035),
-		"muzzle": Vector3(0, 0.036, -0.575), "ads": Vector3(0, -0.097, -0.32) },
+		"muzzle": Vector3(0, 0.036, -0.575), "sight": Vector3(0, 0.088, 0.0), "red_dot": true, "ads_z": -0.2 },
 	"pistol": { "grip": Vector3(0, -0.038, 0.078), "left": Vector3(-0.02, -0.068, 0.07), "muzzle": Vector3(0, 0.042, -0.103),
-		"ads": Vector3(0, -0.056, -0.3) },
+		"sight": Vector3(0, 0.056, 0.03), "red_dot": true, "sight_scale": 0.75, "ads_z": -0.2 },
 }
 static var _real := {}
 
@@ -80,6 +80,14 @@ static func real_parts(weapon_id: String) -> Dictionary:
 			for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
 				parts[String(mi.name).trim_prefix(weapon_id + "_")] = mi.mesh
 			root.free()
+			# A red-dot sight on the rail (REAL_HANDS "sight"): added to the
+			# gun's own meshes, so it shows in first and third person.
+			var h: Dictionary = REAL_HANDS.get(weapon_id, {})
+			if h.has("sight"):
+				var at := Transform3D(Basis.from_scale(Vector3.ONE * float(h.get("sight_scale", 1.0))), h.sight)
+				for k: String in ["Gun", "GunFull"]:
+					if parts.has(k):
+						parts[k] = _with_mesh(parts[k], red_dot_mesh(), at)
 		_real[weapon_id] = parts
 	return _real[weapon_id]
 
@@ -90,7 +98,75 @@ static func hands(weapon_id: String) -> Dictionary:
 	var h: Dictionary = HANDS.get(weapon_id, HANDS["rifle"])
 	if REAL_HANDS.has(weapon_id) and real_parts(weapon_id).has("Gun"):
 		h = h.merged(REAL_HANDS[weapon_id], true)
+		# A red-dot sight puts the eye at the centre of its window.
+		if h.has("sight"):
+			var eye_y: float = (h.sight as Vector3).y + RED_DOT_EYE * float(h.get("sight_scale", 1.0))
+			h.ads = Vector3(0, -eye_y, float(h.get("ads_z", -0.3)))
 	return h
+
+
+## Height of the red-dot window's centre above its mount (m, at scale 1).
+const RED_DOT_EYE := 0.038
+static var _red_dot: ArrayMesh
+
+
+## A compact red-dot sight (mount at y = 0, window centred RED_DOT_EYE
+## above, looking down -Z): a low mount, a squared hood round the window, a
+## faint blue-green glass and a brightness knob.
+static func red_dot_mesh() -> ArrayMesh:
+	if _red_dot:
+		return _red_dot
+	var b := MeshBuilder.new()
+	b.define(&"sight", Color(0.06, 0.065, 0.07), 0.5)
+	var e := RED_DOT_EYE
+	var w := 0.034 # window
+	var t := 0.004 # hood wall
+	var d := 0.03 # hood depth
+	b.box(&"sight", Vector3(0.026, 0.01, 0.05), Vector3(0, 0.005, 0)) # rail clamp
+	b.box(&"sight", Vector3(0.018, e - w * 0.5 - t - 0.008, 0.03), Vector3(0, 0.01 + (e - w * 0.5 - t - 0.008) * 0.5, 0.004)) # riser
+	b.box(&"sight", Vector3(w + 2 * t, t, d), Vector3(0, e + w * 0.5 + t * 0.5, 0)) # hood top
+	b.box(&"sight", Vector3(w + 2 * t, t, d), Vector3(0, e - w * 0.5 - t * 0.5, 0)) # hood bottom
+	for sx: float in [-1.0, 1.0]:
+		b.box(&"sight", Vector3(t, w + 2 * t, d), Vector3(sx * (w * 0.5 + t * 0.5), e, 0)) # sides
+	b.box(&"sight", Vector3(0.008, 0.008, 0.012), Vector3(0.023, e, 0.004)) # brightness knob
+	var frame := b.build()
+	var glass := QuadMesh.new()
+	glass.size = Vector2(w, w)
+	var gm := StandardMaterial3D.new()
+	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	gm.albedo_color = Color(0.45, 0.75, 0.8, 0.12)
+	gm.roughness = 0.05
+	gm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	glass.material = gm
+	_red_dot = _with_mesh(frame, glass, Transform3D(Basis.IDENTITY, Vector3(0, e, -d * 0.3)))
+	return _red_dot
+
+
+## `base` with `extra`'s surfaces appended, moved by `at`.
+static func _with_mesh(base: Mesh, extra: Mesh, at: Transform3D) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for pair: Array in [[base, Transform3D.IDENTITY], [extra, at]]:
+		var m := pair[0] as Mesh
+		var xf := pair[1] as Transform3D
+		for i in m.get_surface_count():
+			var arrays := m.surface_get_arrays(i)
+			# Only the standard channels (custom ones need their own format flags).
+			for c in [Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
+				arrays[c] = null
+			if xf != Transform3D.IDENTITY:
+				var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+				for j in v.size():
+					v[j] = xf * v[j]
+				arrays[Mesh.ARRAY_VERTEX] = v
+				if arrays[Mesh.ARRAY_NORMAL] != null:
+					var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+					for j in n.size():
+						n[j] = (xf.basis * n[j]).normalized()
+					arrays[Mesh.ARRAY_NORMAL] = n
+				arrays[Mesh.ARRAY_TANGENT] = null
+			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+			out.surface_set_material(out.get_surface_count() - 1, m.surface_get_material(i))
+	return out
 
 
 static func has_model(weapon_id: String) -> bool:

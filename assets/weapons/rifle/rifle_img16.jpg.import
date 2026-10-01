@@ -1,0 +1,37 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://cfq4beikaubsc"
+path="res://.godot/imported/rifle_img16.jpg-ad205f89acae7904752aaa25c84857f2.ctex"
+metadata={
+"vram_texture": false
+}
+generator_parameters={
+"md5": "f7e9f36b2d7b4c47e8662c175d107b58"
+}
+
+[deps]
+
+source_file="res://assets/weapons/rifle/rifle_img16.jpg"
+dest_files=["res://.godot/imported/rifle_img16.jpg-ad205f89acae7904752aaa25c84857f2.ctex"]
+
+[params]
+
+compress/mode=0
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1

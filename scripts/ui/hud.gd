@@ -304,6 +304,8 @@ func _update_crosshair() -> void:
 	var px := tan(deg_to_rad(_weapon.current_spread)) / tan(deg_to_rad(cam.fov * 0.5)) * half_h
 	_crosshair.gap = maxf(px, 3.0)
 	_crosshair.ads = _weapon.ads_blend
+	var red_dot := bool(WeaponModel.hands(_weapon.data.weapon_id).get("red_dot", false)) and not _weapon.data.scoped
+	_crosshair.red_dot = clampf((_weapon.ads_blend - 0.8) / 0.2, 0.0, 1.0) if red_dot else 0.0
 
 
 func _on_health_changed(current: float, maximum: float) -> void:

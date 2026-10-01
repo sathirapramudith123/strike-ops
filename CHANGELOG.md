@@ -20,6 +20,11 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Red-dot sights:** every gun except the sniper now aims through a red
+dot — the M4's optic is see-through, and the SMG, shotgun, LMG and pistol
+have a compact red-dot sight on top. When you aim, a glowing red dot
+sits in the clear window.
+
 **Aiming down the sights fixed:** every gun now lines your eye up with
 its own sights — the SMG and pistol were too low (you saw the back of
 the gun), the shotgun's receiver no longer fills the view, and the LMG's

@@ -901,11 +901,17 @@ func _test_weapon_animations() -> void:
 		_check(real_pistol.has("Gun") and real_pistol.has("Magazine")
 			and WeaponModel.get_mesh("pistol", false) == real_pistol.Gun and WeaponModel.hands("pistol").has("muzzle"),
 			"the pistol is a real model (Poly Haven), with its own grip, muzzle and magazine")
-		# Aiming looks along each gun's own sights: the eye height (ads.y) is
-		# the sight line measured on the model (front post / bead / rear ring).
-		for pair: Array in [["rifle", -0.082], ["smg", -0.085], ["shotgun", -0.053], ["lmg", -0.097], ["pistol", -0.056]]:
-			_check(is_equal_approx((WeaponModel.hands(pair[0]).ads as Vector3).y, pair[1]),
-				"%s aims along its sights (eye at %.3f)" % pair)
+		# Every gun but the sniper aims through a red dot: the M4's own optic,
+		# a red-dot sight mounted on the others (in the gun's mesh), the eye
+		# at the centre of its window and the dot drawn by the crosshair.
+		for id: String in ["rifle", "smg", "shotgun", "lmg", "pistol"]:
+			var h := WeaponModel.hands(id)
+			var ok: bool = h.get("red_dot", false)
+			if h.has("sight"):
+				var eye := (h.sight as Vector3).y + WeaponModel.RED_DOT_EYE * float(h.get("sight_scale", 1.0))
+				ok = ok and is_equal_approx(-(h.ads as Vector3).y, eye) \
+					and (WeaponModel.real_parts(id).Gun as Mesh).get_surface_count() > (WeaponModel.red_dot_mesh().get_surface_count())
+			_check(ok, "%s aims through a red dot (eye at %.3f)" % [id, -(h.ads as Vector3).y])
 		for id: String in ["smg", "shotgun", "sniper", "lmg"]:
 			var rp := WeaponModel.real_parts(id)
 			_check(rp.has("Gun") and rp.has("Magazine") and rp.has("GunFull") and WeaponModel.hands(id).has("ads")

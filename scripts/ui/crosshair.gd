@@ -13,6 +13,9 @@ extends Control
 var gap: float = 6.0
 ## 0..1 fade for aiming down sights (crosshair hides, dot stays).
 var ads: float = 0.0
+## 0..1: aiming through a red-dot sight. Its glowing dot is drawn here, in
+## the middle of the sight's window (the gun is held so they line up).
+var red_dot: float = 0.0
 
 var _hit_timer: float = 0.0
 var _hit_is_kill: bool = false
@@ -43,7 +46,11 @@ func _draw() -> void:
 			var b := c + dir * (gap_px + len_px)
 			draw_line(a, b, Color(outline_color, outline_color.a * alpha), thick + 2.0)
 			draw_line(a, b, Color(color, color.a * alpha), thick)
-	if SettingsManager.crosshair_dot:
+	if red_dot > 0.01:
+		draw_circle(c, 5.0, Color(1.0, 0.1, 0.05, 0.18 * red_dot))
+		draw_circle(c, 3.0, Color(1.0, 0.15, 0.08, 0.45 * red_dot))
+		draw_circle(c, 1.7, Color(1.0, 0.35, 0.25, red_dot))
+	elif SettingsManager.crosshair_dot:
 		draw_circle(c, 1.5 * scale_f, color)
 
 	if _hit_timer > 0.0:
