@@ -1,36 +1,28 @@
 class_name FPArms
 extends Node3D
-## Realistic first-person arms (README → Realistic soldiers): the rifleman's
-## multicam sleeves and tan gloves (assets/characters/rifleman/fp_arms.glb,
-## the same skeleton as the soldier) instead of the code-built ArmR / ArmL
-## meshes. Those parts keep moving as before — recoil, sway, reload, inspect
-## — and are used as targets: a two-bone IK bends each elbow so the wrist
-## reaches its part, the hand turned as it holds a rifle in Mixamo's aiming
-## pose and the fingers in its grip. The shoulders stay put under the camera,
-## the left one forward as in a rifle stance.
+## Realistic first-person arms (README → Realistic soldiers): the soldier's
+## own sleeves and gloves (assets/characters/ksk/ksk_fp_arms.glb, the same
+## skeleton as SoldierRig) instead of the code-built ArmR / ArmL meshes.
+## Those parts keep moving as before — recoil, sway, reload, inspect — and
+## are the targets: each hand goes where it sits on the gun in the soldier's
+## aiming pose (RifleGrip.hold) relative to its part, a two-bone IK bending
+## the elbow, fingers in the rifle grip. A left fist round a grip (pistol
+## support, vertical front grip) is the right hand's grip mirrored. The
+## shoulders stay put under the camera, the left one forward.
 
-const SCENE := "res://assets/characters/rifleman/fp_arms.glb"
+const SCENE := "res://assets/characters/ksk/ksk_fp_arms.glb"
 const BONE := "mixamorig_"
 ## Where the shoulders sit, camera space (the left forward for a rifle).
 const SHOULDER_R := Vector3(0.22, -0.38, 0.08)
 const SHOULDER_L := Vector3(0.04, -0.4, -0.22)
-## The hands relative to the gun in the rifleman's aiming pose (measured):
-## wrist minus palm (gun space) and the hand's rotation.
-const WRIST_FROM_PALM_R := Vector3(-0.010, -0.028, 0.056)
-const HAND_ROT_R := Quaternion(-0.53914, 0.048417, -0.041376, 0.839805)
-const WRIST_FROM_PALM_L := Vector3(-0.059, -0.012, 0.018)
-const HAND_ROT_L := Quaternion(0.57739, 0.808362, -0.071025, -0.090146)
-## A fist round a grip with the left hand (pistol support, vertical front
-## grip): the right hand's grip mirrored across the gun's middle. Mixamo's
-## left and right bones have mirrored axes, so the rest poses give the fix-up
-## (see _ready).
-const WRIST_FROM_PALM_FIST_L := Vector3(0.010, -0.028, 0.056)
 const MIRROR_X := Basis(Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
-var _fist_l := Basis.IDENTITY
 
 var weapon: Weapon
 var skeleton: Skeleton3D
 var _ik: _ArmIK
+var _lib: AnimationLibrary
+## Left/right hand bone axes differ by a mirror: fix-up for mirrored fists.
+var _mirror_fix := Basis.IDENTITY
 
 
 func _ready() -> void:
@@ -40,8 +32,8 @@ func _ready() -> void:
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Fingers in the rifle grip (the soldier's clips, see SoldierRig).
-	var lib := load(SoldierRig.ANIMS) as AnimationLibrary
-	SoldierRig._strip_fingers(lib)
+	_lib = load(SoldierRig.ANIMS) as AnimationLibrary
+	SoldierRig._strip_fingers(_lib)
 	for bone_name: String in SoldierRig._finger_pose:
 		var b := skeleton.find_bone(bone_name)
 		if b >= 0:
@@ -52,13 +44,11 @@ func _ready() -> void:
 	var sl := skeleton.get_bone_global_rest(skeleton.find_bone(BONE + "LeftArm")).origin
 	var have := Vector2(sl.x - sr.x, sl.z - sr.z)
 	var want := Vector2(SHOULDER_L.x - SHOULDER_R.x, SHOULDER_L.z - SHOULDER_R.z)
-	var yaw := have.angle() - want.angle()
-	model.basis = Basis(Vector3.UP, yaw)
+	model.basis = Basis(Vector3.UP, have.angle() - want.angle())
 	model.position = SHOULDER_R - model.basis * sr
 	var r_rest := skeleton.get_bone_global_rest(skeleton.find_bone(BONE + "RightHand")).basis.orthonormalized()
 	var l_rest := skeleton.get_bone_global_rest(skeleton.find_bone(BONE + "LeftHand")).basis.orthonormalized()
-	var fix := (MIRROR_X * r_rest * MIRROR_X).inverse() * l_rest
-	_fist_l = MIRROR_X * Basis(HAND_ROT_R) * MIRROR_X * fix
+	_mirror_fix = (MIRROR_X * r_rest * MIRROR_X).inverse() * l_rest
 	_ik = _ArmIK.new()
 	_ik.arms = self
 	skeleton.add_child(_ik)
@@ -75,13 +65,6 @@ func wrist_miss(side: String) -> float:
 	return float(_ik.miss.get(side, 0.0))
 
 
-## Where a hand's wrist should be and how it is turned (global), from the
-## weapon's arm part: the palm on `palm` (weapon space) of that part.
-func _hand_target(part: Node3D, palm: Vector3, wrist_from_palm: Vector3, rot: Basis) -> Transform3D:
-	var t := weapon.global_transform * part.transform
-	return Transform3D(t.basis * rot, t * (palm + wrist_from_palm))
-
-
 class _ArmIK extends SkeletonModifier3D:
 	var arms: FPArms
 	## After the last solve: how far each wrist ended from its target (m).
@@ -92,52 +75,24 @@ class _ArmIK extends SkeletonModifier3D:
 		var w := arms.weapon if arms and is_instance_valid(arms.weapon) else null
 		if s == null or w == null or not w.is_inside_tree() or not arms.visible:
 			return
-		var hands: Dictionary = WeaponModel.hands(w.data.weapon_id)
-		if w._right_arm:
-			_solve(s, "Right", arms._hand_target(w._right_arm, hands.grip, FPArms.WRIST_FROM_PALM_R, Basis(FPArms.HAND_ROT_R)), Vector3(1, -1, 0.3))
-		if w._left_arm and hands.left_kind != "none":
-			var fist: bool = hands.left_kind in ["support", "vertical"]
-			var target := arms._hand_target(w._left_arm, hands.left,
-				FPArms.WRIST_FROM_PALM_FIST_L if fist else FPArms.WRIST_FROM_PALM_L,
-				arms._fist_l if fist else Basis(FPArms.HAND_ROT_L))
-			_solve(s, "Left", target, Vector3(-1, -1, 0.3))
-
-	## Two-bone IK: upper arm + forearm so the hand bone's origin reaches the
-	## target, the elbow bending towards `pole` (camera space: out and down);
-	## then the hand takes the target's rotation.
-	func _solve(s: Skeleton3D, side: String, target: Transform3D, pole: Vector3) -> void:
-		var arm := s.find_bone(FPArms.BONE + side + "Arm")
-		var fore := s.find_bone(FPArms.BONE + side + "ForeArm")
-		var hand := s.find_bone(FPArms.BONE + side + "Hand")
+		var id := w.data.weapon_id
+		var hands: Dictionary = WeaponModel.hands(id)
+		var ref := RifleGrip.hold(s, FPArms.SCENE, arms._lib, id)
 		var to_skel := s.global_transform.affine_inverse()
-		var t := to_skel * target.origin
-		var t_basis := to_skel.basis * target.basis
-		var a_g := s.get_bone_global_pose(arm)
-		var f_g := s.get_bone_global_pose(fore)
-		var h_g := s.get_bone_global_pose(hand)
-		var a_len := a_g.origin.distance_to(f_g.origin)
-		var b_len := f_g.origin.distance_to(h_g.origin)
-		var root := a_g.origin
-		var to_t := t - root
-		var d := clampf(to_t.length(), absf(a_len - b_len) + 0.01, a_len + b_len - 0.001)
-		var dir := to_t.normalized()
-		var pole_dir := (to_skel.basis * (arms.get_parent_node_3d().global_basis * pole)).normalized() if arms.get_parent_node_3d() else Vector3.DOWN
-		var bend := (pole_dir - dir * dir.dot(pole_dir)).normalized()
-		var x := (a_len * a_len - b_len * b_len + d * d) / (2.0 * d)
-		var h := sqrt(maxf(a_len * a_len - x * x, 0.0))
-		var elbow := root + dir * x + bend * h
-		var wrist := root + dir * d
-		# Upper arm: swing its bone axis (+Y) onto shoulder -> elbow.
-		var a_new := Basis(Quaternion(a_g.basis.y.normalized(), (elbow - root).normalized())) * a_g.basis
-		_set_global(s, arm, a_new)
-		# Forearm: the same, from the elbow to the wrist.
-		f_g = s.get_bone_global_pose(fore)
-		var f_new := Basis(Quaternion(f_g.basis.y.normalized(), (wrist - elbow).normalized())) * f_g.basis
-		_set_global(s, fore, f_new)
-		_set_global(s, hand, t_basis.orthonormalized() * Basis.from_scale(h_g.basis.get_scale()))
-		miss[side] = s.get_bone_global_pose(hand).origin.distance_to(t)
+		var cam := arms.get_parent_node_3d().global_basis if arms.get_parent_node_3d() else Basis.IDENTITY
+		if w._right_arm:
+			var t := to_skel * w.global_transform * w._right_arm.transform * (ref.rhand_from_gun as Transform3D)
+			miss.Right = RifleGrip.solve_arm(s, "Right", t, _pole(s, "Right", to_skel, cam * Vector3(1, -1, 0.3)))
+		if w._left_arm and hands.left_kind != "none":
+			var rel: Transform3D = ref.lhand_from_gun
+			if hands.left_kind in ["support", "vertical"]:
+				# A fist: the right hand's grip mirrored across the gun's middle.
+				var r: Transform3D = ref.rhand_from_gun
+				var wrist := FPArms.MIRROR_X * (r.origin - (hands.grip as Vector3))
+				rel = Transform3D(FPArms.MIRROR_X * r.basis * FPArms.MIRROR_X * arms._mirror_fix, (hands.left as Vector3) + wrist)
+			var t := to_skel * w.global_transform * w._left_arm.transform * rel
+			miss.Left = RifleGrip.solve_arm(s, "Left", t, _pole(s, "Left", to_skel, cam * Vector3(-1, -1, 0.3)))
 
-	func _set_global(s: Skeleton3D, bone: int, global_basis: Basis) -> void:
-		var parent := s.get_bone_parent(bone)
-		var p := s.get_bone_global_pose(parent).basis if parent >= 0 else Basis.IDENTITY
-		s.set_bone_pose_rotation(bone, (p.orthonormalized().inverse() * global_basis.orthonormalized()).get_rotation_quaternion())
+	## A point out and down from the shoulder (skeleton space): where the elbow bends.
+	func _pole(s: Skeleton3D, side: String, to_skel: Transform3D, dir_global: Vector3) -> Vector3:
+		return s.get_bone_global_pose(s.find_bone(FPArms.BONE + side + "Arm")).origin + to_skel.basis * dir_global

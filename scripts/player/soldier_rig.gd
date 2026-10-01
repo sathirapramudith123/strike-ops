@@ -1,7 +1,8 @@
 class_name SoldierRig
 extends Node3D
-## The realistic third-person soldier (README → Realistic soldiers): an MPFB
-## human in a multicam kit on a Mixamo skeleton (assets/characters/rifleman),
+## The realistic third-person soldier (README → Realistic soldiers): 42manako's
+## German KSK operator (Sketchfab, CC BY) on its Mixamo skeleton
+## (assets/characters/ksk),
 ## animated with Mixamo's Pro Rifle Pack retargeted onto it
 ## (tools/retarget_mixamo.gd). PlayerModel drives it through the same calls
 ## as its code-built soldier:
@@ -9,15 +10,15 @@ extends Node3D
 ##     directions (standing) or crouch-walk (crouched) by the local ground
 ##     velocity, plus the jump loop in the air; clips are sped up past their
 ##     natural speed so the feet don't slide;
-##   • the gun — placed every frame so its grip is in the right hand and its
-##     fore-end in the left (WeaponModel.hands), whatever the animation does;
+##   • the gun — rides the right hand as in the aiming pose, the left hand
+##     brought onto its fore-end by IK (RifleGrip);
 ##   • reload — the left arm drops to the magazine on top of the animation;
 ##   • death — one of Mixamo's six death clips;
 ##   • team colour — the armbands round both upper arms (material Team_band).
 ## The model faces -Z like every other node in the game (the glb faces +Z).
 
-const MODEL := "res://assets/characters/rifleman/rifleman.glb"
-const ANIMS := "res://assets/characters/rifleman/rifleman_anims.res"
+const MODEL := "res://assets/characters/ksk/ksk.glb"
+const ANIMS := "res://assets/characters/ksk/ksk_anims.res"
 ## Clip speeds come from the retarget (Animation meta "speed" / "dir").
 const STAND_SETS := ["walk", "run", "sprint"]
 const BONE := "mixamorig_"
@@ -31,6 +32,7 @@ var _poser: _Poser
 var _band_mat: StandardMaterial3D
 var _top_speed := {} # blend space -> fastest clip speed
 var _weapon_id := ""
+var _lib: AnimationLibrary
 var _dead := false
 ## Animation LOD: far soldiers advance their AnimationTree every 2nd / 3rd
 ## frame (with the summed time) — the gun is still placed every frame.
@@ -38,6 +40,8 @@ const LOD_NEAR := 15.0
 const LOD_FAR := 40.0
 var _lod_skip := 0
 var _lod_time := 0.0
+## animate() fed this frame's time (else _process uses its own delta: menus).
+var _fed := false
 ## Fingers hold the rifle the same way in every clip: their tracks are taken
 ## out of the (shared) library once and the grip pose is set on each
 ## skeleton instead — over half the tracks, so half the animation work.
@@ -55,6 +59,7 @@ func _ready() -> void:
 	_player.root_node = _player.get_path_to(_model)
 	var lib := load(ANIMS) as AnimationLibrary
 	_strip_fingers(lib)
+	_lib = lib
 	_player.add_animation_library("", lib)
 	for bone_name: String in _finger_pose:
 		var b := skeleton.find_bone(bone_name)
@@ -129,7 +134,9 @@ func _build_tree() -> void:
 func _process(delta: float) -> void:
 	if not _tree.active:
 		return
-	_lod_time += delta
+	if not _fed:
+		_lod_time += delta
+	_fed = false
 	_lod_skip -= 1
 	if _lod_skip > 0:
 		return
@@ -180,9 +187,12 @@ func _add_point(bs: AnimationNodeBlendSpace2D, clip: String, at: Vector2) -> voi
 
 ## Locomotion: `velocity` is the ground velocity in the soldier's own frame
 ## (x = right, y = forward, m/s); `crouch` and `air` 0..1.
-func animate(velocity: Vector2, crouch: float, air: float) -> void:
+func animate(velocity: Vector2, crouch: float, air: float, delta: float = 0.0) -> void:
 	if _dead:
 		return
+	if delta > 0.0:
+		_lod_time += delta
+		_fed = true
 	var speed := velocity.length()
 	for bs: StringName in [&"stand", &"crouch"]:
 		var top: float = _top_speed[bs]
@@ -253,7 +263,6 @@ class _Poser extends SkeletonModifier3D:
 	var reload := -1.0
 	## Where the left palm is after this frame's modifications (world).
 	var left_palm := Vector3.ZERO
-	var _gun_basis := Basis.IDENTITY
 
 	var _bones := {}
 
@@ -264,56 +273,30 @@ class _Poser extends SkeletonModifier3D:
 
 	func _process_modification() -> void:
 		var s := get_skeleton()
-		if s == null or rig == null or not rig.is_inside_tree():
+		if s == null or rig == null or not rig.is_inside_tree() or rig._lib == null:
 			return
-		var arm := _bone(s, "LeftArm")
-		var fore := _bone(s, "LeftForeArm")
-		var tip := 0.0
-		if reload >= 0.0 and arm >= 0:
-			# Two dips: magazine out (0.1–0.35), new one in (0.35–0.65).
+		var id := rig._weapon_id if rig._weapon_id != "" else "rifle"
+		var ref := RifleGrip.hold(s, MODEL, rig._lib, id)
+		var hands := WeaponModel.hands(id)
+		var gun: Transform3D = s.get_bone_global_pose(_bone(s, "RightHand")) * ref.gun_from_rhand
+		if reload >= 0.0:
+			# Two dips: magazine out (0.1–0.35), new one in (0.35–0.65); the
+			# gun tips about its grip while the left hand fetches the magazine.
 			var dip := absf(sin(clampf((reload - 0.1) / 0.55, 0.0, 1.0) * TAU))
-			tip = smoothstep(0.0, 0.12, reload) * (1.0 - smoothstep(0.8, 1.0, reload))
-			# Holding the fore-end the upper arm hangs and the forearm points
-			# forward (+Z in skeleton space): a positive turn about +X brings
-			# the forearm down, the hand to the magazine pouches.
-			_rotate_global(s, arm, Vector3.RIGHT, 0.3 * dip)
-			_rotate_global(s, fore, Vector3.RIGHT, 1.1 * dip)
-		left_palm = _palm(s, "Left")
-		_place_gun(s, tip)
+			var tip := smoothstep(0.0, 0.12, reload) * (1.0 - smoothstep(0.8, 1.0, reload))
+			var grip: Vector3 = hands.grip
+			gun = gun * Transform3D(Basis.IDENTITY, grip) 				* Transform3D(Basis(Vector3.FORWARD, 0.55 * tip) * Basis(Vector3.RIGHT, 0.15 * tip), Vector3.ZERO) 				* Transform3D(Basis.IDENTITY, -grip)
+			var target: Transform3D = gun * ref.lhand_from_gun
+			var mag: Vector3 = gun * (hands.get("mag", Vector3(0, -0.2, -0.05)) as Vector3)
+			target.origin = target.origin.lerp(mag + Vector3(0, -0.12, 0) * dip, smoothstep(0.0, 0.25, dip))
+			RifleGrip.solve_arm(s, "Left", target, _elbow_pole(s))
+		elif hands.get("left_kind", "under") != "none":
+			RifleGrip.solve_arm(s, "Left", gun * ref.lhand_from_gun, _elbow_pole(s))
+		var hand := s.get_bone_global_pose(_bone(s, "LeftHand")).origin
+		var knuckle := s.get_bone_global_pose(_bone(s, "LeftHandMiddle1")).origin
+		left_palm = s.global_transform * hand.lerp(knuckle, 0.55)
+		rig.gun.global_transform = s.global_transform * gun
 
-	## Turns a bone about a skeleton-space axis, keeping its children's local poses.
-	func _rotate_global(s: Skeleton3D, bone: int, axis: Vector3, angle: float) -> void:
-		var parent := s.get_bone_parent(bone)
-		var g := s.get_bone_global_pose(bone)
-		g.basis = Basis(axis, angle) * g.basis
-		var p := s.get_bone_global_pose(parent) if parent >= 0 else Transform3D.IDENTITY
-		s.set_bone_pose_rotation(bone, (p.basis.inverse() * g.basis).get_rotation_quaternion())
-
-	func _palm(s: Skeleton3D, side: String) -> Vector3:
-		var hand := s.get_bone_global_pose(_bone(s, side + "Hand")).origin
-		var knuckle := s.get_bone_global_pose(_bone(s, side + "HandMiddle1")).origin
-		return s.global_transform * hand.lerp(knuckle, 0.55)
-
-	func _place_gun(s: Skeleton3D, tip: float) -> void:
-		var hands: Dictionary = WeaponModel.hands(rig._weapon_id)
-		var grip: Vector3 = hands.grip
-		var left: Vector3 = hands.left
-		var rh := _palm(s, "Right")
-		var lh := _palm(s, "Left")
-		var b := _gun_basis
-		var reach := lh - rh
-		var w := left - grip # weapon space, grip -> fore-end (mostly -Z)
-		if reload < 0.0 and reach.length() > 0.12 and w.length() > 0.05:
-			# Turn the weapon so grip -> fore-end lies along right palm -> left palm, upright.
-			var fwd := reach.normalized()
-			var up := (Vector3.UP - fwd * fwd.dot(Vector3.UP)).normalized()
-			var world := Basis(fwd.cross(up).normalized(), up, -fwd).orthonormalized()
-			var wd := w.normalized()
-			var wup := (Vector3.UP - wd * wd.dot(Vector3.UP)).normalized()
-			var weapon := Basis(wd.cross(wup).normalized(), wup, -wd).orthonormalized()
-			b = world * weapon.inverse()
-			_gun_basis = b
-		else:
-			b = _gun_basis # reloading: the left hand is away, keep the last aim
-		b = b * Basis(Vector3.FORWARD, 0.55 * tip) * Basis(Vector3.RIGHT, 0.15 * tip)
-		rig.gun.global_transform = Transform3D(b, rh - b * grip)
+	## Keep the elbow where the animation has it (out and down).
+	func _elbow_pole(s: Skeleton3D) -> Vector3:
+		return s.get_bone_global_pose(_bone(s, "LeftForeArm")).origin + Vector3(0, -0.15, 0)

@@ -316,7 +316,7 @@ func animate(delta: float, crouching: bool) -> void:
 	_crouch = move_toward(_crouch, 1.0 if crouching else 0.0, delta * 6.0)
 	if rig:
 		# Ground velocity in the soldier's frame: x = right, y = forward.
-		rig.animate(Vector2(local.x, -local.z), _crouch, _air)
+		rig.animate(Vector2(local.x, -local.z), _crouch, _air, delta)
 		return
 	var amount := clampf(_speed / 4.0, 0.0, 1.0) * (1.0 - _air)
 	# Thigh swing either way; one step covers the ground the feet span (a

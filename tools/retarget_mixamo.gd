@@ -19,8 +19,9 @@ extends SceneTree
 ## and "dir" (x = left, y = forward, facing +Z) for SoldierRig's blend spaces.
 
 const FPS := 30.0
-const TARGET := "res://target/rifleman.glb"
-const OUT := "res://out/rifleman_anims.res"
+## Target model and output; override with `-- <target.glb> <out.res>`.
+var TARGET := "res://target/rifleman.glb"
+var OUT := "res://out/rifleman_anims.res"
 
 var T: Skeleton3D
 var t_root: Node
@@ -36,6 +37,10 @@ func _skel(n: Node) -> Skeleton3D:
 
 
 func _run() -> void:
+	var args := OS.get_cmdline_user_args()
+	if args.size() >= 2:
+		TARGET = args[0]
+		OUT = args[1]
 	t_root = (load(TARGET) as PackedScene).instantiate()
 	get_root().add_child(t_root)
 	T = _skel(t_root)
@@ -143,8 +148,10 @@ func _retarget(path: String, clip: String, track_root: String) -> Animation:
 				var p := S.get_bone_global_pose(sidx[i]).basis.get_rotation_quaternion()
 				w = (p * s_rest[i].inverse()) * align[i] * t_rest[i]
 			else:
+				# Not in the clip (e.g. a "_rootJoint" above the hips): keeps its rest.
 				var par := T.get_bone_parent(i)
-				w = (world[par] as Quaternion) * T.get_bone_rest(i).basis.get_rotation_quaternion()
+				var rest := T.get_bone_rest(i).basis.get_rotation_quaternion()
+				w = rest if par < 0 else (world[par] as Quaternion) * rest
 			world[i] = w.normalized()
 			var parent := T.get_bone_parent(i)
 			var local: Quaternion = world[i] if parent < 0 else (world[parent] as Quaternion).inverse() * world[i]
@@ -159,7 +166,11 @@ func _retarget(path: String, clip: String, track_root: String) -> Animation:
 		for f in frames:
 			var k := float(f) / float(frames - 1)
 			hip_pos[f] -= Vector3(hip_pos[0].x + drift.x * k, 0, hip_pos[0].z + drift.z * k)
+	# The track is the hips' local position: relative to its parent (a
+	# "_rootJoint" on some rigs), if any.
+	var hp := T.get_bone_parent(hips)
+	var to_parent := T.get_bone_global_rest(hp).affine_inverse() if hp >= 0 else Transform3D.IDENTITY
 	for f in frames:
-		anim.position_track_insert_key(pos_track, f / FPS, hip_pos[f])
+		anim.position_track_insert_key(pos_track, f / FPS, to_parent * hip_pos[f])
 	root.free()
 	return anim

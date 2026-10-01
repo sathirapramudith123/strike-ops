@@ -2509,9 +2509,18 @@ func _test_characters() -> void:
 func _test_realistic_soldier() -> void:
 	var saved: bool = SettingsManager.graphics.realistic_characters
 	SettingsManager.graphics.realistic_characters = true
+	# Its own floor (the walk / air logic rays down for the ground), off the map.
+	var floor_body := StaticBody3D.new()
+	var floor_shape := CollisionShape3D.new()
+	floor_shape.shape = BoxShape3D.new()
+	(floor_shape.shape as BoxShape3D).size = Vector3(20, 1, 20)
+	floor_body.add_child(floor_shape)
+	_level.add_child(floor_body)
+	floor_body.position = Vector3(30, -300.5, 25)
+	await get_tree().physics_frame
 	var holder := Node3D.new()
 	_level.add_child(holder)
-	holder.position = Vector3(30, 0.0, 30)
+	holder.position = Vector3(30, -300.0, 30)
 	var m := PlayerModel.new()
 	holder.add_child(m)
 	m.set_weapon("rifle")
@@ -2580,6 +2589,7 @@ func _test_realistic_soldier() -> void:
 	_check(tree.active and (bone.call("Hips") as Vector3).y > holder.global_position.y + 0.8 and rig.gun.visible,
 		"realistic soldier: respawn stands him back up with the gun")
 	holder.queue_free()
+	floor_body.queue_free()
 	SettingsManager.graphics.realistic_characters = false
 	var plain := PlayerModel.new()
 	add_child(plain)

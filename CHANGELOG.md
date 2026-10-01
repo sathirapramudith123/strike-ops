@@ -20,6 +20,13 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**A real soldier, holding the gun properly:** the third-person soldier
+is now an artist-made German KSK operator (Sketchfab, 42manako) — camo,
+plate carrier, backpack, helmet with headset — and your first-person
+arms are his sleeves and gloves. Guns now sit in the right hand the way
+the aiming animation holds them, with the left hand reaching for the
+handguard, instead of floating between the hands.
+
 **Real guns:** every gun is now a detailed, textured model in first and
 third person — a P-9 pistol (Poly Haven), a tan M4 with a red dot
 (AR-7), an HK MP5 (V-10 SMG), a Remington 870 with real shells
