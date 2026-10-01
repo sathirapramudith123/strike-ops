@@ -20,8 +20,10 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
-**A real pistol:** the P-9 is now a detailed, textured pistol model
-(Poly Haven) in first and third person. The other guns follow.
+**Real guns:** the P-9 pistol (Poly Haven) and the AR-7 rifle — now a
+tan M4 with a red-dot sight you aim through (Sketchfab, polupan.andrew)
+— are detailed, textured models in first and third person, with a
+magazine that comes out on reload. The other guns follow.
 
 **Real hands in first person:** your own arms are now the soldier's
 multicam sleeves and tan gloves, holding every gun with both hands —

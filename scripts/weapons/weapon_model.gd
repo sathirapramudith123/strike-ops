@@ -49,8 +49,11 @@ const COVER_HINGE := Vector3(0, 0.053, 0.08)
 ## They replace the code-built meshes while Realistic soldiers is on.
 const REAL_DIR := "res://assets/weapons"
 ## Where the hands, the magazine and the muzzle are on a real model, where
-## they differ from HANDS (merged over it by hands()).
+## they differ from HANDS (merged over it by hands()); "ads" replaces the
+## weapon's ads_position (the sight's height on this model).
 const REAL_HANDS := {
+	"rifle": { "grip": Vector3(0, -0.085, 0.1), "left": Vector3(0, -0.02, -0.225), "mag": Vector3(0, -0.19, -0.065),
+		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.3) },
 	"pistol": { "grip": Vector3(0, -0.018, 0.07), "left": Vector3(-0.022, -0.045, 0.06), "muzzle": Vector3(0, 0.042, -0.103) },
 }
 static var _real := {}

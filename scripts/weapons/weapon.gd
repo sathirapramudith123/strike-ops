@@ -117,6 +117,8 @@ func _ready() -> void:
 	var h := WeaponModel.hands(data.weapon_id)
 	if muzzle and h.has("muzzle"):
 		muzzle.position = h.muzzle
+	if h.has("ads"):
+		ads_position = h.ads
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
 

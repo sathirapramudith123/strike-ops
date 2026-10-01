@@ -897,6 +897,10 @@ func _test_weapon_animations() -> void:
 		_check(real_pistol.has("Gun") and real_pistol.has("Magazine")
 			and WeaponModel.get_mesh("pistol", false) == real_pistol.Gun and WeaponModel.hands("pistol").has("muzzle"),
 			"the pistol is a real model (Poly Haven), with its own grip, muzzle and magazine")
+		var real_rifle := WeaponModel.real_parts("rifle")
+		_check(real_rifle.has("Gun") and real_rifle.has("Magazine") and real_rifle.has("GunFull")
+			and w.ads_position == WeaponModel.hands("rifle").ads and w.muzzle.position == WeaponModel.hands("rifle").muzzle,
+			"the rifle is a real model (M4, Sketchfab): own magazine, red-dot ADS height and muzzle")
 		_check(fp != null and fp.wrist_miss("Right") < 0.02 and fp.wrist_miss("Left") < 0.03,
 			"first-person IK: both wrists on the gun (%.3f, %.3f m)" % [fp.wrist_miss("Right") if fp else -1.0, fp.wrist_miss("Left") if fp else -1.0])
 	else:
