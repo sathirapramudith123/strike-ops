@@ -1754,6 +1754,8 @@ func _test_maps() -> void:
 	var occluders := _level.find_children("*", "OccluderInstance3D", true, false).size()
 	_check(art_batched and occluders > 20, "factory: art merged by StaticBatcher, %d occluders kept" % occluders)
 	_check(_player.is_on_floor(), "factory: the player stands on the greybox collision under the art")
+	var flags := _level.find_children("Flag*", "", true, false).size() + _level.art.find_children("Flag*", "", true, false).size()
+	_check(flags == 0, "factory: no flag (removed), in the greybox or the art (%d)" % flags)
 	Level.art_disabled = true
 	await _load_map("res://scenes/levels/factory.tscn")
 	_check(_level.art == null and _level.art_replaced == 0, "--no-art: factory draws the greybox")

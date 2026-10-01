@@ -14,6 +14,8 @@ unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
 merged by the static batcher). Benchmark `--no-art` compares it with the
 greybox.
 
+**Factory without the flag:** the Sri Lankan flag by CT spawn is gone.
+
 **Factory area detail:** pipes on brackets along the warehouse, silo
 yard and tunnel walls, gutters and downpipes on the buildings, roof
 trusses and pallet-rack frames in the warehouse, lamp posts in the rail

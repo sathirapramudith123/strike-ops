@@ -1,4 +1,4 @@
-[gd_scene load_steps=1481 format=3]
+[gd_scene load_steps=1473 format=3]
 
 [ext_resource type="Script" path="res://scripts/levels/level.gd" id="1_level"]
 [ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="2_hud"]
@@ -269,30 +269,6 @@ shader_parameter/base_color = Color(0.9, 0.72, 0.1, 1)
 shader_parameter/line_color = Color(0.08, 0.08, 0.08, 1)
 shader_parameter/cell_size = 0.25
 shader_parameter/roughness_value = 0.8
-shader_parameter/grime = 0.0
-
-[sub_resource type="ShaderMaterial" id="Mat_flag_maroon"]
-render_priority = 0
-shader = ExtResource("4_grid")
-shader_parameter/kind = 4
-shader_parameter/base_color = Color(0.5, 0.07, 0.1, 1)
-shader_parameter/line_color = Color(0.5, 0.07, 0.1, 1)
-shader_parameter/grime = 0.0
-
-[sub_resource type="ShaderMaterial" id="Mat_flag_green"]
-render_priority = 0
-shader = ExtResource("4_grid")
-shader_parameter/kind = 4
-shader_parameter/base_color = Color(0.0, 0.45, 0.3, 1)
-shader_parameter/line_color = Color(0.0, 0.45, 0.3, 1)
-shader_parameter/grime = 0.0
-
-[sub_resource type="ShaderMaterial" id="Mat_flag_orange"]
-render_priority = 0
-shader = ExtResource("4_grid")
-shader_parameter/kind = 4
-shader_parameter/base_color = Color(0.95, 0.5, 0.05, 1)
-shader_parameter/line_color = Color(0.95, 0.5, 0.05, 1)
 shader_parameter/grime = 0.0
 
 [sub_resource type="ShaderMaterial" id="Mat_sack"]
@@ -6056,30 +6032,6 @@ material = SubResource("Mat_clay")
 size = Vector3(0.500, 0.400, 0.500)
 
 [sub_resource type="CylinderMesh" id="Mesh_1211"]
-material = SubResource("Mat_metal")
-top_radius = 0.060
-bottom_radius = 0.060
-height = 7.000
-radial_segments = 6
-rings = 1
-
-[sub_resource type="BoxMesh" id="Mesh_1212"]
-material = SubResource("Mat_yellow")
-size = Vector3(2.000, 1.200, 0.030)
-
-[sub_resource type="BoxMesh" id="Mesh_1213"]
-material = SubResource("Mat_flag_maroon")
-size = Vector3(1.400, 1.050, 0.040)
-
-[sub_resource type="BoxMesh" id="Mesh_1214"]
-material = SubResource("Mat_flag_orange")
-size = Vector3(0.220, 1.050, 0.040)
-
-[sub_resource type="BoxMesh" id="Mesh_1215"]
-material = SubResource("Mat_flag_green")
-size = Vector3(0.220, 1.050, 0.040)
-
-[sub_resource type="CylinderMesh" id="Mesh_1216"]
 material = SubResource("Mat_red")
 top_radius = 0.855
 bottom_radius = 0.900
@@ -6087,7 +6039,7 @@ height = 3.667
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1217"]
+[sub_resource type="CylinderMesh" id="Mesh_1212"]
 material = SubResource("Mat_tile")
 top_radius = 0.810
 bottom_radius = 0.855
@@ -6095,7 +6047,7 @@ height = 3.667
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1218"]
+[sub_resource type="CylinderMesh" id="Mesh_1213"]
 material = SubResource("Mat_red")
 top_radius = 0.765
 bottom_radius = 0.810
@@ -6103,7 +6055,7 @@ height = 3.667
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1219"]
+[sub_resource type="CylinderMesh" id="Mesh_1214"]
 material = SubResource("Mat_tile")
 top_radius = 0.720
 bottom_radius = 0.765
@@ -6111,7 +6063,7 @@ height = 3.667
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1220"]
+[sub_resource type="CylinderMesh" id="Mesh_1215"]
 material = SubResource("Mat_red")
 top_radius = 0.675
 bottom_radius = 0.720
@@ -6119,7 +6071,7 @@ height = 3.667
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1221"]
+[sub_resource type="CylinderMesh" id="Mesh_1216"]
 material = SubResource("Mat_tile")
 top_radius = 0.630
 bottom_radius = 0.675
@@ -6127,7 +6079,7 @@ height = 3.667
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1222"]
+[sub_resource type="CylinderMesh" id="Mesh_1217"]
 material = SubResource("Mat_red")
 top_radius = 0.760
 bottom_radius = 0.800
@@ -6135,7 +6087,7 @@ height = 3.000
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1223"]
+[sub_resource type="CylinderMesh" id="Mesh_1218"]
 material = SubResource("Mat_tile")
 top_radius = 0.720
 bottom_radius = 0.760
@@ -6143,7 +6095,7 @@ height = 3.000
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1224"]
+[sub_resource type="CylinderMesh" id="Mesh_1219"]
 material = SubResource("Mat_red")
 top_radius = 0.680
 bottom_radius = 0.720
@@ -6151,7 +6103,7 @@ height = 3.000
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1225"]
+[sub_resource type="CylinderMesh" id="Mesh_1220"]
 material = SubResource("Mat_tile")
 top_radius = 0.640
 bottom_radius = 0.680
@@ -6159,7 +6111,7 @@ height = 3.000
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1226"]
+[sub_resource type="CylinderMesh" id="Mesh_1221"]
 material = SubResource("Mat_red")
 top_radius = 0.600
 bottom_radius = 0.640
@@ -6167,7 +6119,7 @@ height = 3.000
 radial_segments = 12
 rings = 1
 
-[sub_resource type="CylinderMesh" id="Mesh_1227"]
+[sub_resource type="CylinderMesh" id="Mesh_1222"]
 material = SubResource("Mat_tile")
 top_radius = 0.560
 bottom_radius = 0.600
@@ -14108,107 +14060,77 @@ transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.0000
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Dates4"]
 mesh = SubResource("Mesh_1210")
 
-[node name="FlagPole1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 22.000, 3.500, 40.500)
-
-[node name="Mesh" type="MeshInstance3D" parent="Geometry/FlagPole1"]
-mesh = SubResource("Mesh_1211")
-
-[node name="Flag1" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 23.050, 6.250, 40.500)
-
-[node name="Mesh" type="MeshInstance3D" parent="Geometry/Flag1"]
-mesh = SubResource("Mesh_1212")
-
-[node name="Flag2" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 23.270, 6.250, 40.500)
-
-[node name="Mesh" type="MeshInstance3D" parent="Geometry/Flag2"]
-mesh = SubResource("Mesh_1213")
-
-[node name="Flag3" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 22.330, 6.250, 40.500)
-
-[node name="Mesh" type="MeshInstance3D" parent="Geometry/Flag3"]
-mesh = SubResource("Mesh_1214")
-
-[node name="Flag4" type="StaticBody3D" parent="Geometry"]
-transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 22.550, 6.250, 40.500)
-
-[node name="Mesh" type="MeshInstance3D" parent="Geometry/Flag4"]
-mesh = SubResource("Mesh_1215")
-
 [node name="Chimney7" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -30.000, 11.833, -50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney7"]
-mesh = SubResource("Mesh_1216")
+mesh = SubResource("Mesh_1211")
 
 [node name="Chimney8" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -30.000, 15.500, -50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney8"]
-mesh = SubResource("Mesh_1217")
+mesh = SubResource("Mesh_1212")
 
 [node name="Chimney9" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -30.000, 19.167, -50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney9"]
-mesh = SubResource("Mesh_1218")
+mesh = SubResource("Mesh_1213")
 
 [node name="Chimney10" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -30.000, 22.833, -50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney10"]
-mesh = SubResource("Mesh_1219")
+mesh = SubResource("Mesh_1214")
 
 [node name="Chimney11" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -30.000, 26.500, -50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney11"]
-mesh = SubResource("Mesh_1220")
+mesh = SubResource("Mesh_1215")
 
 [node name="Chimney12" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, -30.000, 30.167, -50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney12"]
-mesh = SubResource("Mesh_1221")
+mesh = SubResource("Mesh_1216")
 
 [node name="Chimney13" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 30.000, 11.500, 50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney13"]
-mesh = SubResource("Mesh_1222")
+mesh = SubResource("Mesh_1217")
 
 [node name="Chimney14" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 30.000, 14.500, 50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney14"]
-mesh = SubResource("Mesh_1223")
+mesh = SubResource("Mesh_1218")
 
 [node name="Chimney15" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 30.000, 17.500, 50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney15"]
-mesh = SubResource("Mesh_1224")
+mesh = SubResource("Mesh_1219")
 
 [node name="Chimney16" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 30.000, 20.500, 50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney16"]
-mesh = SubResource("Mesh_1225")
+mesh = SubResource("Mesh_1220")
 
 [node name="Chimney17" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 30.000, 23.500, 50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney17"]
-mesh = SubResource("Mesh_1226")
+mesh = SubResource("Mesh_1221")
 
 [node name="Chimney18" type="StaticBody3D" parent="Geometry"]
 transform = Transform3D(1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 0.000000, 0.000000, 0.000000, 1.000000, 30.000, 26.500, 50.000)
 
 [node name="Mesh" type="MeshInstance3D" parent="Geometry/Chimney18"]
-mesh = SubResource("Mesh_1227")
+mesh = SubResource("Mesh_1222")
 
 [node name="SpawnPoints" type="Node3D" parent="."]
 

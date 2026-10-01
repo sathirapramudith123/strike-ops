@@ -1245,17 +1245,6 @@ def _chimney(m, x, z, base, h=18.0, r=0.9):
               "Chimney", top=r * (1.0 - (k + 1) * 0.05), segments=12, collide=False)
 
 
-def _flag(m, x, z, h=7.0):
-    """Sri Lankan flag on a pole (simplified: maroon field, yellow border,
-    green and orange stripes)."""
-    m.cyl((x, h / 2, z), 0.06, h, "metal", "FlagPole", segments=6, collide=False)
-    fx, fy = x + 1.05, h - 0.75
-    m.box((fx, fy, z), (2.0, 1.2, 0.03), "yellow", "Flag", collide=False)
-    m.box((fx + 0.22, fy, z), (1.4, 1.05, 0.04), "flag_maroon", "Flag", collide=False)
-    m.box((fx - 0.72, fy, z), (0.22, 1.05, 0.04), "flag_orange", "Flag", collide=False)
-    m.box((fx - 0.5, fy, z), (0.22, 1.05, 0.04), "flag_green", "Flag", collide=False)
-
-
 def _gantry(m, x0, x1, z, h=9.0, mat="yellow"):
     """Overhead gantry crane across X (legs collide, beam is visual)."""
     for x in (x0, x1):
@@ -1669,11 +1658,10 @@ def factory():
         m.box((x, 1.5, 34.5), (0.4, 3.0, 0.4), "metal", "GatePost")
     m.box((25, 2.9, 34.5), (8.4, 0.2, 0.2), "metal", "GateBar", collide=False)
 
-    # Sri Lankan touch: coconut palms, the flag, chimneys, Lanka Steel.
+    # Sri Lankan touch: coconut palms, chimneys, Lanka Steel.
     for (x, z, h, lean) in ((-38, 44, 7.5, (0.6, -0.4)), (-35, 30, 7.0, (0.4, 0.5)), (-38, -2, 8.0, (0.7, 0.2)),
                             (38.5, 44, 7.0, (-0.6, -0.3))):
         _palm(m, x, z, h, lean)
-    _flag(m, 22, 40.5)
     _chimney(m, -30, -50, 10.0, 22.0)
     _chimney(m, 30, 50, 10.0, 18.0, 0.8)
 
