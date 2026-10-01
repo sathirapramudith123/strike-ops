@@ -50,6 +50,8 @@ var batch_stats: Dictionary = {}
 var art: Node3D
 ## How many greybox meshes the art replaced.
 var art_replaced: int = 0
+## The art's materials by name (Mat_metal …), shared with the detail layer.
+var art_materials: Dictionary = {}
 ## The map's High/Ultra detail layer while GraphicsPreset.map_detail is on.
 var detail: MapDetail
 
@@ -221,12 +223,12 @@ func _load_art(geometry: Node3D) -> void:
 		return
 	art = (load(path) as PackedScene).instantiate() as Node3D
 	art.name = "Art"
-	var art_materials := {}
+	art_materials.clear()
 	for mi: MeshInstance3D in art.find_children("*", "MeshInstance3D", true, false):
 		for s in mi.mesh.get_surface_count():
 			var m := mi.get_active_material(s)
 			if m:
-				art_materials[m.resource_name] = true
+				art_materials[m.resource_name] = m
 			# Photo textures seen at a glance angle (floors, long walls)
 			# blur without it; cheap next to the fill cost.
 			if m is BaseMaterial3D:
@@ -284,6 +286,8 @@ func spectating() -> PlayerController:
 func _apply_graphics(_preset: GraphicsPreset) -> void:
 	_update_detail()
 	StaticBatcher.set_detail_distance(_detail_batches, SettingsManager.graphics.draw_distance_scale)
+	if detail and detail.batch_stats.has("details"):
+		StaticBatcher.set_detail_distance(detail.batch_stats.details, SettingsManager.graphics.draw_distance_scale)
 	var lights := get_node_or_null("Lights")
 	if lights:
 		lights.visible = SettingsManager.graphics.dynamic_lights

@@ -1772,6 +1772,12 @@ func _test_maps() -> void:
 		"factory: map detail adds the photo sky, skyline and chimney smoke")
 	_check(_level.detail.find_children("*", "CollisionObject3D", true, false).is_empty(),
 		"factory: map detail has no collision (looks only)")
+	var shared := 0
+	for mi: MeshInstance3D in _level.detail.find_children("*", "MeshInstance3D", true, false):
+		if _level.art_materials.values().has(mi.get_active_material(0)):
+			shared += 1
+	_check(_level.detail.batch_stats.get("batches", 0) > 0 and shared > 0,
+		"factory: detail props wear the art's materials and are batched (%d batches)" % _level.detail.batch_stats.get("batches", 0))
 	SettingsManager.graphics.map_detail = false
 	_level._apply_graphics(SettingsManager.graphics)
 	_check(_level.detail == null and env.sky.sky_material is ProceduralSkyMaterial,

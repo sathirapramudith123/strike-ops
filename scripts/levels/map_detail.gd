@@ -26,6 +26,9 @@ extends Node3D
 @export var smoke_points: PackedVector3Array = []
 @export var smoke_color: Color = Color(0.2, 0.2, 0.21, 0.9)
 
+## What StaticBatcher did with the detail meshes.
+var batch_stats: Dictionary = {}
+
 var _env: Environment
 var _sun: DirectionalLight3D
 var _saved := {}
@@ -59,9 +62,22 @@ func apply(level: Level) -> void:
 	if _sun and sun_energy >= 0.0:
 		_saved.sun_energy = _sun.light_energy
 		_sun.light_energy = sun_energy
+	# Props near the play area (pipes, gutters, trusses …) are exported
+	# without textures and wear the art's material of the same name, so
+	# they share its textures; then everything is merged like the greybox
+	# (StaticBatcher: small props fade out with the Draw distance setting).
+	for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
+		for s in mi.mesh.get_surface_count():
+			var m := mi.get_active_material(s)
+			if m and level.art_materials.has(m.resource_name):
+				mi.set_surface_override_material(s, level.art_materials[m.resource_name])
+	if not Level.batching_disabled:
+		batch_stats = StaticBatcher.batch(self, SettingsManager.graphics.draw_distance_scale)
 	# Far scenery: no shadows (it is outside the shadow distance anyway).
-	for mi: MeshInstance3D in find_children("Far_*", "MeshInstance3D", true, false):
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for mi: MeshInstance3D in find_children("*", "MeshInstance3D", true, false):
+		var m := mi.get_active_material(0)
+		if mi.name.begins_with("Far_") or (m and m.resource_name.begins_with("Far_")):
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for p in smoke_points:
 		add_child(_smoke(p))
 

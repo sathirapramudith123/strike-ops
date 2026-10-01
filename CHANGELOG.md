@@ -14,6 +14,14 @@ unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
 merged by the static batcher). Benchmark `--no-art` compares it with the
 greybox.
 
+**Factory area detail:** pipes on brackets along the warehouse, silo
+yard and tunnel walls, gutters and downpipes on the buildings, roof
+trusses and pallet-rack frames in the warehouse, lamp posts in the rail
+yard, a guard tower behind T spawn and a water tower behind CT. All
+above head height, flat on walls or outside the walls — nothing new to
+hide behind. Costs about 4% FPS on Low (switch *Map detail* off on the
+weakest PCs).
+
 **Factory — the concept-art look begins:** a real photo
 sky with clouds, green mountains on the horizon, an industrial skyline
 with cranes, tanks and red-and-white chimneys around the factory, smoke
