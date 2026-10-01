@@ -78,6 +78,10 @@ var _gun_icon: TextureRect
 var _slot_boxes: HBoxContainer
 var _feed_icons: Dictionary = {} # display name -> weapon id
 var _feed_style_mine: StyleBoxFlat
+const SLOT_TABS_TIME := 2.5
+var _slot_fade: Tween
+var _last_slot_key := -1
+var _slot_icons_missing: Array[String] = []
 
 
 ## Performance advisor: shown when dynamic resolution can't keep up.
@@ -592,11 +596,14 @@ func _update_weapon_slots() -> void:
 ## (SquadList) and the bomb sites on screen (ObjectiveMarkers).
 func _build_concept_hud() -> void:
 	# Player card: portrait + name over the existing health / armour row.
+	# Tactical corners (minimal + slanted strips): the player card bottom
+	# left, the weapon strip bottom right, slot tabs that show on a switch.
 	var card := get_node(^"HealthPanel") as PanelContainer
-	card.offset_left = 20
-	card.offset_top = -150
-	card.offset_right = 300
-	card.offset_bottom = -18
+	card.offset_left = 18
+	card.offset_top = -104
+	card.offset_right = 318
+	card.offset_bottom = -22
+	card.add_theme_stylebox_override(&"panel", SlantStyle.new(22.0, Vector4(10, 8, 12, 8)))
 	var box := card.get_node(^"Box")
 	card.remove_child(box)
 	# Health over armour, not side by side, to keep the card narrow.
@@ -612,20 +619,20 @@ func _build_concept_hud() -> void:
 	var row := HBoxContainer.new()
 	row.name = "Card"
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override(&"separation", 14)
+	row.add_theme_constant_override(&"separation", 12)
 	card.add_child(row)
 	var frame := PanelContainer.new()
 	var fs := StyleBoxFlat.new()
-	fs.bg_color = Color(0.1, 0.14, 0.22, 0.9)
-	fs.border_color = Color(0.3, 0.55, 1.0)
-	fs.set_border_width_all(2)
-	fs.set_content_margin_all(2)
+	fs.bg_color = Color(0.06, 0.08, 0.1, 0.8)
+	fs.border_color = Color(1.0, 0.72, 0.25, 0.7)
+	fs.border_width_left = 2
+	fs.set_content_margin_all(1)
 	frame.add_theme_stylebox_override(&"panel", fs)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(frame)
 	_portrait = TextureRect.new()
 	_portrait.name = "Portrait"
-	_portrait.custom_minimum_size = Vector2(84, 84)
+	_portrait.custom_minimum_size = Vector2(62, 62)
 	_portrait.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_portrait.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
 	frame.add_child(_portrait)
@@ -633,18 +640,21 @@ func _build_concept_hud() -> void:
 	col.alignment = BoxContainer.ALIGNMENT_CENTER
 	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(col)
-	_card_name = _outlined_label(24, Color.WHITE)
+	_card_name = _outlined_label(14, Color(1, 1, 1, 0.75))
 	_card_name.name = "CardName"
+	_card_name.uppercase = true
 	col.add_child(_card_name)
 	col.add_child(bars)
 	# Weapon panel to the bottom centre, a silhouette of the gun on its left.
 	var ammo := get_node(^"AmmoPanel") as PanelContainer
-	ammo.anchor_left = 0.5
-	ammo.anchor_right = 0.5
-	ammo.offset_left = -312
-	ammo.offset_right = -6
-	ammo.offset_top = -92
-	ammo.offset_bottom = -18
+	ammo.offset_left = -340
+	ammo.offset_right = -18
+	ammo.offset_top = -100
+	ammo.offset_bottom = -22
+	ammo.add_theme_stylebox_override(&"panel", SlantStyle.new(-22.0, Vector4(12, 6, 14, 6)))
+	_weapon_label.uppercase = true
+	_weapon_label.add_theme_font_size_override(&"font_size", 13)
+	_ammo_label.add_theme_font_size_override(&"font_size", 42)
 	var ammo_box := ammo.get_node(^"Box")
 	ammo.remove_child(ammo_box)
 	var arow := HBoxContainer.new()
@@ -654,7 +664,8 @@ func _build_concept_hud() -> void:
 	ammo.add_child(arow)
 	_gun_icon = TextureRect.new()
 	_gun_icon.name = "GunIcon"
-	_gun_icon.custom_minimum_size = Vector2(124, 52)
+	_gun_icon.custom_minimum_size = Vector2(118, 50)
+	_gun_icon.modulate = Color(1, 1, 1, 0.85)
 	_gun_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_gun_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	arow.add_child(_gun_icon)
@@ -663,13 +674,15 @@ func _build_concept_hud() -> void:
 	# The other slots: pistol (2), knife (3), grenade (4).
 	_slot_boxes = HBoxContainer.new()
 	_slot_boxes.name = "SlotBoxes"
-	_slot_boxes.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_slot_boxes.offset_left = 4
-	_slot_boxes.offset_right = 242
-	_slot_boxes.offset_top = -86
-	_slot_boxes.offset_bottom = -18
+	_slot_boxes.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_slot_boxes.alignment = BoxContainer.ALIGNMENT_END
+	_slot_boxes.offset_left = -340
+	_slot_boxes.offset_right = -18
+	_slot_boxes.offset_top = -150
+	_slot_boxes.offset_bottom = -108
+	_slot_boxes.modulate.a = 0.0
 	_slot_boxes.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_slot_boxes.add_theme_constant_override(&"separation", 6)
+	_slot_boxes.add_theme_constant_override(&"separation", 4)
 	add_child(_slot_boxes)
 	squad_list = SquadList.new()
 	squad_list.name = "SquadList"
@@ -693,6 +706,9 @@ func _update_card() -> void:
 			IconRenderer.request_portrait(self, look)
 	if _gun_icon.texture == null and _weapon:
 		_gun_icon.texture = IconRenderer.cached_weapon(_weapon.data.weapon_id)
+	# A slot tab was built before its picture was rendered: rebuild them.
+	if _slot_icons_missing.any(func(id: String) -> bool: return IconRenderer.cached_weapon(id) != null):
+		_update_slot_boxes()
 
 
 ## Boxes for the slots other than the gun in the weapon panel: the pistol,
@@ -703,9 +719,14 @@ func _update_slot_boxes() -> void:
 		c.queue_free()
 	if _player == null:
 		return
+	_slot_icons_missing.clear()
 	var ws := _player.loadout_weapons()
 	var holding := _player.throwables and _player.throwables.is_holding()
-	for i in range(1, mini(ws.size(), 3)):
+	var lit_key := 4 if holding else _player.current_slot + 1
+	if lit_key != _last_slot_key:
+		_last_slot_key = lit_key
+		_flash_slot_tabs()
+	for i in range(0, mini(ws.size(), 3)):
 		var w: Weapon = ws[i]
 		if w == null:
 			continue
@@ -713,6 +734,7 @@ func _update_slot_boxes() -> void:
 			i == _player.current_slot and not holding))
 		if IconRenderer.cached_weapon(w.data.weapon_id) == null:
 			IconRenderer.request_weapon(self, w.data.weapon_id)
+			_slot_icons_missing.append(w.data.weapon_id)
 	var t := _player.throwables
 	if t:
 		var total := 0
@@ -721,15 +743,26 @@ func _update_slot_boxes() -> void:
 		_slot_boxes.add_child(_slot_box(4, null, "×%d" % total, holding, true))
 
 
+## The slot tabs show for a moment when the weapon in hand changes (or on
+## buying / picking up), then fade out.
+func _flash_slot_tabs() -> void:
+	if _slot_fade:
+		_slot_fade.kill()
+	_slot_boxes.modulate.a = 1.0
+	_slot_fade = create_tween()
+	_slot_fade.tween_interval(SLOT_TABS_TIME)
+	_slot_fade.tween_property(_slot_boxes, "modulate:a", 0.0, 0.4)
+
+
 func _slot_box(key: int, icon: Texture2D, count: String, lit: bool, grenade: bool = false) -> Control:
 	var box := PanelContainer.new()
-	box.custom_minimum_size = Vector2(70, 66)
+	box.custom_minimum_size = Vector2(64, 42)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.03, 0.05, 0.09, 0.72)
-	sb.border_color = Color(1, 0.85, 0.3) if lit else Color(1, 1, 1, 0.15)
-	sb.set_border_width_all(2 if lit else 1)
-	sb.set_corner_radius_all(3)
+	sb.bg_color = Color(0.02, 0.03, 0.05, 0.6) if not lit else Color(0.12, 0.09, 0.03, 0.75)
+	sb.border_color = Color(1.0, 0.72, 0.25) if lit else Color(1, 1, 1, 0.12)
+	sb.border_width_top = 2 if lit else 1
+	sb.skew = Vector2(-0.25, 0)
 	box.add_theme_stylebox_override(&"panel", sb)
 	if icon:
 		var pic := TextureRect.new()
@@ -743,21 +776,21 @@ func _slot_box(key: int, icon: Texture2D, count: String, lit: bool, grenade: boo
 		g.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		g.draw.connect(func() -> void:
 			var c := g.size * 0.5 + Vector2(0, 3)
-			g.draw_circle(c, 13.0, Color(0.85, 0.88, 0.9))
-			g.draw_rect(Rect2(c + Vector2(-4, -20), Vector2(8, 8)), Color(0.85, 0.88, 0.9))
-			g.draw_line(c + Vector2(4, -17), c + Vector2(12, -9), Color(0.85, 0.88, 0.9), 2.0))
+			g.draw_circle(c, 8.0, Color(0.85, 0.88, 0.9))
+			g.draw_rect(Rect2(c + Vector2(-3, -13), Vector2(6, 5)), Color(0.85, 0.88, 0.9))
+			g.draw_line(c + Vector2(3, -11), c + Vector2(8, -6), Color(0.85, 0.88, 0.9), 1.5))
 		box.add_child(g)
 	var labels := Control.new()
 	labels.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(labels)
-	var k := _outlined_label(13, Color(1, 1, 1, 0.8))
+	var k := _outlined_label(11, Color(1, 1, 1, 0.75))
 	k.text = str(key)
-	k.position = Vector2(50, 40)
+	k.position = Vector2(50, 22)
 	labels.add_child(k)
 	if count != "":
-		var n := _outlined_label(13, Color(0.8, 1, 0.7))
+		var n := _outlined_label(11, Color(0.8, 1, 0.7))
 		n.text = count
-		n.position = Vector2(2, 40)
+		n.position = Vector2(4, 22)
 		labels.add_child(n)
 	return box
 

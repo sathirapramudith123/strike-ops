@@ -14,6 +14,12 @@ unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
 merged by the static batcher). Benchmark `--no-art` compares it with the
 greybox.
 
+**New bottom HUD:** tactical corners instead of big panels — a slanted,
+see-through strip bottom-left with your portrait, name, health and
+armour, and one bottom-right with the gun, its name and big ammo
+numbers, each with a thin amber line. The weapon slots (1–4) pop up as
+small tabs above the ammo when you switch, then fade away.
+
 **A real pistol:** the P-9 is now a detailed, textured pistol model
 (Poly Haven) in first and third person. The other guns follow.
 

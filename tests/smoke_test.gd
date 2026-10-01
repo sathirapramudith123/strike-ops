@@ -702,6 +702,15 @@ func _test_weapon_switching() -> void:
 	_tap(&"weapon_1")
 	await _frames(3)
 	_check(_player.current_weapon.data.weapon_id == "rifle", "key 1 switches back")
+	var hud: Hud = _level.hud
+	var tabs := hud._slot_boxes
+	_check(tabs.modulate.a > 0.9 and tabs.get_child_count() == 4 and hud._last_slot_key == 1,
+		"HUD: switching shows the 4 slot tabs, the rifle's lit")
+	await get_tree().create_timer(Hud.SLOT_TABS_TIME + 0.6).timeout
+	_check(tabs.modulate.a < 0.05, "HUD: the slot tabs fade out again")
+	_check((hud.get_node(^"HealthPanel") as PanelContainer).get_theme_stylebox(&"panel") is SlantStyle
+		and (hud.get_node(^"AmmoPanel") as PanelContainer).get_theme_stylebox(&"panel") is SlantStyle,
+		"HUD: tactical corner strips for the player card and the weapon")
 
 
 func _test_shotgun_and_sniper() -> void:
