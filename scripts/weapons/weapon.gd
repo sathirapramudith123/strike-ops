@@ -138,6 +138,7 @@ func equip(player: PlayerController, camera: Camera3D) -> void:
 		mesh.visible = player.is_local
 	if player.is_local:
 		_apply_arm_look()
+		_attach_fp_arms()
 		# The raise: from low and tipped down up into the hands.
 		_equip_left = float(_anim.equip)
 		_has_cam_basis = false
@@ -152,6 +153,22 @@ func _apply_arm_look() -> void:
 	_right_arm.mesh = WeaponModel.get_arm_mesh(data.weapon_id, false, look)
 	if _left_arm:
 		_left_arm.mesh = WeaponModel.get_arm_mesh(data.weapon_id, true, look)
+
+
+## Realistic first-person arms (FPArms, one per camera) instead of the
+## code-built ArmR / ArmL meshes — those parts stay and are the arms' targets.
+func _attach_fp_arms() -> void:
+	if not SettingsManager.graphics.realistic_characters or _right_arm == null or _camera == null:
+		return
+	var arms := _camera.get_node_or_null(^"FPArms") as FPArms
+	if arms == null:
+		arms = FPArms.new()
+		arms.name = "FPArms"
+		_camera.add_child(arms)
+	arms.weapon = self
+	_right_arm.mesh = null
+	if _left_arm:
+		_left_arm.mesh = null
 
 
 func unequip() -> void:

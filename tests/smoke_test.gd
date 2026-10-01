@@ -877,8 +877,18 @@ func _test_weapon_animations() -> void:
 	_player.apply_loadout("rifle")
 	await _frames(3)
 	w = _player.current_weapon
-	_check((w.get_node(^"ArmR") as MeshInstance3D).mesh == WeaponModel.get_arm_mesh("rifle", false, winter),
-		"first-person arms wear the outfit's sleeves and gloves")
+	if SettingsManager.graphics.realistic_characters:
+		# Realistic soldiers: the rifleman's arms replace the code-built ones,
+		# and the IK puts both wrists where the gun's parts want them.
+		var fp := _player.camera.get_node_or_null(^"FPArms") as FPArms
+		await _frames(10)
+		_check(fp != null and fp.visible and fp.weapon == w and (w.get_node(^"ArmR") as MeshInstance3D).mesh == null,
+			"realistic first-person arms replace the code-built ones")
+		_check(fp != null and fp.wrist_miss("Right") < 0.02 and fp.wrist_miss("Left") < 0.03,
+			"first-person IK: both wrists on the gun (%.3f, %.3f m)" % [fp.wrist_miss("Right") if fp else -1.0, fp.wrist_miss("Left") if fp else -1.0])
+	else:
+		_check((w.get_node(^"ArmR") as MeshInstance3D).mesh == WeaponModel.get_arm_mesh("rifle", false, winter),
+			"first-person arms wear the outfit's sleeves and gloves")
 	NetworkManager.roster[1].look = saved
 	_player.apply_loadout("rifle")
 	await _frames(40)

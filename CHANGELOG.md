@@ -14,6 +14,11 @@ unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
 merged by the static batcher). Benchmark `--no-art` compares it with the
 greybox.
 
+**Real hands in first person:** your own arms are now the soldier's
+multicam sleeves and tan gloves, holding every gun with both hands —
+the left hand on the fore-end (or round the pistol grip), dropping to
+the magazine when you reload.
+
 **Realistic soldiers:** other players and bots are now real 3D soldiers —
 a multicam uniform, plate carrier with pouches and radio, helmet with
 night vision, sunglasses, shemagh, knee pads — with proper animations
