@@ -47,6 +47,15 @@ static func hold(s: Skeleton3D, key: String, lib: AnimationLibrary, weapon_id: S
 		"gun_from_rhand": rh.affine_inverse() * gun,
 		"rhand_from_gun": gun.affine_inverse() * rh,
 	}
+	# A knife: the fist turned about the grip so its grip axis (pistol grips
+	# lean ~15° — up the grip is up and a little forward) lies along the
+	# knife, the blade forward out of the thumb side.
+	if weapon_id == "knife":
+		var grip_up := Basis(Vector3.RIGHT, deg_to_rad(-15.0)) * Vector3.UP
+		var turn := Transform3D(Basis(Quaternion(grip_up, Vector3.FORWARD)), Vector3.ZERO)
+		var about := Transform3D(Basis.IDENTITY, grip) * turn * Transform3D(Basis.IDENTITY, -grip)
+		ref.rhand_from_gun = about * (ref.rhand_from_gun as Transform3D)
+		ref.gun_from_rhand = (ref.rhand_from_gun as Transform3D).affine_inverse()
 	# Left hand: as in the clip relative to the gun, its palm moved onto the
 	# fore-end point.
 	var l_in_gun := gun.affine_inverse() * lh

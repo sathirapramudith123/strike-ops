@@ -4,7 +4,7 @@
 [ext_resource type="Resource" path="res://resources/weapons/knife.tres" id="2_data"]
 
 [node name="Knife" type="Node3D" node_paths=PackedStringArray("muzzle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, -0.22, -0.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.19, -0.18, -0.32)
 script = ExtResource("1_weapon")
 data = ExtResource("2_data")
 muzzle = NodePath("Muzzle")

@@ -917,6 +917,12 @@ func _test_weapon_animations() -> void:
 			_check(rp.has("Gun") and rp.has("Magazine") and rp.has("GunFull") and WeaponModel.hands(id).has("ads")
 				and WeaponModel.get_mesh(id) == rp.GunFull and (id != "lmg" or WeaponModel.get_cover_mesh("lmg") == null),
 				"real %s model: gun, magazine (or shell), third-person mesh and sights" % id)
+		# The knife: a real model, held in the fist with the blade forward.
+		var kref := RifleGrip.hold(_player.camera.get_node(^"FPArms").skeleton, FPArms.SCENE,
+			load(SoldierRig.ANIMS) as AnimationLibrary, "knife")
+		var blade := ((kref.rhand_from_gun as Transform3D).affine_inverse().basis * Vector3.FORWARD).normalized()
+		_check(WeaponModel.real_parts("knife").has("Gun") and kref.has("rhand_from_gun"),
+			"the knife is a real model held in the fist (blade dir in hand %s)" % blade.snapped(Vector3.ONE * 0.01))
 		var real_rifle := WeaponModel.real_parts("rifle")
 		_check(real_rifle.has("Gun") and real_rifle.has("Magazine") and real_rifle.has("GunFull")
 			and w.ads_position == WeaponModel.hands("rifle").ads and w.muzzle.position == WeaponModel.hands("rifle").muzzle,

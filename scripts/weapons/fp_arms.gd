@@ -83,7 +83,13 @@ class _ArmIK extends SkeletonModifier3D:
 		if w._right_arm:
 			var t := to_skel * w.global_transform * w._right_arm.transform * (ref.rhand_from_gun as Transform3D)
 			miss.Right = RifleGrip.solve_arm(s, "Right", t, _pole(s, "Right", to_skel, cam * Vector3(1, -1, 0.3)))
-		if w._left_arm and hands.left_kind != "none":
+		if w._left_arm == null or hands.left_kind == "none":
+			# One-handed (knife): the left arm hangs down out of view.
+			var low := Transform3D(s.get_bone_global_pose(s.find_bone(FPArms.BONE + "LeftHand")).basis,
+				to_skel * (arms.get_parent_node_3d().global_transform * Vector3(-0.3, -0.75, 0.05)))
+			RifleGrip.solve_arm(s, "Left", low, _pole(s, "Left", to_skel, cam * Vector3(-1, -0.3, 0.3)))
+			miss.Left = 0.0
+		elif w._left_arm and hands.left_kind != "none":
 			var rel: Transform3D = ref.lhand_from_gun
 			if hands.left_kind in ["support", "vertical"]:
 				# A fist: the right hand's grip mirrored across the gun's middle.

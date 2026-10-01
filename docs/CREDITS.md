@@ -19,3 +19,4 @@ Every third-party asset (model, texture, sound, music, font, plugin) must be lis
 | [SV-98M Sniper rifle](https://sketchfab.com/3d-models/bf79b7f1d4304123823bb345848de80f) | Model (turned, magazine split off, textures 4k→2k) | AlexFinsher — Sketchfab | CC BY 4.0 | `assets/weapons/sniper` |
 | [M249 LightMachineGun](https://sketchfab.com/3d-models/3b743fa56cca42788d63d003118c678d) | Model (bipod removed, turned, box magazine split off, textures 2k→512, flat third-person version) | NotNathanModel — Sketchfab | CC BY 4.0 | `assets/weapons/lmg` |
 | [German KSK operator - rigged](https://sketchfab.com/3d-models/110daf3d1884412989e41dc95866c579) | Rigged character (turned, scaled, team armbands added; first-person arms cut from it) | 42manako — Sketchfab | CC BY 4.0 | `assets/characters/ksk` |
+| [Combat Knife](https://sketchfab.com/3d-models/5aa8bd11a7a64b3ab778664106d379f6) | Model (turned, textures 4k→1k) | Relowsky — Sketchfab | CC BY 4.0 | `assets/weapons/knife` |

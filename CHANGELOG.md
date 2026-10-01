@@ -20,6 +20,10 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**A real knife:** the K-1 is now a dark combat knife (Sketchfab,
+Relowsky) held in the fist with the blade forward; the left arm drops
+out of view instead of hanging in the air.
+
 **Red-dot sights:** every gun except the sniper now aims through a red
 dot — the M4's optic is see-through, and the SMG, shotgun, LMG and pistol
 have a compact red-dot sight on top. When you aim, a glowing red dot
