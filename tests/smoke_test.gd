@@ -901,6 +901,11 @@ func _test_weapon_animations() -> void:
 		_check(real_pistol.has("Gun") and real_pistol.has("Magazine")
 			and WeaponModel.get_mesh("pistol", false) == real_pistol.Gun and WeaponModel.hands("pistol").has("muzzle"),
 			"the pistol is a real model (Poly Haven), with its own grip, muzzle and magazine")
+		# Aiming looks along each gun's own sights: the eye height (ads.y) is
+		# the sight line measured on the model (front post / bead / rear ring).
+		for pair: Array in [["rifle", -0.082], ["smg", -0.085], ["shotgun", -0.053], ["lmg", -0.097], ["pistol", -0.056]]:
+			_check(is_equal_approx((WeaponModel.hands(pair[0]).ads as Vector3).y, pair[1]),
+				"%s aims along its sights (eye at %.3f)" % pair)
 		for id: String in ["smg", "shotgun", "sniper", "lmg"]:
 			var rp := WeaponModel.real_parts(id)
 			_check(rp.has("Gun") and rp.has("Magazine") and rp.has("GunFull") and WeaponModel.hands(id).has("ads")

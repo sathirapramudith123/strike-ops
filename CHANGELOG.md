@@ -20,6 +20,11 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Aiming down the sights fixed:** every gun now lines your eye up with
+its own sights — the SMG and pistol were too low (you saw the back of
+the gun), the shotgun's receiver no longer fills the view, and the LMG's
+ring is centred.
+
 **A real soldier, holding the gun properly:** the third-person soldier
 is now an artist-made German KSK operator (Sketchfab, 42manako) — camo,
 plate carrier, backpack, helmet with headset — and your first-person

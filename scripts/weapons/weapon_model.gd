@@ -55,14 +55,15 @@ const REAL_HANDS := {
 	"rifle": { "grip": Vector3(0, -0.085, 0.1), "left": Vector3(0, -0.02, -0.225), "mag": Vector3(0, -0.19, -0.065),
 		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.3) },
 	"smg": { "grip": Vector3(0, -0.08, 0.08), "left": Vector3(0, -0.005, -0.19), "left_kind": "under", "mag": Vector3(0, -0.19, -0.12),
-		"muzzle": Vector3(0, 0.022, -0.3), "ads": Vector3(0, -0.062, -0.26) },
+		"muzzle": Vector3(0, 0.022, -0.3), "ads": Vector3(0, -0.085, -0.24) },
 	"shotgun": { "grip": Vector3(0, -0.06, 0.14), "left": Vector3(0, -0.03, -0.26), "muzzle": Vector3(0, 0.035, -0.543),
-		"ads": Vector3(0, -0.052, -0.3) },
+		"ads": Vector3(0, -0.053, -0.36) },
 	"sniper": { "grip": Vector3(0, -0.08, 0.14), "left": Vector3(0, -0.06, -0.2), "mag": Vector3(0, -0.09, -0.04),
 		"muzzle": Vector3(0, 0.0, -0.747), "ads": Vector3(0, -0.058, -0.25) },
 	"lmg": { "grip": Vector3(0, -0.09, 0.12), "left": Vector3(0, -0.07, -0.225), "mag": Vector3(0, -0.2, -0.035),
-		"muzzle": Vector3(0, 0.036, -0.575), "ads": Vector3(0, -0.1, -0.32) },
-	"pistol": { "grip": Vector3(0, -0.038, 0.078), "left": Vector3(-0.02, -0.068, 0.07), "muzzle": Vector3(0, 0.042, -0.103) },
+		"muzzle": Vector3(0, 0.036, -0.575), "ads": Vector3(0, -0.097, -0.32) },
+	"pistol": { "grip": Vector3(0, -0.038, 0.078), "left": Vector3(-0.02, -0.068, 0.07), "muzzle": Vector3(0, 0.042, -0.103),
+		"ads": Vector3(0, -0.056, -0.3) },
 }
 static var _real := {}
 
