@@ -2549,6 +2549,13 @@ func _test_realistic_soldier() -> void:
 				return true
 		return false)
 	_check(banded, "realistic soldier: team-coloured armbands (own copy of the band material)")
+	# The head stays on top, facing forward (a broken end bone once turned it round).
+	var head: Vector3 = bone.call("Head")
+	var neck: Vector3 = bone.call("Neck")
+	var face_fwd := (s.global_transform.basis * s.get_bone_global_pose(s.find_bone("mixamorig_Head")).basis.z).normalized()
+	var body_fwd := (s.global_transform.basis * s.get_bone_global_pose(s.find_bone("mixamorig_Spine2")).basis.z).normalized()
+	_check(head.y > neck.y + 0.05 and face_fwd.dot(body_fwd) > 0.5,
+		"realistic soldier: the head is on top and faces the way the chest does (%.2f)" % face_fwd.dot(body_fwd))
 	var hips_stand: float = (bone.call("Hips") as Vector3).y
 	# Run forward (-Z) at walk speed: the run clips, a little faster than they were made.
 	var tree := rig.find_child("AnimationTree", true, false) as AnimationTree

@@ -996,6 +996,7 @@ func _refresh_stage() -> void:
 	while _stage_models.size() < ids.size():
 		var m := PlayerModel.new()
 		_stage_root.add_child(m)
+		m.showcase()
 		_stage_models.append(m)
 	while _stage_models.size() > ids.size():
 		_stage_models.pop_back().queue_free()

@@ -176,6 +176,7 @@ func _build_stage(vp: SubViewport) -> void:
 	_model = PlayerModel.new()
 	_model.name = "Model"
 	_pivot.add_child(_model)
+	_model.showcase()
 	_model.set_team_color(Color(0.55, 0.6, 0.66))
 	_camera = Camera3D.new()
 	_camera.fov = 32.0

@@ -77,6 +77,12 @@ func _ready() -> void:
 	_apply_meshes()
 
 
+## For menus (lobby stage, Character screen): a relaxed pose facing front.
+func showcase() -> void:
+	if rig:
+		rig.showcase.call_deferred()
+
+
 ## Dresses the model after a CharacterLook (see CharacterLook / CharacterMesh).
 func set_look(look: Dictionary) -> void:
 	var clean: Dictionary = CharacterLook.sanitize(look)

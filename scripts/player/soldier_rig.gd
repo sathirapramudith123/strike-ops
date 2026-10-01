@@ -250,6 +250,18 @@ func is_dead() -> bool:
 	return _dead
 
 
+## Lobby / Character screen: the relaxed "idle" clip instead of the combat
+## stance, turned so the chest faces the soldier's front (the clips are
+## made bladed, left shoulder forward).
+func showcase() -> void:
+	_tree.active = false
+	_player.play(&"idle")
+	var pose := RifleGrip.sample_pose(skeleton, _player.get_animation(&"idle"), 0.0)
+	var chest: Transform3D = pose[skeleton.find_bone(BONE + "Spine2")]
+	var fwd := chest.basis.z
+	_model.rotation.y = PI - atan2(fwd.x, fwd.z)
+
+
 ## The left palm as drawn (after the reload motion) — Skeleton3D's own bone
 ## poses don't include what modifiers change.
 func left_palm() -> Vector3:
