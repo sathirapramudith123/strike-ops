@@ -14,6 +14,15 @@ unchanged. It stays light for low-end PCs (1k textures, VRAM-compressed,
 merged by the static batcher). Benchmark `--no-art` compares it with the
 greybox.
 
+**Realistic soldiers:** other players and bots are now real 3D soldiers —
+a multicam uniform, plate carrier with pouches and radio, helmet with
+night vision, sunglasses, shemagh, knee pads — with proper animations
+from Mixamo's Pro Rifle Pack: walking, running and sprinting in every
+direction, crouch-walking, jumping, six different deaths, and the rifle
+held in both hands (any gun). Reloading drops the left hand to the
+magazine. Your team colour is on the armbands. *Settings → Graphics →
+Realistic soldiers* switches back to the old soldiers on very weak PCs.
+
 **Factory without the flag:** the Sri Lankan flag by CT spawn is gone.
 
 **Factory area detail:** pipes on brackets along the warehouse, silo

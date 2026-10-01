@@ -223,3 +223,6 @@ $RECYCLE.BIN/
 
 # Godot on Windows copies loaded GDExtension DLLs to ~name.dll while the editor runs
 addons/**/bin/~*
+
+# Blender's automatic backups of .blend files
+*.blend1

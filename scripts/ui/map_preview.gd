@@ -34,6 +34,8 @@ static func render(host: Node, map_path: String) -> Texture2D:
 	level.preview_only = true
 	vp.add_child(level)
 	await host.get_tree().process_frame
+	if not is_instance_valid(vp):
+		return null
 
 	var bounds := level.world_bounds()
 	var center := bounds.get_center()
@@ -48,6 +50,8 @@ static func render(host: Node, map_path: String) -> Texture2D:
 
 	for i in 3:
 		await RenderingServer.frame_post_draw
+	if not is_instance_valid(vp):
+		return null # the menu that asked went away meanwhile
 	var tex: Texture2D = null
 	var img := vp.get_texture().get_image()
 	if img and not img.is_empty():

@@ -60,3 +60,4 @@ assets/textures/surfaces_*.png -filter -diff -merge binary
 # are ordinary files too, like every other binary in this repo.
 assets/blockouts/*.glb -filter -diff -merge binary
 assets/maps/** -filter -diff -merge binary
+assets/characters/** -filter -diff -merge binary

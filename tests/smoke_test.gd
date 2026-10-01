@@ -56,6 +56,7 @@ func _run() -> void:
 	await _test_doors_and_glass()
 	await _test_bots()
 	await _test_characters()
+	await _test_realistic_soldier()
 	_test_hardware_report()
 
 	print("\n%s — %d failure(s)" % ["PASSED" if _failures == 0 else "FAILED", _failures])
@@ -1422,7 +1423,8 @@ func _test_bomb_defusal() -> void:
 	_check(b.round_reason == "Defenders eliminated", "eliminating the defenders wins the round")
 	await _frames(40)
 	var body := defender.get_node(^"ThirdPerson/Model") as PlayerModel
-	_check(defender.visible and body._dead and absf(body.rotation.x) + absf(body.rotation.z) > 0.2,
+	var fell := body.rig.is_dead() if body.rig else absf(body.rotation.x) + absf(body.rotation.z) > 0.2
+	_check(defender.visible and body._dead and fell,
 		"the dead player falls over (death animation) instead of vanishing")
 	_check(not (defender.get_node(^"NameTag") as Label3D).visible, "no name tag over a body")
 	_check(Economy.money_of(1) == money_before + Economy.KILL_REWARD + Economy.WIN_REWARD,
@@ -1740,8 +1742,8 @@ func _test_maps() -> void:
 	body.start_reload(1.0)
 	for i in 20:
 		body.animate(1.0 / 60.0, false)
-	_check(body.is_reloading() and (body.get_node(^"ArmL") as Node3D).rotation.x < -0.1,
-		"third person: the reload swings the left arm down")
+	var swung: bool = body.rig._poser.reload > 0.0 if body.rig else (body.get_node(^"ArmL") as Node3D).rotation.x < -0.1
+	_check(body.is_reloading() and swung, "third person: the reload swings the left arm down")
 
 	# Factory's Blender art (assets/maps/factory) replaces the greybox look;
 	# it is batched like the greybox, the big boxes stay occluders and the
@@ -2367,8 +2369,10 @@ func _test_characters() -> void:
 	ground.add_child(ground_shape)
 	ground.position = Vector3(0, -500.5, 0)
 	add_child(ground)
+	PlayerModel.force_procedural = true # the code-built soldier's walk cycle
 	var walker := PlayerModel.new()
 	add_child(walker)
+	PlayerModel.force_procedural = false
 	walker.global_position = Vector3(0, -500, 4)
 	await get_tree().physics_frame
 	var thighs := [walker.get_node("LegL"), walker.get_node("LegR")]
@@ -2462,6 +2466,90 @@ func _test_characters() -> void:
 	screen.queue_free()
 	SettingsManager.character = saved
 	SettingsManager.save()
+
+
+## The realistic soldier (SoldierRig): model, retargeted Mixamo clips, the gun
+## in both hands, locomotion / crouch / air, reload, death and respawn.
+func _test_realistic_soldier() -> void:
+	var saved: bool = SettingsManager.graphics.realistic_characters
+	SettingsManager.graphics.realistic_characters = true
+	var holder := Node3D.new()
+	_level.add_child(holder)
+	holder.position = Vector3(30, 0.0, 30)
+	var m := PlayerModel.new()
+	holder.add_child(m)
+	m.set_weapon("rifle")
+	m.set_team_color(Color.RED)
+	await _frames(3)
+	var rig := m.rig
+	_check(rig != null and rig.skeleton != null and rig.skeleton.get_bone_count() > 50,
+		"realistic soldier: skinned model on a Mixamo skeleton")
+	var ap := rig.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	_check(ap != null and ap.get_animation_list().size() >= 48 and ap.has_animation(&"run_forward")
+		and ap.has_animation(&"death_from_the_front"), "realistic soldier: the 48 retargeted rifle clips")
+	var s := rig.skeleton
+	var bone := func(n: String) -> Vector3: return s.global_transform * s.get_bone_global_pose(s.find_bone("mixamorig_" + n)).origin
+	var palm := func(side: String) -> Vector3: return (bone.call(side + "Hand") as Vector3).lerp(bone.call(side + "HandMiddle1"), 0.55)
+	var hands: Dictionary = WeaponModel.HANDS["rifle"]
+	for i in 20:
+		m.animate(1.0 / 60.0, false)
+		await get_tree().process_frame
+	var grip_err := (rig.gun.global_transform * (hands.grip as Vector3)).distance_to(palm.call("Right"))
+	var fore_err := (rig.gun.global_transform * (hands.left as Vector3)).distance_to(palm.call("Left"))
+	_check(grip_err < 0.03 and fore_err < 0.12, "realistic soldier: rifle grip in the right hand, fore-end at the left (%.3f, %.3f m)" % [grip_err, fore_err])
+	var banded := rig.find_children("*", "MeshInstance3D", true, false).any(func(mi: MeshInstance3D) -> bool:
+		for i in mi.get_surface_override_material_count():
+			var o := mi.get_surface_override_material(i) as StandardMaterial3D
+			if o and o.resource_name == "Team_band" and o.albedo_color == Color.RED:
+				return true
+		return false)
+	_check(banded, "realistic soldier: team-coloured armbands (own copy of the band material)")
+	var hips_stand: float = (bone.call("Hips") as Vector3).y
+	# Run forward (-Z) at walk speed: the run clips, a little faster than they were made.
+	var tree := rig.find_child("AnimationTree", true, false) as AnimationTree
+	var feet: Array[float] = []
+	for i in 40:
+		holder.position.z -= 5.0 / 60.0
+		m.animate(1.0 / 60.0, false)
+		await get_tree().process_frame
+		feet.append(((bone.call("LeftFoot") as Vector3) - holder.global_position).z)
+	var bp: Vector2 = tree.get(&"parameters/stand/blend_position")
+	_check(bp.y > 3.5 and absf(bp.x) < 0.5 and feet.max() - feet.min() > 0.3,
+		"realistic soldier: running forward blends the run clips, the feet step (blend %s, foot travel %.2f m)" % [bp, feet.max() - feet.min()])
+	for i in 50:
+		m.animate(1.0 / 60.0, true)
+		await get_tree().process_frame
+	var hips_crouch: float = (bone.call("Hips") as Vector3).y
+	_check(hips_crouch < hips_stand - 0.15, "realistic soldier: crouching lowers the hips (%.2f -> %.2f)" % [hips_stand, hips_crouch])
+	for i in 30:
+		m.animate(1.0 / 60.0, false)
+		await get_tree().process_frame
+	var hand_before: float = rig.left_palm().y
+	m.start_reload(2.0)
+	var lowest := hand_before
+	for i in 50:
+		m.animate(1.0 / 60.0, false)
+		await get_tree().process_frame
+		lowest = minf(lowest, rig.left_palm().y)
+	_check(lowest < hand_before - 0.1, "realistic soldier: the reload drops the left hand to the magazine (%.2f m)" % (hand_before - lowest))
+	m.stop_reload()
+	m.play_death(0, false)
+	await get_tree().create_timer(3.6).timeout
+	_check(rig.is_dead() and not tree.active and (bone.call("Hips") as Vector3).y < holder.global_position.y + 0.45 and not rig.gun.visible,
+		"realistic soldier: a death clip lays the body down and the gun drops")
+	m.reset_pose()
+	for i in 20:
+		m.animate(1.0 / 60.0, false)
+		await get_tree().process_frame
+	_check(tree.active and (bone.call("Hips") as Vector3).y > holder.global_position.y + 0.8 and rig.gun.visible,
+		"realistic soldier: respawn stands him back up with the gun")
+	holder.queue_free()
+	SettingsManager.graphics.realistic_characters = false
+	var plain := PlayerModel.new()
+	add_child(plain)
+	_check(plain.rig == null, "Realistic soldiers off: the code-built soldier")
+	plain.queue_free()
+	SettingsManager.graphics.realistic_characters = saved
 
 
 func _release_all() -> void:

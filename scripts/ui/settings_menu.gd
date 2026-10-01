@@ -170,6 +170,7 @@ func _build_graphics() -> void:
 	_gfx_slider(t, "Particles", "particle_amount", 0.0, 1.0, 0.05, "%d%%", 100.0)
 	_gfx_check(t, "Surface detail (procedural materials)", "surface_detail")
 	_gfx_check(t, "Map detail (sky, skyline, props)", "map_detail")
+	_gfx_check(t, "Realistic soldiers (next round)", "realistic_characters")
 
 	_add_section(t, "Shadows")
 	_gfx_check(t, "Shadows", "shadows_enabled")

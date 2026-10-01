@@ -37,10 +37,21 @@ var _dead: bool = false
 var _death_tween: Tween
 var _dropped_gun: RigidBody3D
 var _look: Dictionary = CharacterLook.default_look()
+## The realistic soldier (SoldierRig, README → Realistic soldiers) when the
+## Realistic soldiers option is on: then the code-built parts aren't made,
+## and the walk logic below (speed, direction, crouch, air) drives the rig.
+var rig: SoldierRig
+## Tests (and the icon renderer) can ask for the code-built soldier.
+static var force_procedural: bool = false
 
 
 func _ready() -> void:
 	_armor = MeshBuilder.tinted_material()
+	if not force_procedural and SettingsManager.graphics.realistic_characters:
+		rig = SoldierRig.new()
+		rig.name = "Soldier"
+		add_child(rig)
+		return
 	_body = MeshInstance3D.new()
 	_body.name = "Body"
 	add_child(_body)
@@ -85,6 +96,9 @@ func set_outline(color: Color) -> void:
 		mat = ShaderMaterial.new()
 		mat.shader = preload("res://assets/shaders/outline.gdshader")
 		mat.set_shader_parameter(&"color", color)
+	if rig:
+		rig.set_outline(mat)
+		return
 	for mi: MeshInstance3D in [_body, _legs[0], _legs[1], _shins[0], _shins[1], _arm_l]:
 		if mi:
 			mi.material_overlay = mat
@@ -113,11 +127,16 @@ func _apply_meshes() -> void:
 func set_team_color(color: Color) -> void:
 	if _armor:
 		_armor.set_shader_parameter(&"tint", color)
+	if rig:
+		rig.set_team_color(color)
 
 
 func set_weapon(weapon_id: String) -> void:
-	if _gun:
-		_gun.mesh = WeaponModel.get_mesh(weapon_id) if WeaponModel.has_model(weapon_id) else null
+	var mesh: Mesh = WeaponModel.get_mesh(weapon_id) if WeaponModel.has_model(weapon_id) else null
+	if rig:
+		rig.set_weapon(weapon_id, mesh)
+	elif _gun:
+		_gun.mesh = mesh
 
 
 ## Plays the reload motion over `duration` seconds.
@@ -143,6 +162,10 @@ func play_death(style: int, headshot: bool) -> void:
 	if _death_tween:
 		_death_tween.kill()
 	_reload_left = 0.0
+	if rig:
+		rig.play_death(style, headshot)
+		_drop_gun()
+		return
 	var fall_x := 0.0 # pitch of the whole body (+ = backwards)
 	var fall_z := 0.0 # roll
 	var twist := 0.0
@@ -199,6 +222,16 @@ func reset_pose() -> void:
 		_death_tween = null
 	rotation = Vector3.ZERO
 	position = Vector3.ZERO
+	_vel = Vector2.ZERO
+	_speed = 0.0
+	_air = 0.0
+	_land = 0.0
+	_has_last = false
+	if is_instance_valid(_dropped_gun):
+		_dropped_gun.queue_free()
+	if rig:
+		rig.reset_pose()
+		return
 	for leg: MeshInstance3D in _legs:
 		leg.rotation = Vector3.ZERO
 	for shin: MeshInstance3D in _shins:
@@ -216,14 +249,15 @@ func reset_pose() -> void:
 
 ## The gun falls out of the hands and clatters to the ground (visual only).
 func _drop_gun() -> void:
-	if _gun.mesh == null or not is_inside_tree():
+	var held := rig.gun if rig else _gun
+	if held.mesh == null or not is_inside_tree():
 		return
 	var body := RigidBody3D.new()
 	body.collision_layer = 0
 	body.collision_mask = 1
 	body.mass = 3.0
 	var mi := MeshInstance3D.new()
-	mi.mesh = _gun.mesh
+	mi.mesh = held.mesh
 	body.add_child(mi)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
@@ -232,10 +266,10 @@ func _drop_gun() -> void:
 	body.add_child(shape)
 	var parent: Node = get_tree().current_scene if get_tree().current_scene else self
 	parent.add_child(body)
-	body.global_transform = _gun.global_transform
+	body.global_transform = held.global_transform
 	body.linear_velocity = global_basis * Vector3(randf_range(-0.8, 0.8), 1.2, -1.0)
 	body.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-2, 2), randf_range(-4, 4))
-	_gun.visible = false
+	held.visible = false
 	_dropped_gun = body
 	get_tree().create_timer(12.0).timeout.connect(body.queue_free)
 
@@ -280,6 +314,10 @@ func animate(delta: float, crouching: bool) -> void:
 	_air = move_toward(_air, 0.0 if grounded else 1.0, delta * 7.0)
 	_land = move_toward(_land, 0.0, delta * 5.0)
 	_crouch = move_toward(_crouch, 1.0 if crouching else 0.0, delta * 6.0)
+	if rig:
+		# Ground velocity in the soldier's frame: x = right, y = forward.
+		rig.animate(Vector2(local.x, -local.z), _crouch, _air)
+		return
 	var amount := clampf(_speed / 4.0, 0.0, 1.0) * (1.0 - _air)
 	# Thigh swing either way; one step covers the ground the feet span (a
 	# little more: running has a moment with both feet off the ground).
@@ -324,9 +362,15 @@ func _animate_reload(delta: float) -> void:
 	if _reload_left > 0.0:
 		_reload_left = maxf(_reload_left - delta, 0.0)
 		var p := 1.0 - _reload_left / _reload_time
+		if rig:
+			rig.set_reload(p if _reload_left > 0.0 else -1.0)
 		tip = smoothstep(0.0, 0.12, p) * (1.0 - smoothstep(0.8, 1.0, p))
 		# Two dips: magazine out (0.1–0.35), new magazine in (0.35–0.65).
 		arm = -0.55 * absf(sin(clampf((p - 0.1) / 0.55, 0.0, 1.0) * TAU))
+	elif rig:
+		rig.set_reload(-1.0)
+	if rig:
+		return
 	var k := clampf(delta * 16.0, 0.0, 1.0)
 	_arm_l.rotation.x = lerpf(_arm_l.rotation.x, arm, k)
 	_arm_l.rotation.z = lerpf(_arm_l.rotation.z, -0.25 * absf(arm), k)

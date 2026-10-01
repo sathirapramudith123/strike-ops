@@ -43,6 +43,9 @@ enum Quality { LOW, MEDIUM, HIGH, ULTRA, CUSTOM }
 ## (it is light); switch it off on the weakest PCs. Looks only — it never
 ## blocks a line of sight, so players with it off see the same fight.
 @export var map_detail: bool = true
+## Realistic third-person soldiers (skinned, Mixamo-animated — SoldierRig)
+## instead of the code-built ones. Applies to soldiers spawned afterwards.
+@export var realistic_characters: bool = true
 
 @export_group("Shadows")
 @export var shadows_enabled: bool = true
