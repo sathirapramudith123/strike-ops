@@ -15,3 +15,4 @@ Every third-party asset (model, texture, sound, music, font, plugin) must be lis
 | [Service Pistol](https://polyhaven.com/a/service_pistol) | Model | Mateusz Sadek — Poly Haven | CC0 | `assets/weapons/pistol` |
 | [M4A1 Assault Rifle Game Ready](https://sketchfab.com/3d-models/c2a3c7b3ed4844b895a504f1bbe4f931) | Model (magazine split off, repositioned) | polupan.andrew — Sketchfab | CC BY 4.0 | `assets/weapons/rifle` |
 | [HK MP5 SMG](https://sketchfab.com/3d-models/fad0226e1dcf4af180f707a5509d3a4e) | Model (magazine split off, textures 4k→1k) | dani-zzz — Sketchfab | CC BY 4.0 | `assets/weapons/smg` |
+| [Remington 870 Police Magnum 12 Gauge Shotgun](https://sketchfab.com/3d-models/eea11de7e9d24b6683962b8388c319eb) | Model + shell (repositioned, textures 4k→2k) | haoliu95 — Sketchfab | CC BY 4.0 | `assets/weapons/shotgun` |

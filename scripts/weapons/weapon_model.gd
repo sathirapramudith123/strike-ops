@@ -56,6 +56,8 @@ const REAL_HANDS := {
 		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.3) },
 	"smg": { "grip": Vector3(0, -0.08, 0.08), "left": Vector3(0, -0.005, -0.19), "left_kind": "under", "mag": Vector3(0, -0.19, -0.12),
 		"muzzle": Vector3(0, 0.022, -0.3), "ads": Vector3(0, -0.062, -0.26) },
+	"shotgun": { "grip": Vector3(0, -0.06, 0.14), "left": Vector3(0, -0.03, -0.26), "muzzle": Vector3(0, 0.035, -0.543),
+		"ads": Vector3(0, -0.052, -0.3) },
 	"pistol": { "grip": Vector3(0, -0.018, 0.07), "left": Vector3(-0.022, -0.045, 0.06), "muzzle": Vector3(0, 0.042, -0.103) },
 }
 static var _real := {}
