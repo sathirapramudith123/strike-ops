@@ -14,3 +14,4 @@ Every third-party asset (model, texture, sound, music, font, plugin) must be lis
 | [Mixamo Pro Rifle Pack](https://www.mixamo.com) | Animations (retargeted) | Adobe Mixamo | Mixamo terms (use in games; raw files not redistributed) | `assets/characters/rifleman/rifleman_anims.res` |
 | [Service Pistol](https://polyhaven.com/a/service_pistol) | Model | Mateusz Sadek — Poly Haven | CC0 | `assets/weapons/pistol` |
 | [M4A1 Assault Rifle Game Ready](https://sketchfab.com/3d-models/c2a3c7b3ed4844b895a504f1bbe4f931) | Model (magazine split off, repositioned) | polupan.andrew — Sketchfab | CC BY 4.0 | `assets/weapons/rifle` |
+| [HK MP5 SMG](https://sketchfab.com/3d-models/fad0226e1dcf4af180f707a5509d3a4e) | Model (magazine split off, textures 4k→1k) | dani-zzz — Sketchfab | CC BY 4.0 | `assets/weapons/smg` |

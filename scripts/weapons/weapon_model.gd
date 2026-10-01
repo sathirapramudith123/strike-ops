@@ -54,6 +54,8 @@ const REAL_DIR := "res://assets/weapons"
 const REAL_HANDS := {
 	"rifle": { "grip": Vector3(0, -0.085, 0.1), "left": Vector3(0, -0.02, -0.225), "mag": Vector3(0, -0.19, -0.065),
 		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.3) },
+	"smg": { "grip": Vector3(0, -0.08, 0.08), "left": Vector3(0, -0.005, -0.19), "left_kind": "under", "mag": Vector3(0, -0.19, -0.12),
+		"muzzle": Vector3(0, 0.022, -0.3), "ads": Vector3(0, -0.062, -0.26) },
 	"pistol": { "grip": Vector3(0, -0.018, 0.07), "left": Vector3(-0.022, -0.045, 0.06), "muzzle": Vector3(0, 0.042, -0.103) },
 }
 static var _real := {}
