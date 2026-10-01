@@ -28,8 +28,7 @@ with cranes, tanks and red-and-white chimneys around the factory, smoke
 drifting from the chimneys and warmer sunlight — on every preset, Low
 included. It's a new graphics option, *Map detail*: switch it off on
 the weakest PCs; it's looks only, so nothing in it can hide a player.
-Also: yellow railings, proper roofs and a big red **A**
-painted on the silo at A.
+Also: yellow railings and proper roofs.
 
 **New lobby:** a top bar with tabs (Lobby, Loadout, Character, Profile,
 Settings), your level and XP; your soldier on a lit 3D stage; Quick Play,
