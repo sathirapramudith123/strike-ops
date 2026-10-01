@@ -117,11 +117,13 @@ func _smoke(at: Vector3) -> CPUParticles3D:
 	grow.add_point(Vector2(0, 0.5))
 	grow.add_point(Vector2(1, 2.6))
 	p.scale_amount_curve = grow
+	# The ramp only fades (white × alpha); the colour is the material's —
+	# vertex colours come out much darker in the Compatibility renderer.
 	var fade := Gradient.new()
-	fade.set_color(0, Color(smoke_color, 0.0))
-	fade.set_color(1, Color(smoke_color, 0.0))
-	fade.add_point(0.04, smoke_color)
-	fade.add_point(0.6, Color(smoke_color.lightened(0.25), smoke_color.a * 0.6))
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.set_color(1, Color(1.25, 1.25, 1.25, 0.0))
+	fade.add_point(0.04, Color(1, 1, 1, smoke_color.a))
+	fade.add_point(0.6, Color(1.25, 1.25, 1.25, smoke_color.a * 0.6))
 	p.color_ramp = fade
 	var quad := QuadMesh.new()
 	quad.size = Vector2(6, 6)
@@ -141,6 +143,7 @@ func _smoke(at: Vector3) -> CPUParticles3D:
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
+	m.albedo_color = Color(smoke_color, 1.0)
 	m.albedo_texture = puff
 	m.disable_receive_shadows = true
 	quad.material = m

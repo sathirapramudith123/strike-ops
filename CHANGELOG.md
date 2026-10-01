@@ -17,10 +17,13 @@ greybox.
 **Factory area detail:** pipes on brackets along the warehouse, silo
 yard and tunnel walls, gutters and downpipes on the buildings, roof
 trusses and pallet-rack frames in the warehouse, lamp posts in the rail
-yard, a guard tower behind T spawn and a water tower behind CT. All
+yard, a guard tower behind T spawn and a water tower behind CT; the
+tanker wagon and box cars get ladders, walkways and door frames, Lanka
+Steel a steel frame (columns, floor bands), and the cranes a real hook
+and leg bracing. Chimney smoke is grey on OpenGL too (it was black). All
 above head height, flat on walls or outside the walls — nothing new to
-hide behind. Costs about 4% FPS on Low (switch *Map detail* off on the
-weakest PCs).
+hide behind. Costs about 4–15% FPS on Low (switch *Map detail* off on
+the weakest PCs).
 
 **Factory — the concept-art look begins:** a real photo
 sky with clouds, green mountains on the horizon, an industrial skyline

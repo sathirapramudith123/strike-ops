@@ -1770,6 +1770,11 @@ func _test_maps() -> void:
 	_check(_level.detail != null and env.sky.sky_material is PanoramaSkyMaterial
 		and _level.detail.find_children("*", "CPUParticles3D", true, false).size() == 7,
 		"factory: map detail adds the photo sky, skyline and chimney smoke")
+	var puff := _level.detail.find_children("*", "CPUParticles3D", true, false)[0] as CPUParticles3D
+	var puff_mat := (puff.mesh as QuadMesh).material as StandardMaterial3D
+	_check(puff_mat.albedo_color.is_equal_approx(Color(_level.detail.smoke_color, 1.0))
+		and puff.color_ramp.get_color(1).r >= 1.0,
+		"chimney smoke takes its colour from the material (vertex colours are darker on OpenGL)")
 	_check(_level.detail.find_children("*", "CollisionObject3D", true, false).is_empty(),
 		"factory: map detail has no collision (looks only)")
 	var shared := 0
