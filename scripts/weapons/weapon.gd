@@ -113,6 +113,10 @@ func _ready() -> void:
 			_cover.position = WeaponModel.COVER_HINGE
 		if data.weapon_id == "shotgun" and _magazine:
 			_magazine.visible = false # the shell only shows while loading
+	# A real gun model has its own muzzle (WeaponModel.REAL_HANDS).
+	var h := WeaponModel.hands(data.weapon_id)
+	if muzzle and h.has("muzzle"):
+		muzzle.position = h.muzzle
 	_viewmodel_meshes = find_children("*", "MeshInstance3D", true, false).filter(
 		func(n: Node) -> bool: return muzzle_flash == null or not muzzle_flash.is_ancestor_of(n))
 
@@ -740,7 +744,7 @@ func _inspect_pose(delta: float) -> Dictionary:
 	var p := 1.0 - _inspect_left / INSPECT_TIME
 	var first := _smooth(p, 0.0, 0.15) * (1.0 - _smooth(p, 0.45, 0.55))
 	var second := _smooth(p, 0.5, 0.62) * (1.0 - _smooth(p, 0.85, 1.0))
-	var h: Dictionary = WeaponModel.HANDS.get(data.weapon_id, {})
+	var h: Dictionary = WeaponModel.hands(data.weapon_id) if WeaponModel.HANDS.has(data.weapon_id) else {}
 	var charge: Vector3 = WeaponModel.CHARGE.get(data.weapon_id, Vector3.ZERO)
 	match String(_anim.inspect):
 		"flip": # the blade flipped over, then a look along its edge
@@ -906,7 +910,7 @@ func _animate_cycle(delta: float) -> Dictionary:
 	if not _cycle_sound and c >= 0.3:
 		_cycle_sound = true
 		_play(&"bolt" if _anim.cycle == "bolt" else &"pump", -5.0, 1.0, 15.0)
-	var h: Dictionary = WeaponModel.HANDS.get(data.weapon_id, {})
+	var h: Dictionary = WeaponModel.hands(data.weapon_id) if WeaponModel.HANDS.has(data.weapon_id) else {}
 	if h.is_empty():
 		return pose
 	if _anim.cycle == "bolt":
@@ -939,7 +943,7 @@ func _animate_reload(p: float, inspect: Dictionary) -> Dictionary:
 	var mag_visible := data.weapon_id != "shotgun"
 	var cover := 0.0
 	if p >= 0.0 and WeaponModel.HANDS.has(data.weapon_id):
-		var h: Dictionary = WeaponModel.HANDS[data.weapon_id]
+		var h: Dictionary = WeaponModel.hands(data.weapon_id)
 		var to_mag: Vector3 = h.mag - h.left
 		var charge: Vector3 = WeaponModel.CHARGE.get(data.weapon_id, Vector3.ZERO)
 		var tilt := _smooth(p, 0.0, 0.12) * (1.0 - _smooth(p, 0.82, 1.0))

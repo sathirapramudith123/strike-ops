@@ -10,7 +10,7 @@ extends Node3D
 ##     velocity, plus the jump loop in the air; clips are sped up past their
 ##     natural speed so the feet don't slide;
 ##   • the gun — placed every frame so its grip is in the right hand and its
-##     fore-end in the left (WeaponModel.HANDS), whatever the animation does;
+##     fore-end in the left (WeaponModel.hands), whatever the animation does;
 ##   • reload — the left arm drops to the magazine on top of the animation;
 ##   • death — one of Mixamo's six death clips;
 ##   • team colour — the armbands round both upper arms (material Team_band).
@@ -295,7 +295,7 @@ class _Poser extends SkeletonModifier3D:
 		return s.global_transform * hand.lerp(knuckle, 0.55)
 
 	func _place_gun(s: Skeleton3D, tip: float) -> void:
-		var hands: Dictionary = WeaponModel.HANDS.get(rig._weapon_id, WeaponModel.HANDS["rifle"])
+		var hands: Dictionary = WeaponModel.hands(rig._weapon_id)
 		var grip: Vector3 = hands.grip
 		var left: Vector3 = hands.left
 		var rh := _palm(s, "Right")

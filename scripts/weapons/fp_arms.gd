@@ -20,6 +20,13 @@ const WRIST_FROM_PALM_R := Vector3(-0.010, -0.028, 0.056)
 const HAND_ROT_R := Quaternion(-0.53914, 0.048417, -0.041376, 0.839805)
 const WRIST_FROM_PALM_L := Vector3(-0.059, -0.012, 0.018)
 const HAND_ROT_L := Quaternion(0.57739, 0.808362, -0.071025, -0.090146)
+## A fist round a grip with the left hand (pistol support, vertical front
+## grip): the right hand's grip mirrored across the gun's middle. Mixamo's
+## left and right bones have mirrored axes, so the rest poses give the fix-up
+## (see _ready).
+const WRIST_FROM_PALM_FIST_L := Vector3(0.010, -0.028, 0.056)
+const MIRROR_X := Basis(Vector3(-1, 0, 0), Vector3(0, 1, 0), Vector3(0, 0, 1))
+var _fist_l := Basis.IDENTITY
 
 var weapon: Weapon
 var skeleton: Skeleton3D
@@ -48,6 +55,10 @@ func _ready() -> void:
 	var yaw := have.angle() - want.angle()
 	model.basis = Basis(Vector3.UP, yaw)
 	model.position = SHOULDER_R - model.basis * sr
+	var r_rest := skeleton.get_bone_global_rest(skeleton.find_bone(BONE + "RightHand")).basis.orthonormalized()
+	var l_rest := skeleton.get_bone_global_rest(skeleton.find_bone(BONE + "LeftHand")).basis.orthonormalized()
+	var fix := (MIRROR_X * r_rest * MIRROR_X).inverse() * l_rest
+	_fist_l = MIRROR_X * Basis(HAND_ROT_R) * MIRROR_X * fix
 	_ik = _ArmIK.new()
 	_ik.arms = self
 	skeleton.add_child(_ik)
@@ -66,9 +77,9 @@ func wrist_miss(side: String) -> float:
 
 ## Where a hand's wrist should be and how it is turned (global), from the
 ## weapon's arm part: the palm on `palm` (weapon space) of that part.
-func _hand_target(part: Node3D, palm: Vector3, wrist_from_palm: Vector3, rot: Quaternion) -> Transform3D:
+func _hand_target(part: Node3D, palm: Vector3, wrist_from_palm: Vector3, rot: Basis) -> Transform3D:
 	var t := weapon.global_transform * part.transform
-	return Transform3D(t.basis * Basis(rot), t * (palm + wrist_from_palm))
+	return Transform3D(t.basis * rot, t * (palm + wrist_from_palm))
 
 
 class _ArmIK extends SkeletonModifier3D:
@@ -81,11 +92,15 @@ class _ArmIK extends SkeletonModifier3D:
 		var w := arms.weapon if arms and is_instance_valid(arms.weapon) else null
 		if s == null or w == null or not w.is_inside_tree() or not arms.visible:
 			return
-		var hands: Dictionary = WeaponModel.HANDS.get(w.data.weapon_id, WeaponModel.HANDS["rifle"])
+		var hands: Dictionary = WeaponModel.hands(w.data.weapon_id)
 		if w._right_arm:
-			_solve(s, "Right", arms._hand_target(w._right_arm, hands.grip, FPArms.WRIST_FROM_PALM_R, FPArms.HAND_ROT_R), Vector3(1, -1, 0.3))
+			_solve(s, "Right", arms._hand_target(w._right_arm, hands.grip, FPArms.WRIST_FROM_PALM_R, Basis(FPArms.HAND_ROT_R)), Vector3(1, -1, 0.3))
 		if w._left_arm and hands.left_kind != "none":
-			_solve(s, "Left", arms._hand_target(w._left_arm, hands.left, FPArms.WRIST_FROM_PALM_L, FPArms.HAND_ROT_L), Vector3(-1, -1, 0.3))
+			var fist: bool = hands.left_kind in ["support", "vertical"]
+			var target := arms._hand_target(w._left_arm, hands.left,
+				FPArms.WRIST_FROM_PALM_FIST_L if fist else FPArms.WRIST_FROM_PALM_L,
+				arms._fist_l if fist else Basis(FPArms.HAND_ROT_L))
+			_solve(s, "Left", target, Vector3(-1, -1, 0.3))
 
 	## Two-bone IK: upper arm + forearm so the hand bone's origin reaches the
 	## target, the elbow bending towards `pole` (camera space: out and down);

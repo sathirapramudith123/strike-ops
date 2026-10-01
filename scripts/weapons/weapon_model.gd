@@ -43,6 +43,44 @@ const CHARGE := {
 const COVER_HINGE := Vector3(0, 0.053, 0.08)
 
 
+## Real gun models (README → Real guns): assets/weapons/<id>/<id>.glb holds
+## <id>_Gun (without magazine), <id>_Magazine and <id>_GunFull meshes in
+## weapon space (metres, -Z = muzzle, sights at the weapon's ADS height).
+## They replace the code-built meshes while Realistic soldiers is on.
+const REAL_DIR := "res://assets/weapons"
+## Where the hands, the magazine and the muzzle are on a real model, where
+## they differ from HANDS (merged over it by hands()).
+const REAL_HANDS := {
+	"pistol": { "grip": Vector3(0, -0.018, 0.07), "left": Vector3(-0.022, -0.045, 0.06), "muzzle": Vector3(0, 0.042, -0.103) },
+}
+static var _real := {}
+
+
+## The real model's meshes by part ("Gun", "Magazine", "GunFull"), or {}.
+static func real_parts(weapon_id: String) -> Dictionary:
+	if not SettingsManager.graphics.realistic_characters:
+		return {}
+	if not _real.has(weapon_id):
+		var parts := {}
+		var path := "%s/%s/%s.glb" % [REAL_DIR, weapon_id, weapon_id]
+		if ResourceLoader.exists(path):
+			var root := (load(path) as PackedScene).instantiate()
+			for mi: MeshInstance3D in root.find_children("*", "MeshInstance3D", true, false):
+				parts[String(mi.name).trim_prefix(weapon_id + "_")] = mi.mesh
+			root.free()
+		_real[weapon_id] = parts
+	return _real[weapon_id]
+
+
+## Where the hands hold this gun (HANDS, with the real model's own points
+## while it is in use). Unknown guns get the rifle's.
+static func hands(weapon_id: String) -> Dictionary:
+	var h: Dictionary = HANDS.get(weapon_id, HANDS["rifle"])
+	if REAL_HANDS.has(weapon_id) and real_parts(weapon_id).has("Gun"):
+		h = h.merged(REAL_HANDS[weapon_id], true)
+	return h
+
+
 static func has_model(weapon_id: String) -> bool:
 	return weapon_id in ["rifle", "smg", "shotgun", "sniper", "pistol", "knife", "lmg"]
 
@@ -50,6 +88,9 @@ static func has_model(weapon_id: String) -> bool:
 ## The whole gun (third person). `with_magazine = false`: the viewmodel's
 ## gun, whose magazine is a separate node (see get_magazine_mesh).
 static func get_mesh(weapon_id: String, with_magazine: bool = true) -> ArrayMesh:
+	var real := real_parts(weapon_id)
+	if real.has("Gun"):
+		return (real.get("GunFull", real.Gun) if with_magazine else real.Gun) as ArrayMesh
 	var key := weapon_id if with_magazine else weapon_id + ":nomag"
 	if not _cache.has(key):
 		var b := MeshBuilder.new()
@@ -74,6 +115,8 @@ static func get_magazine_mesh(weapon_id: String) -> ArrayMesh:
 	var key := weapon_id + ":mag"
 	if weapon_id == "knife":
 		return null
+	if real_parts(weapon_id).has("Magazine"):
+		return real_parts(weapon_id).Magazine as ArrayMesh
 	if not _cache.has(key) and has_model(weapon_id):
 		var b := MeshBuilder.new()
 		_magazine(b, weapon_id)

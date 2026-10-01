@@ -61,3 +61,4 @@ assets/textures/surfaces_*.png -filter -diff -merge binary
 assets/blockouts/*.glb -filter -diff -merge binary
 assets/maps/** -filter -diff -merge binary
 assets/characters/** -filter -diff -merge binary
+assets/weapons/** -filter -diff -merge binary

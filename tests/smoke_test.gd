@@ -884,6 +884,10 @@ func _test_weapon_animations() -> void:
 		await _frames(10)
 		_check(fp != null and fp.visible and fp.weapon == w and (w.get_node(^"ArmR") as MeshInstance3D).mesh == null,
 			"realistic first-person arms replace the code-built ones")
+		var real_pistol := WeaponModel.real_parts("pistol")
+		_check(real_pistol.has("Gun") and real_pistol.has("Magazine")
+			and WeaponModel.get_mesh("pistol", false) == real_pistol.Gun and WeaponModel.hands("pistol").has("muzzle"),
+			"the pistol is a real model (Poly Haven), with its own grip, muzzle and magazine")
 		_check(fp != null and fp.wrist_miss("Right") < 0.02 and fp.wrist_miss("Left") < 0.03,
 			"first-person IK: both wrists on the gun (%.3f, %.3f m)" % [fp.wrist_miss("Right") if fp else -1.0, fp.wrist_miss("Left") if fp else -1.0])
 	else:
@@ -2500,7 +2504,7 @@ func _test_realistic_soldier() -> void:
 	var s := rig.skeleton
 	var bone := func(n: String) -> Vector3: return s.global_transform * s.get_bone_global_pose(s.find_bone("mixamorig_" + n)).origin
 	var palm := func(side: String) -> Vector3: return (bone.call(side + "Hand") as Vector3).lerp(bone.call(side + "HandMiddle1"), 0.55)
-	var hands: Dictionary = WeaponModel.HANDS["rifle"]
+	var hands: Dictionary = WeaponModel.hands("rifle")
 	for i in 20:
 		m.animate(1.0 / 60.0, false)
 		await get_tree().process_frame
