@@ -1,0 +1,39 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://dghteqcnvjs14"
+path.s3tc="res://.godot/imported/lmg_Material_008_metallicRoughness.jpg-e64342d75dd3a4567264ac52c7e07d13.s3tc.ctex"
+path.etc2="res://.godot/imported/lmg_Material_008_metallicRoughness.jpg-e64342d75dd3a4567264ac52c7e07d13.etc2.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "8ab0716267b2235e8bdcc20fd6760653"
+}
+
+[deps]
+
+source_file="res://assets/weapons/lmg/lmg_Material_008_metallicRoughness.jpg"
+dest_files=["res://.godot/imported/lmg_Material_008_metallicRoughness.jpg-e64342d75dd3a4567264ac52c7e07d13.s3tc.ctex", "res://.godot/imported/lmg_Material_008_metallicRoughness.jpg-e64342d75dd3a4567264ac52c7e07d13.etc2.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

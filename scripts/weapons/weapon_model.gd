@@ -60,6 +60,8 @@ const REAL_HANDS := {
 		"ads": Vector3(0, -0.052, -0.3) },
 	"sniper": { "grip": Vector3(0, -0.08, 0.14), "left": Vector3(0, -0.06, -0.2), "mag": Vector3(0, -0.09, -0.04),
 		"muzzle": Vector3(0, 0.0, -0.747), "ads": Vector3(0, -0.058, -0.25) },
+	"lmg": { "grip": Vector3(0, -0.09, 0.12), "left": Vector3(0, -0.07, -0.225), "mag": Vector3(0, -0.2, -0.035),
+		"muzzle": Vector3(0, 0.036, -0.575), "ads": Vector3(0, -0.1, -0.32) },
 	"pistol": { "grip": Vector3(0, -0.018, 0.07), "left": Vector3(-0.022, -0.045, 0.06), "muzzle": Vector3(0, 0.042, -0.103) },
 }
 static var _real := {}
@@ -135,8 +137,8 @@ static func get_magazine_mesh(weapon_id: String) -> ArrayMesh:
 
 ## LMG top cover, in hinge space (the viewmodel lifts it to load the belt).
 static func get_cover_mesh(weapon_id: String) -> ArrayMesh:
-	if weapon_id != "lmg":
-		return null
+	if weapon_id != "lmg" or real_parts(weapon_id).has("Gun"):
+		return null # (the real LMG's cover is part of its model)
 	if not _cache.has("lmg:cover"):
 		var b := MeshBuilder.new()
 		_cover(b, Vector3.ZERO)

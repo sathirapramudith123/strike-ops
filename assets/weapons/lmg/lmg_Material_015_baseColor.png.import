@@ -1,0 +1,39 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://bnee30dhkkey6"
+path.s3tc="res://.godot/imported/lmg_Material_015_baseColor.png-9d8b843d7c54458cda892879f762527c.s3tc.ctex"
+path.etc2="res://.godot/imported/lmg_Material_015_baseColor.png-9d8b843d7c54458cda892879f762527c.etc2.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "5da3b7a4d584bc8b8831c62ceae4c9d9"
+}
+
+[deps]
+
+source_file="res://assets/weapons/lmg/lmg_Material_015_baseColor.png"
+dest_files=["res://.godot/imported/lmg_Material_015_baseColor.png-9d8b843d7c54458cda892879f762527c.s3tc.ctex", "res://.godot/imported/lmg_Material_015_baseColor.png-9d8b843d7c54458cda892879f762527c.etc2.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=0

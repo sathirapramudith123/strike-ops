@@ -839,16 +839,18 @@ func _test_weapon_animations() -> void:
 	_check(Economy.ITEMS.has("lmg") and "lmg" in GameConfig.PRIMARY_WEAPONS, "LMG: in the buy menu and the loadout list")
 	w.ammo_in_magazine = 40
 	w.reload()
-	var cover := w.get_node(^"Cover") as Node3D
+	# (The real M249's cover is part of its model: no separate Cover then.)
+	var cover := w.get_node_or_null(^"Cover") as Node3D
 	var lifted := 0.0
 	var mag_low := 0.0
 	for i in int(w.data.reload_time * 60.0) + 20:
 		await _frames(1)
-		lifted = minf(lifted, cover.rotation.x)
+		if cover:
+			lifted = minf(lifted, cover.rotation.x)
 		mag_low = minf(mag_low, (w.get_node(^"Magazine") as Node3D).position.y)
-	_check(lifted < -0.9 and mag_low < -0.2 and w.ammo_in_magazine == 100,
+	_check((cover == null or lifted < -0.9) and mag_low < -0.2 and w.ammo_in_magazine == 100,
 		"LMG reload: cover up (%.2f), box out (%.2f), belt in, cover shut" % [lifted, mag_low])
-	_check(absf(cover.rotation.x) < 0.1, "LMG: the cover is shut again")
+	_check(cover == null or absf(cover.rotation.x) < 0.1, "LMG: the cover is shut again")
 
 	# Inspects: SMG checks its magazine, the shotgun shows a shell, the LMG lifts its cover.
 	_player.apply_loadout("smg")
@@ -874,10 +876,12 @@ func _test_weapon_animations() -> void:
 	w = _player.current_weapon
 	w.start_inspect()
 	lifted = 0.0
+	cover = w.get_node_or_null(^"Cover") as Node3D
 	for i in 90:
 		await _frames(1)
-		lifted = minf(lifted, (w.get_node(^"Cover") as Node3D).rotation.x)
-	_check(lifted < -0.8, "inspect (LMG): the cover is lifted to show the belt")
+		if cover:
+			lifted = minf(lifted, cover.rotation.x)
+	_check(cover == null or lifted < -0.8, "inspect (LMG): the cover is lifted to show the belt")
 
 	# First-person arms wear the outfit.
 	var saved: Array = NetworkManager.roster[1].look
@@ -897,6 +901,11 @@ func _test_weapon_animations() -> void:
 		_check(real_pistol.has("Gun") and real_pistol.has("Magazine")
 			and WeaponModel.get_mesh("pistol", false) == real_pistol.Gun and WeaponModel.hands("pistol").has("muzzle"),
 			"the pistol is a real model (Poly Haven), with its own grip, muzzle and magazine")
+		for id: String in ["smg", "shotgun", "sniper", "lmg"]:
+			var rp := WeaponModel.real_parts(id)
+			_check(rp.has("Gun") and rp.has("Magazine") and rp.has("GunFull") and WeaponModel.hands(id).has("ads")
+				and WeaponModel.get_mesh(id) == rp.GunFull and (id != "lmg" or WeaponModel.get_cover_mesh("lmg") == null),
+				"real %s model: gun, magazine (or shell), third-person mesh and sights" % id)
 		var real_rifle := WeaponModel.real_parts("rifle")
 		_check(real_rifle.has("Gun") and real_rifle.has("Magazine") and real_rifle.has("GunFull")
 			and w.ads_position == WeaponModel.hands("rifle").ads and w.muzzle.position == WeaponModel.hands("rifle").muzzle,
