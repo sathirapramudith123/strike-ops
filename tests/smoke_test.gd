@@ -1850,6 +1850,10 @@ func _test_maps() -> void:
 	var occluders := _level.find_children("*", "OccluderInstance3D", true, false).size()
 	_check(art_batched and occluders > 20, "factory: art merged by StaticBatcher, %d occluders kept" % occluders)
 	_check(_player.is_on_floor(), "factory: the player stands on the greybox collision under the art")
+	# Real props (barrels, crate, forklift, painted containers) and the window texture.
+	var has_mats := ["Barrel_01", "Crate", "ForkLift_01", "Mat_glass", "Mat_sack"].all(
+		func(n: String) -> bool: return _level.art_materials.has(n))
+	_check(has_mats, "factory: real barrels, crates and forklifts, textured windows (%s)" % str(_level.art_materials.keys().slice(0, 40)))
 	var flags := _level.find_children("Flag*", "", true, false).size() + _level.art.find_children("Flag*", "", true, false).size()
 	_check(flags == 0, "factory: no flag (removed), in the greybox or the art (%d)" % flags)
 	Level.art_disabled = true

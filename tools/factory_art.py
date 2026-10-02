@@ -23,6 +23,14 @@ REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.d
 ROOT = os.path.join(REPO, "assets", "maps", "factory")
 BLOCKOUT = os.path.join(REPO, "assets", "blockouts", "factory.glb")
 DET = bpy.data.collections["Detail"]
+# Real prop models (PropSources collection, bottom-centred, not exported
+# themselves): CC0 Poly Haven barrels, CC BY Sketchfab crate / container /
+# forklift (docs/CREDITS.md).
+PROPS_SRC = bpy.data.collections["PropSources"]
+DRUMS = {"Mat_blue": "Prop_drum_blue", "Mat_steel_blue": "Prop_drum_blue", "Mat_teal": "Prop_drum_plastic"}
+# Greybox parts a real prop stands in for (dropped from the art).
+PROP_PARTS = ("DrumLid", "ContainerEnd", "ForkliftFrame", "ForkliftRoof", "ForkliftMast", "Fork",
+              "ForkliftWheel")
 
 # Kinds the greybox uses that the art paints from an existing texture:
 # new material = copy of `src` with its tint colour set.
@@ -32,6 +40,7 @@ DERIVED = {
     "Mat_teal": ("Mat_blue", (0.03, 0.18, 0.17, 1)),
     "Mat_silver": ("Mat_cable", (0.42, 0.44, 0.46, 1)),
     "Mat_office_wall": ("Mat_sandstone", (0.66, 0.65, 0.6, 1)),
+    "Mat_sack": ("Mat_sandstone", (0.42, 0.3, 0.17, 1)),
 }
 # Objects (by name prefix) that get a different material than their kind.
 FLOORS = ("Floor", "Ground")
@@ -47,9 +56,65 @@ def derive():
         mix.inputs[7].default_value = color
 
 
+def make_glass():
+    """Mat_glass: an industrial window made in code - 2 x 2 grimy panes per
+    1.1 m tile in dark steel glazing bars, lighter towards the top (the sky
+    in it), glossy glass and rough frames. 512 px."""
+    import numpy as np
+    if "Mat_glass" in bpy.data.materials and "tex_size" in bpy.data.materials["Mat_glass"]:
+        return
+    n = 512
+    rng = np.random.default_rng(5)
+    y, x = np.mgrid[0:n, 0:n] / n
+    bar = 0.035
+    fx = np.minimum((x % 0.5), 0.5 - (x % 0.5)) < bar / 2 + 0.004
+    fy = np.minimum((y % 0.5), 0.5 - (y % 0.5)) < bar / 2 + 0.004
+    frame = fx | fy
+    # Soft grime: blurred noise (sum of a few upsampled random grids).
+    grime = np.zeros((n, n))
+    for k, w in ((8, 0.5), (32, 0.3), (128, 0.2)):
+        g = rng.random((k, k))
+        grime += w * np.kron(g, np.ones((n // k, n // k)))
+    pane_y = (y % 0.5) / 0.5  # 0 at the top of each pane (image row 0 = top)
+    sky = 0.42 - 0.22 * pane_y
+    col = np.stack([sky * 0.82, sky * 0.92, sky * 1.0], -1)
+    col *= (0.75 + 0.35 * grime)[..., None]
+    col[frame] = (0.09, 0.09, 0.1)
+    rough = np.where(frame, 0.65, 0.08 + 0.3 * grime)
+    def img(name, rgb):
+        im = bpy.data.images.new(name, n, n, alpha=False)
+        a = np.ones((n, n, 4), np.float32)
+        a[..., :3] = rgb
+        im.pixels.foreach_set(a[::-1].ravel())
+        im.file_format = "JPEG"
+        im.pack()
+        return im
+    base = img("glass_window_Base", col)
+    r = img("glass_window_Rough", np.repeat(rough[..., None], 3, -1))
+    m = bpy.data.materials.get("Mat_glass") or bpy.data.materials.new("Mat_glass")
+    m.use_nodes = True
+    nt = m.node_tree
+    for nd in list(nt.nodes):
+        if nd.type != "OUTPUT_MATERIAL":
+            nt.nodes.remove(nd)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    nt.links.new(bsdf.outputs[0], next(nd for nd in nt.nodes if nd.type == "OUTPUT_MATERIAL").inputs[0])
+    tb = nt.nodes.new("ShaderNodeTexImage")
+    tb.image = base
+    tr = nt.nodes.new("ShaderNodeTexImage")
+    tr.image = r
+    r.colorspace_settings.name = "Non-Color"
+    nt.links.new(tb.outputs["Color"], bsdf.inputs["Base Color"])
+    nt.links.new(tr.outputs["Color"], bsdf.inputs["Roughness"])
+    bsdf.inputs["Metallic"].default_value = 0.0
+    m["tex_size"] = 1.1
+
+
 def clear_old():
     for o in list(bpy.data.objects):
         if DET in o.users_collection and not o.name.startswith("Near"):
+            continue
+        if PROPS_SRC in o.users_collection:
             continue
         bpy.data.objects.remove(o, do_unlink=True)
     for me in list(bpy.data.meshes):
@@ -124,6 +189,62 @@ def import_blockout():
     return art, plain
 
 
+def replace_props(art):
+    """Swaps greybox props for the real models, fitted to each prop's box
+    (its collision stays the greybox's): drums (red oil drum, blue steel or
+    blue plastic by colour), crates, containers (in the greybox colour, as
+    textured copies), forklifts. Returns the new art list."""
+    from mathutils import Matrix, Vector
+    out, n = [], 0
+    for o in art:
+        base = o.name.rstrip("0123456789").split(".")[0]
+        if base in PROP_PARTS:
+            bpy.data.objects.remove(o, do_unlink=True)
+            continue
+        if base not in ("Drum", "Crate", "Container", "Forklift"):
+            out.append(o)
+            continue
+        vs = [v.co for v in o.data.vertices]
+        lo = Vector((min(v.x for v in vs), min(v.y for v in vs), min(v.z for v in vs)))
+        hi = Vector((max(v.x for v in vs), max(v.y for v in vs), max(v.z for v in vs)))
+        size = hi - lo
+        bottom = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+        mat = o.material_slots[0].material.name
+        place = o.matrix_world.copy()
+        if base == "Drum":
+            src = bpy.data.objects[DRUMS.get(mat, "Prop_drum_red")]
+            s_ = size.z / src.dimensions.z
+            fit = Matrix.Translation(bottom) @ Matrix.Rotation(n * 1.3, 4, "Z") @ Matrix.Scale(s_, 4)
+        elif base == "Crate":
+            src = bpy.data.objects["Prop_crate"]
+            d = src.dimensions
+            fit = Matrix.Translation(bottom) @ Matrix.Diagonal((size.x / d.x, size.y / d.y, size.z / d.z, 1.0))
+        elif base == "Container":
+            src = bpy.data.objects["Prop_container"]
+            d = src.dimensions
+            fit = Matrix.Translation(bottom) @ Matrix.Diagonal((size.x / d.x, size.y / d.y, size.z / d.z, 1.0))
+        else:
+            # Forklift: the greybox body is the rear 2 m; the forks reach
+            # 1.1 m past its front (local +Y in Blender = the greybox's -Z).
+            src = bpy.data.objects["Prop_forklift"]
+            fit = Matrix.Translation(bottom + Vector((0, 0.55, 0))) @ Matrix.Rotation(3.14159265, 4, "Z")
+        name = o.name
+        bpy.data.objects.remove(o, do_unlink=True)
+        p = src.copy()
+        if base == "Container":
+            p.data = src.data.copy()
+            p.data.materials[0] = bpy.data.materials[mat]
+            p.data.materials[1] = bpy.data.materials["Mat_metal"]
+        bpy.context.scene.collection.objects.link(p)
+        p.matrix_world = place @ fit
+        p.name = name
+        if base == "Container":
+            world_uv(p)
+        out.append(p)
+        n += 1
+    return out, n
+
+
 def export(art):
     for o in bpy.data.objects:
         o.select_set(False)
@@ -142,8 +263,9 @@ def export(art):
 
 def near_detail(art):
     """Wall dressing for the Detail layer (looks only, flat on the walls):
-    on every long wall face that looks into a play area, a gutter along the
-    top and a downpipe at each end, and an electrical box; on low indoor
+    on every long wall face that looks into a play area, a dark concrete
+    plinth at the foot; on tall ones a metal coping on the top edge, a
+    gutter and a downpipe at each end, and an electrical box; on low indoor
     walls (Tunnel, Lanka Steel, Workshop) two pipes along the top instead.
     Joined into one mesh per material: Near_<material>."""
     from mathutils import Vector
@@ -199,6 +321,15 @@ def near_detail(art):
             n_faces += 1
             ax = Vector((1, 0, 0)) if along_x else Vector((0, 1, 0))
             top = hi.z
+            # A dark concrete plinth along the foot of the wall.
+            pl = face + nrm * 0.04
+            pl.z = lo.z + 0.35
+            box("Mat_floor_dark", pl, (length if along_x else 0.08, 0.08 if along_x else length, 0.7))
+            if size.z >= 6.0:
+                # A metal coping along the top edge.
+                cp = face + nrm * 0.03
+                cp.z = top + 0.05
+                box("Mat_metal", cp, (length if along_x else 0.5, 0.5 if along_x else length, 0.1))
             if size.z >= 6.0:
                 # Gutter + downpipes at both ends, an electrical box.
                 g = face + nrm * 0.1
@@ -258,8 +389,10 @@ def export_detail():
 
 
 derive()
+make_glass()
 clear_old()
 art, plain = import_blockout()
+art, props = replace_props(art)
 export(art)
 faces = near_detail(art)
 export_detail()
@@ -267,5 +400,5 @@ for im in list(bpy.data.images):
     if im.users == 0:
         bpy.data.images.remove(im)
 bpy.ops.wm.save_mainfile()
-print("factory art: %d meshes (%d left greybox), %d KB; wall dressing on %d faces" % (
-    len(art), plain, os.path.getsize(os.path.join(ROOT, "factory.glb")) // 1024, faces))
+print("factory art: %d meshes (%d real props, %d left greybox), %d KB; wall dressing on %d faces" % (
+    len(art), props, plain, os.path.getsize(os.path.join(ROOT, "factory.glb")) // 1024, faces))

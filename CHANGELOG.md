@@ -27,8 +27,9 @@ gantry crane, with a loading dock — reach it along A Long through the
 Long Doors, or by Short through the Lanka Steel hall. B is indoors in
 the Press Hall, among two big presses and a conveyor line, under a
 mezzanine — reach it through the Tunnel or the Workshop. Real brick,
-concrete and steel textures throughout, gutters, downpipes and pipes on
-the walls; the old floating blue panel and blue-rectangle puddle in the
+concrete and steel textures throughout, multi-pane factory windows, real
+crates, oil drums, shipping containers and forklifts, a dark plinth and a
+metal cap on the walls, gutters, downpipes and pipes; the old floating blue panel and blue-rectangle puddle in the
 tunnel are gone.
 
 **Real red-dot sight and real smoke:** the red dot on the SMG, shotgun,

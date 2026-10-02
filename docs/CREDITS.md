@@ -25,3 +25,7 @@ Every third-party asset (model, texture, sound, music, font, plugin) must be lis
 | [M84 Stun Grenade (Low-Poly)](https://sketchfab.com/3d-models/1e380c943a3b4f0e8b065e96ce32b4bc) | Model | GoldbergR — Sketchfab | CC BY 4.0 | `assets/weapons/grenades` |
 | [M18 Smoke Grenade](https://sketchfab.com/3d-models/6dbb48151a9147b4830aa7bf55fc8282) | Model (textures 2k→512) | RedRogueXIII — Sketchfab | CC BY 4.0 | `assets/weapons/grenades` |
 | [Molotov Cocktail](https://sketchfab.com/3d-models/d78c0bfaf7e2448cbd98a485ab079ad2) | Model (textures 2k→512) | thisisruslan — Sketchfab | CC BY 4.0 | `assets/weapons/grenades` |
+| [Wooden Crate Low-poly PBR](https://sketchfab.com/3d-models/f8fb4c96211d475b9370d1c403273fc6) | Model (Factory crates) | MaX3Dd — Sketchfab | CC BY 4.0 | `assets/maps/factory/factory.glb` |
+| [Low Poly 20ft Shipping Container](https://sketchfab.com/3d-models/7ee30bdb987e4ebcb347f0573c3f9746) | Model (Factory containers, painted with the map's corrugated textures) | xofycmodeler — Sketchfab | CC BY 4.0 | `assets/maps/factory/factory.glb` |
+| [Warehouse Forklift Gameready](https://sketchfab.com/3d-models/94e21059f00c4e989c6403ada034516e) | Model (textures 4k→1k) | absologixemployee — Sketchfab | CC BY 4.0 | `assets/maps/factory/factory.glb` |
+| [Barrel 01](https://polyhaven.com/a/Barrel_01), [Barrel 02](https://polyhaven.com/a/Barrel_02), [Barrel 03](https://polyhaven.com/a/barrel_03) | Models (textures 512) | Jorge Camacho, Serhii Khromov — Poly Haven | CC0 | `assets/maps/factory/factory.glb` |

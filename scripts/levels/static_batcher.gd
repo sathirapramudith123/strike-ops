@@ -30,22 +30,25 @@ static func batch(root: Node3D, draw_distance_scale: float = 1.0) -> Dictionary:
 	var sources: Array[MeshInstance3D] = []
 	for node in root.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
-		if mi.mesh == null or not mi.visible or mi.mesh.get_surface_count() != 1:
+		if mi.mesh == null or not mi.visible or mi.mesh.get_surface_count() == 0:
 			continue
-		var mat := mi.get_active_material(0)
 		var aabb := mi.global_transform * mi.mesh.get_aabb()
 		var size := aabb.size
 		var detail := size.x * size.y * size.z < DETAIL_VOLUME
 		var center := aabb.get_center()
-		var key := "%d_%d_%d_%d" % [mat.get_instance_id() if mat else 0, floori(center.x / CELL_SIZE),
-			floori(center.z / CELL_SIZE), int(detail)]
-		if not groups.has(key):
-			var st := SurfaceTool.new()
-			st.begin(Mesh.PRIMITIVE_TRIANGLES)
-			groups[key] = { "material": mat, "tool": st, "detail": detail, "count": 0 }
-		var g: Dictionary = groups[key]
-		(g.tool as SurfaceTool).append_from(mi.mesh, 0, mi.global_transform)
-		g.count += 1
+		# Each surface joins the batch of its material (a prop with a
+		# painted body and steel doors goes into two).
+		for surface in mi.mesh.get_surface_count():
+			var mat := mi.get_active_material(surface)
+			var key := "%d_%d_%d_%d" % [mat.get_instance_id() if mat else 0, floori(center.x / CELL_SIZE),
+				floori(center.z / CELL_SIZE), int(detail)]
+			if not groups.has(key):
+				var st := SurfaceTool.new()
+				st.begin(Mesh.PRIMITIVE_TRIANGLES)
+				groups[key] = { "material": mat, "tool": st, "detail": detail, "count": 0 }
+			var g: Dictionary = groups[key]
+			(g.tool as SurfaceTool).append_from(mi.mesh, surface, mi.global_transform)
+			g.count += 1
 		sources.append(mi)
 		add_occluder(root, mi)
 
