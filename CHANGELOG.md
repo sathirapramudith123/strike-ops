@@ -22,7 +22,9 @@ small tabs above the ammo when you switch, then fade away.
 
 **Real red-dot sight and real smoke:** the red dot on the SMG, shotgun,
 LMG and pistol is now a real reflex-sight model instead of a black box,
-and you look just over its emitter through clear glass. Smoke grenades
+and you look just over its emitter through clear glass. The M4's own
+optic was still dark inside (lens pieces left in the tube): you now see
+through it, and it sits a little closer to your eye. Smoke grenades
 now pour out a thick, wispy grey cloud over about three seconds — a
 heavy layer rolling along the ground and a billowing body above it, in
 mixed shades of grey, with torn wisps drifting off the edges — that

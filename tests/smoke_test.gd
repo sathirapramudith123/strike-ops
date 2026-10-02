@@ -912,6 +912,20 @@ func _test_weapon_animations() -> void:
 				ok = ok and is_equal_approx(-(h.ads as Vector3).y, eye) \
 					and (WeaponModel.real_parts(id).Gun as Mesh).get_surface_count() > (WeaponModel.red_dot_mesh().get_surface_count())
 			_check(ok, "%s aims through a red dot (eye at %.3f)" % [id, -(h.ads as Vector3).y])
+		# The M4's own optic is see-through: nothing on its sight line from the
+		# eye to past the optic (its lens and reticle discs are cut out).
+		var m4 := WeaponModel.real_parts("rifle").Gun as Mesh
+		var eye_y := -(WeaponModel.hands("rifle").ads as Vector3).y
+		var blocked := 0
+		for si in m4.get_surface_count():
+			var arr := m4.surface_get_arrays(si)
+			var mv: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var mi: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+			for t in range(0, mi.size(), 3):
+				var hit = Geometry3D.ray_intersects_triangle(Vector3(0, eye_y, 0.5), Vector3.FORWARD, mv[mi[t]], mv[mi[t + 1]], mv[mi[t + 2]])
+				if hit != null and (hit as Vector3).z > -0.2:
+					blocked += 1
+		_check(blocked == 0, "the M4's optic is see-through (%d faces on its sight line)" % blocked)
 		# The mounted red dot is a real reflex sight (not a box) with clear glass.
 		var rd := WeaponModel.red_dot_mesh()
 		_check(ResourceLoader.exists(WeaponModel.RED_DOT_MODEL) and rd.get_surface_count() == 2

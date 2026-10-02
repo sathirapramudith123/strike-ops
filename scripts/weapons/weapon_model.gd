@@ -53,7 +53,8 @@ const REAL_DIR := "res://assets/weapons"
 ## weapon's ads_position (the sight's height on this model).
 const REAL_HANDS := {
 	"rifle": { "grip": Vector3(0, -0.085, 0.1), "left": Vector3(0, -0.02, -0.225), "mag": Vector3(0, -0.19, -0.065),
-		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.22), "red_dot": true },
+		"muzzle": Vector3(0, 0.019, -0.526), "ads": Vector3(0, -0.082, -0.15), "red_dot": true,
+		"lens": Vector3(-0.105, -0.06, 0.013) },
 	"smg": { "grip": Vector3(0, -0.08, 0.08), "left": Vector3(0, -0.005, -0.19), "left_kind": "under", "mag": Vector3(0, -0.19, -0.12),
 		"muzzle": Vector3(0, 0.022, -0.3), "sight": Vector3(0, 0.064, -0.05), "red_dot": true, "ads_z": -0.17 },
 	"shotgun": { "grip": Vector3(0, -0.06, 0.14), "left": Vector3(0, -0.03, -0.26), "muzzle": Vector3(0, 0.035, -0.543),
@@ -84,6 +85,12 @@ static func real_parts(weapon_id: String) -> Dictionary:
 			# A red-dot sight on the rail (REAL_HANDS "sight"): added to the
 			# gun's own meshes, so it shows in first and third person.
 			var h: Dictionary = REAL_HANDS.get(weapon_id, {})
+			# The gun's own optic: its lens and reticle discs cut out, so you
+			# see through it (REAL_HANDS "lens" = z from, z to, radius).
+			if h.has("lens") and h.has("ads"):
+				for k: String in ["Gun", "GunFull"]:
+					if parts.has(k):
+						parts[k] = _cut_lens(parts[k], -(h.ads as Vector3).y, h.lens)
 			if h.has("sight"):
 				var at := Transform3D(Basis.from_scale(Vector3.ONE * float(h.get("sight_scale", 1.0))), h.sight)
 				for k: String in ["Gun", "GunFull"]:
@@ -159,6 +166,37 @@ static func red_dot_mesh() -> ArrayMesh:
 	glass.material = glass_mat
 	_red_dot = _with_mesh(frame, glass, Transform3D(Basis.IDENTITY, Vector3(0, e, -d * 0.3)))
 	return _red_dot
+
+
+## `mesh` without the faces across a sight tube looking down -Z at height
+## `eye_y`: those facing along it between lens.x and lens.y (z) that come
+## within lens.z (m) of its axis or cross it.
+static func _cut_lens(mesh: Mesh, eye_y: float, lens: Vector3) -> ArrayMesh:
+	var out := ArrayMesh.new()
+	for si in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(si)
+		for c in [Mesh.ARRAY_CUSTOM0, Mesh.ARRAY_CUSTOM1, Mesh.ARRAY_CUSTOM2, Mesh.ARRAY_CUSTOM3, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
+			arrays[c] = null
+		var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		if idx.is_empty():
+			idx = PackedInt32Array(range(v.size()))
+		var keep := PackedInt32Array()
+		var from := Vector3(0, eye_y, 1.0)
+		for t in range(0, idx.size(), 3):
+			var a := v[idx[t]]
+			var b := v[idx[t + 1]]
+			var c := v[idx[t + 2]]
+			var cen := (a + b + c) / 3.0
+			var cut := false
+			if cen.z > lens.x and cen.z < lens.y and absf((b - a).cross(c - a).normalized().z) > 0.6:
+				cut = Vector2(cen.x, cen.y - eye_y).length() < lens.z 					or Geometry3D.ray_intersects_triangle(from, Vector3.FORWARD, a, b, c) != null
+			if not cut:
+				keep.append_array([idx[t], idx[t + 1], idx[t + 2]])
+		arrays[Mesh.ARRAY_INDEX] = keep
+		out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		out.surface_set_material(out.get_surface_count() - 1, mesh.surface_get_material(si))
+	return out
 
 
 ## `base` with `extra`'s surfaces appended, moved by `at`.
