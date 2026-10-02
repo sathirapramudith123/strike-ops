@@ -20,6 +20,17 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Factory, redesigned:** a new CS-style layout for the Lanka Steel
+works. T start in the truck yard, CT behind the gate. Mid is a long yard
+closed off by the half-open Mid Doors. A is the open silo yard under the
+gantry crane, with a loading dock — reach it along A Long through the
+Long Doors, or by Short through the Lanka Steel hall. B is indoors in
+the Press Hall, among two big presses and a conveyor line, under a
+mezzanine — reach it through the Tunnel or the Workshop. Real brick,
+concrete and steel textures throughout, gutters, downpipes and pipes on
+the walls; the old floating blue panel and blue-rectangle puddle in the
+tunnel are gone.
+
 **Real red-dot sight and real smoke:** the red dot on the SMG, shotgun,
 LMG and pistol is now a real reflex-sight model instead of a black box,
 and you look just over its emitter through clear glass. The M4's own

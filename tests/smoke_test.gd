@@ -1893,12 +1893,17 @@ func _test_maps() -> void:
 
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
-			["factory", Vector3(4.8, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.z < -29.5, "through the Lanka Steel doors to A"],
-			["factory", Vector3(-4.8, 0.1, -23.15), -PI / 2, func(p: Vector3) -> bool: return p.y > 4.3, "stairs to Lanka Steel's upper floor"],
-			["factory", Vector3(-31, 0.1, 10), -PI / 2, func(p: Vector3) -> bool: return p.x > -7.0, "through the tunnels"],
-			["factory", Vector3(24, 0.1, -19), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the roof"],
-			["factory", Vector3(16.8, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.9, "ramp up to the catwalk"],
-			["factory", Vector3(5, 0.1, 6), PI, func(p: Vector3) -> bool: return p.z > 20.0, "Lower Mid into B"],
+			# Factory: both ways onto A and B, Mid Doors, the dock and the mezzanine, the CT routes.
+			["factory", Vector3(-39, 0.1, 10), 0.0, func(p: Vector3) -> bool: return p.z < -11.5, "A Long through the Long Doors into A"],
+			["factory", Vector3(-5, 0.1, -1.5), PI / 2, func(p: Vector3) -> bool: return p.x < -23.0, "Mid along Short into Lanka Steel"],
+			["factory", Vector3(-26, 0.1, 1), 0.0, func(p: Vector3) -> bool: return p.z < -13.0, "through the Lanka Steel hall into A"],
+			["factory", Vector3(-47.5, 0.1, -10.5), 0.0, func(p: Vector3) -> bool: return p.y > 1.1, "up the ramp onto the A dock"],
+			["factory", Vector3(0, 0.1, -30), PI, func(p: Vector3) -> bool: return p.z > -10.0, "CT Mid through the Mid Doors"],
+			["factory", Vector3(25, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 2.0, "through the Tunnel into the Press Hall (B)"],
+			["factory", Vector3(11.5, 0.1, -7), -PI / 2, func(p: Vector3) -> bool: return p.x > 22.0, "through the Workshop into B"],
+			["factory", Vector3(47, 0.1, 1), 0.0, func(p: Vector3) -> bool: return p.y > 3.8, "stairs up to the B mezzanine"],
+			["factory", Vector3(29, 0.1, -44), PI, func(p: Vector3) -> bool: return p.z > -30.0, "CT through B Back into B"],
+			["factory", Vector3(-14, 0.1, -37), PI / 2, func(p: Vector3) -> bool: return p.x < -24.0, "CT A into the silo yard"],
 			["office", Vector3(0, 0.1, 40), 0.0, func(p: Vector3) -> bool: return p.z < 24.0, "front doors into the lobby"],
 			["office", Vector3(20, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.5, "stairs up to the mezzanine"],
 			# Subway: A Long into A, through a train from Mid, out of a track bed, CT and T routes.
