@@ -25,6 +25,7 @@ var _tick := 0.0
 var _light: OmniLight3D
 var _flames: CPUParticles3D
 var _smoke: CPUParticles3D
+var _core: CPUParticles3D
 var _lit := false
 
 
@@ -81,6 +82,8 @@ func _physics_process(delta: float) -> void:
 		if _flames:
 			_flames.emitting = false
 			_smoke.emitting = false
+			if _core:
+				_core.emitting = false
 		if _time >= DURATION + 1.5:
 			queue_free()
 		return
@@ -108,57 +111,49 @@ func _physics_process(delta: float) -> void:
 
 
 func _build_visuals() -> void:
-	# Scorched patch on the floor.
-	var scorch := MeshInstance3D.new()
-	var disc := CylinderMesh.new()
-	disc.top_radius = RADIUS
-	disc.bottom_radius = RADIUS
-	disc.height = 0.01
-	disc.radial_segments = 20
-	disc.rings = 1
-	scorch.mesh = disc
-	var sm := StandardMaterial3D.new()
-	sm.albedo_color = Color(0.05, 0.04, 0.03, 0.55)
-	sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	sm.roughness = 1.0
-	scorch.material_override = sm
-	scorch.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(scorch)
-	_flames = _particles(64, 0.9, Color(1.0, 0.55, 0.15), 0.45, 2.6, true)
+	# Scorch and a pool of burning fuel on the floor.
+	FxKit.ground_mark(self, FxKit.scorch_texture(), RADIUS * 2.4, DURATION)
+	var fire_tex := FxKit.fire_texture()
+	# Flames: many tall ragged tongues, orange bodies (alpha blended so the
+	# colour stays deep on bright floors) over a hot yellow-white core.
+	_flames = FxKit.emitter(FxKit.quad(fire_tex, 0.6, false, 1.0, 2.1), FxKit.count(130, 36), 0.75, false,
+		[[0.0, Color(1, 0.62, 0.18, 0.0)], [0.1, Color(1, 0.55, 0.12, 0.95)], [0.5, Color(0.95, 0.3, 0.04, 0.75)],
+			[1.0, Color(0.3, 0.05, 0.0, 0.0)]],
+		[[0.0, 0.6], [0.25, 1.1], [1.0, 0.3]], Vector2(1.0, 2.2), 8.0, Vector3(0, 1.2, 0), 0.6, 25.0, 0.1)
+	_flames.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_flames.emission_box_extents = Vector3(RADIUS * 0.75, 0.05, RADIUS * 0.75)
 	add_child(_flames)
-	_smoke = _particles(20, 2.5, Color(0.12, 0.11, 0.1, 0.55), 0.9, 1.4, false)
-	_smoke.position.y = 0.8
+	var core := FxKit.emitter(FxKit.quad(fire_tex, 0.5, true, 1.3, 1.4), FxKit.count(70, 20), 0.4, false,
+		[[0.0, Color(1, 0.9, 0.55, 0.0)], [0.2, Color(1, 0.8, 0.4, 0.9)], [1.0, Color(1, 0.45, 0.1, 0.0)]],
+		[[0.0, 0.7], [1.0, 0.5]], Vector2(0.4, 1.0), 10.0, Vector3(0, 0.8, 0), 0.5, 20.0, 0.1)
+	core.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	core.emission_box_extents = Vector3(RADIUS * 0.75, 0.02, RADIUS * 0.75)
+	add_child(core)
+	_core = core
+	# Glowing embers drifting up.
+	var embers := FxKit.emitter(FxKit.quad(FxKit.spark_texture(), 0.05, true, 3.0), FxKit.count(30, 8), 1.8, false,
+		[[0.0, Color(1, 0.7, 0.3, 1)], [1.0, Color(1, 0.3, 0.05, 0)]], [[0.0, 1.0], [1.0, 0.5]],
+		Vector2(1.5, 3.5), 25.0, Vector3(0.3, 0.6, 0.1), 0.8, 0.0, 0.1)
+	embers.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	embers.emission_box_extents = Vector3(RADIUS * 0.7, 0.1, RADIUS * 0.7)
+	add_child(embers)
+	# Black smoke rolling up from the flames.
+	_smoke = FxKit.emitter(FxKit.quad(FxKit.smoke_texture(), 1.2, false), FxKit.count(22, 8), 3.0, false,
+		[[0.0, Color(0.08, 0.07, 0.06, 0.0)], [0.15, Color(0.1, 0.09, 0.08, 0.7)], [1.0, Color(0.25, 0.24, 0.23, 0.0)]],
+		[[0.0, 0.6], [1.0, 2.4]], Vector2(1.2, 2.2), 15.0, Vector3(0.2, 0.5, 0.1), 0.6, 20.0, 0.1)
+	_smoke.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_smoke.emission_box_extents = Vector3(RADIUS * 0.6, 0.1, RADIUS * 0.6)
+	_smoke.position.y = 1.0
 	add_child(_smoke)
 	_light = OmniLight3D.new()
 	_light.light_color = Color(1.0, 0.55, 0.2)
-	_light.omni_range = RADIUS * 2.5
+	_light.omni_range = RADIUS * 2.8
 	_light.position.y = 0.8
 	add_child(_light)
-
-
-## Continuous particles over the whole disc, rising.
-func _particles(amount: int, lifetime: float, color: Color, size: float, rise: float, additive: bool) -> CPUParticles3D:
-	var p := CPUParticles3D.new()
-	p.amount = amount
-	p.lifetime = lifetime
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-	p.emission_box_extents = Vector3(RADIUS * 0.8, 0.05, RADIUS * 0.8)
-	p.direction = Vector3.UP
-	p.spread = 12.0
-	p.initial_velocity_min = rise * 0.5
-	p.initial_velocity_max = rise
-	p.gravity = Vector3.ZERO
-	var quad := GrenadeFx.soft_quad(size, additive, 1.6 if additive else 0.0, 1.4)
-	p.mesh = quad
-	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var ramp := Gradient.new()
-	ramp.set_color(0, color)
-	ramp.set_color(1, Color(color.r * 0.6, color.g * 0.3, color.b * 0.2, 0.0))
-	p.color_ramp = ramp
-	var curve := Curve.new()
-	curve.add_point(Vector2(0, 0.6))
-	curve.add_point(Vector2(0.3, 1.0))
-	curve.add_point(Vector2(1, 0.3))
-	p.scale_amount_curve = curve
-	p.emitting = true
-	return p
+	# The bottle bursting: a puff of flame and glass glints.
+	add_child(FxKit.emitter(FxKit.quad(fire_tex, 1.2, true, 1.1), 8, 0.4, true,
+		[[0.0, Color(1, 0.8, 0.4, 1)], [1.0, Color(1, 0.3, 0.05, 0)]], [[0.0, 0.6], [1.0, 1.8]],
+		Vector2(1.0, 3.0), 60.0, Vector3.ZERO, 3.0, 60.0, 0.1))
+	add_child(FxKit.emitter(FxKit.quad(FxKit.spark_texture(), 0.04, true, 2.0), 14, 0.6, true,
+		[[0.0, Color(0.85, 0.95, 1, 1)], [1.0, Color(0.85, 0.95, 1, 0)]], [[0.0, 1.0], [1.0, 1.0]],
+		Vector2(2.0, 5.0), 70.0, Vector3(0, -9.0, 0), 1.0, 0.0, 0.05))

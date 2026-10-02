@@ -45,7 +45,9 @@ A multiplayer **First-Person Shooter (FPS)** for desktop (Windows / Linux / macO
 - 💰 **Bomb Defusal economy** — money for kills, plants, defuses and rounds; a **buy menu** (`X`) for guns, armour + helmet and grenades; survivors keep their gear.
 - 🧑 **Character creator** — male / female, 15 faces, eyes, mouth, ears, voice, 7 outfits with camouflage and every kit piece (headwear, armour, backpack, gloves, pants, boots); everyone sees your look.
 - 🔧 **Weapon animations** — one system, a profile per gun: sway, bob, equip, per-gun kick, bolt / pump after each shot, reloads (shotgun shell by shell, LMG top cover) and an inspect (`I`) for every gun.
-- 🤖 **Training bots** — 0–15 bots (Easy / Normal / Hard) offline or on your server; they navigate, fight, buy, plant and defuse.
+- 🤖 **Grenade effects** (`scripts/weapons/fx_kit.gd`): noise textures made once in code — a billowing smoke puff with light baked on top, a ragged flame blob, a spark and a scorch disc — on camera-facing quads in CPU particles with random spin, colour ramps and size curves (`FxKit.emitter`); amounts follow *Particles* (`FxKit.count`), except the smoke cloud keeps enough puffs to stay opaque. HE (`GrenadeFx.explosion`): light flash, core flash, fireball, sparks, lingering dark smoke, ground dust ring, spinning debris chips, scorch mark (22 s). Flashbang: white core, sparks, grey puff. Smoke (`SmokeCloud`): three shades of puffs plus a hissing jet for the first 4 s. Molotov (`FireZone`): alpha-blended flame tongues over an additive hot core, embers, black smoke, the bottle bursting (flame puff, glass glints), scorch.
+
+**Training bots** — 0–15 bots (Easy / Normal / Hard) offline or on your server; they navigate, fight, buy, plant and defuse.
 - 🚪 **Doors and glass** — doors open with `F` and break where they are shot; windows crack, then shatter.
 - 🌐 **Multiplayer** — client/server networking with lag compensation and client-side prediction.
 - 🎮 **Game modes** — Free-for-All, Team Deathmatch, Bomb Defusal (rounds, plant/defuse, money + buy menu), offline Practice.

@@ -64,42 +64,35 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 
 
-## Big soft grey puffs that spread out, hang and fade. The particles live
-## the whole cloud's life (one burst), so the cloud doesn't flicker.
-func _build_cloud() -> CPUParticles3D:
-	var p := CPUParticles3D.new()
-	p.name = "Cloud"
-	p.amount = 64
-	p.lifetime = DURATION
-	p.one_shot = true
-	p.explosiveness = 0.9
-	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	p.emission_sphere_radius = 1.0
-	p.direction = Vector3.UP
-	p.spread = 70.0
-	p.initial_velocity_min = 2.5
-	p.initial_velocity_max = 4.5
-	p.damping_min = 2.0
-	p.damping_max = 3.0
-	p.gravity = Vector3.ZERO
-	p.angular_velocity_min = -12.0
-	p.angular_velocity_max = 12.0
-	p.position.y = 0.6
-	p.mesh = GrenadeFx.soft_quad(2.4, false, 0.0, 1.0, true)
-	((p.mesh as QuadMesh).material as StandardMaterial3D).shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(0.6, 0.6, 0.6, 0.0))
-	ramp.set_color(1, Color(0.5, 0.5, 0.5, 0.0))
-	var solid := 1.0 / DURATION # ~1 s to billow out
-	ramp.add_point(solid, Color(0.6, 0.6, 0.6, 1.0))
-	ramp.add_point(1.0 - 2.0 * solid, Color(0.55, 0.55, 0.55, 1.0))
-	p.color_ramp = ramp
-	var curve := Curve.new()
-	curve.max_value = 2.0
-	curve.add_point(Vector2(0, 0.4))
-	curve.add_point(Vector2(0.08, 1.5))
-	curve.add_point(Vector2(1, 1.8))
-	p.scale_amount_curve = curve
-	p.emitting = true
-	return p
+## Billowing grey smoke (noise-textured puffs, baked light on top) that
+## spreads out, hangs and fades, plus a thin jet hissing out of the canister
+## for the first seconds. The cloud's puffs live its whole life (one burst)
+## so it doesn't flicker; it keeps enough of them on every Particles
+## setting to stay opaque (it blocks sight for everyone).
+func _build_cloud() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Cloud"
+	var tex := FxKit.smoke_texture()
+	var n := maxi(56, FxKit.count(80))
+	var shades := [Color(0.62, 0.62, 0.63), Color(0.7, 0.7, 0.71), Color(0.55, 0.55, 0.56)]
+	for i in 3:
+		var c: Color = shades[i]
+		var solid := 1.0 / DURATION
+		var p := FxKit.emitter(FxKit.quad(tex, 2.6, false), n / 3, DURATION, true,
+			[[0.0, Color(c, 0.0)], [solid, Color(c, 1.0)], [1.0 - 2.0 * solid, Color(c.lightened(0.05), 0.95)], [1.0, Color(c, 0.0)]],
+			[[0.0, 0.35], [0.08, 1.4], [1.0, 1.75]], Vector2(2.2, 4.6), 75.0, Vector3.ZERO, 2.4, 10.0, 1.0)
+		p.position.y = 0.6 + i * 0.25
+		root.add_child(p)
+	# The hissing jet from the canister.
+	var jet := FxKit.emitter(FxKit.quad(tex, 0.6, false), FxKit.count(24, 8), 1.4, false,
+		[[0.0, Color(0.8, 0.8, 0.82, 0.0)], [0.15, Color(0.8, 0.8, 0.82, 0.8)], [1.0, Color(0.7, 0.7, 0.72, 0.0)]],
+		[[0.0, 0.4], [1.0, 2.5]], Vector2(3.0, 5.0), 25.0, Vector3(0, 0.5, 0), 2.0, 40.0, 0.05)
+	jet.position.y = 0.1
+	root.add_child(jet)
+	var t := Timer.new()
+	t.wait_time = 4.0
+	t.one_shot = true
+	t.autostart = true
+	t.timeout.connect(func() -> void: jet.emitting = false)
+	root.add_child(t)
+	return root

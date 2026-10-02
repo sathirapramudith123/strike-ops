@@ -17,27 +17,66 @@ static func explosion(parent: Node, pos: Vector3) -> Node3D:
 	root.name = "Explosion"
 	parent.add_child(root)
 	root.global_position = pos + Vector3.UP * 0.1
-	# Flash.
+	var smoke_tex := FxKit.smoke_texture()
+	var fire_tex := FxKit.fire_texture()
+	# Flash of light.
 	var light := OmniLight3D.new()
-	light.light_color = Color(1.0, 0.7, 0.35)
-	light.light_energy = 8.0
-	light.omni_range = 9.0
+	light.light_color = Color(1.0, 0.68, 0.32)
+	light.light_energy = 12.0
+	light.omni_range = 12.0
+	light.position.y = 0.6
 	root.add_child(light)
 	var tween := root.create_tween()
-	tween.tween_property(light, "light_energy", 0.0, 0.45).set_ease(Tween.EASE_OUT)
-	# Fireball: bright, fast, short.
-	root.add_child(_burst(26, 0.4, 0.7, 6.0, Color(1.0, 0.65, 0.2), 4.0, 2.5, true))
-	# Smoke: grey, slow, rising.
-	var smoke := _burst(20, 2.4, 0.9, 2.2, Color(0.28, 0.27, 0.25, 0.75), 0.0, 3.0, false)
-	(smoke as CPUParticles3D).gravity = Vector3(0, 0.6, 0)
+	tween.tween_property(light, "light_energy", 0.0, 0.5).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
+	# Core flash: one big white-hot sprite for a few frames.
+	root.add_child(FxKit.emitter(FxKit.quad(fire_tex, 2.6, true, 1.4), 3, 0.14, true,
+		[[0.0, Color(1, 0.95, 0.8, 1)], [1.0, Color(1, 0.6, 0.2, 0)]], [[0.0, 0.6], [1.0, 1.6]],
+		Vector2(0, 0.3), 180.0, Vector3.ZERO, 0.0, 0.0, 0.05))
+	# Fireball: ragged orange billows that swell and darken.
+	root.add_child(FxKit.emitter(FxKit.quad(fire_tex, 2.0, true, 1.0), FxKit.count(28, 10), 0.7, true,
+		[[0.0, Color(1, 0.8, 0.4, 1)], [0.25, Color(1, 0.42, 0.06, 0.95)], [0.6, Color(0.7, 0.15, 0.02, 0.6)],
+			[1.0, Color(0.2, 0.04, 0.01, 0)]],
+		[[0.0, 0.4], [0.4, 1.5], [1.0, 2.0]], Vector2(3.0, 7.0), 180.0, Vector3(0, 1.5, 0), 7.0, 90.0, 0.3))
+	# Sparks / burning fragments flung out, falling.
+	root.add_child(FxKit.emitter(FxKit.quad(FxKit.spark_texture(), 0.07, true, 3.0), FxKit.count(40, 10), 1.1, true,
+		[[0.0, Color(1, 0.9, 0.55, 1)], [0.6, Color(1, 0.5, 0.15, 1)], [1.0, Color(0.6, 0.15, 0.03, 0)]],
+		[[0.0, 1.0], [1.0, 0.6]], Vector2(6.0, 15.0), 85.0, Vector3(0, -11.0, 0), 1.5, 0.0, 0.2))
+	# Dark smoke: rises and spreads, lingers.
+	var smoke := FxKit.emitter(FxKit.quad(smoke_tex, 2.2, false), FxKit.count(30, 10), 4.5, true,
+		[[0.0, Color(0.18, 0.16, 0.14, 0)], [0.08, Color(0.22, 0.2, 0.18, 0.85)], [0.6, Color(0.33, 0.32, 0.3, 0.55)],
+			[1.0, Color(0.45, 0.44, 0.42, 0)]],
+		[[0.0, 0.5], [0.3, 1.5], [1.0, 2.6]], Vector2(1.5, 4.0), 70.0, Vector3(0, 0.9, 0), 3.0, 25.0, 0.4)
+	smoke.position.y = 0.3
 	root.add_child(smoke)
-	# Debris: small dark chips thrown out and falling.
-	var debris := _burst(16, 1.0, 0.05, 9.0, Color(0.15, 0.13, 0.1), 0.0, 1.0, false)
-	(debris as CPUParticles3D).gravity = Vector3(0, -12, 0)
+	# Dust kicked along the ground by the blast wave.
+	var dust := FxKit.emitter(FxKit.quad(smoke_tex, 1.0, false), FxKit.count(18, 6), 1.8, true,
+		[[0.0, Color(0.5, 0.45, 0.38, 0.7)], [1.0, Color(0.55, 0.5, 0.44, 0)]],
+		[[0.0, 0.6], [1.0, 2.0]], Vector2(5.0, 9.0), 12.0, Vector3.ZERO, 5.0, 20.0, 0.3)
+	dust.direction = Vector3(1, 0, 0)
+	dust.spread = 180.0
+	dust.flatness = 1.0
+	dust.position.y = -0.05
+	root.add_child(dust)
+	# Debris: small dark chips (lit, spinning) thrown out.
+	var chips := BoxMesh.new()
+	chips.size = Vector3(0.05, 0.03, 0.04)
+	var cm := StandardMaterial3D.new()
+	cm.albedo_color = Color(0.13, 0.12, 0.1)
+	cm.vertex_color_use_as_albedo = false
+	chips.material = cm
+	var debris := FxKit.emitter(chips, FxKit.count(16, 6), 1.4, true, [[0.0, Color.WHITE], [1.0, Color.WHITE]],
+		[[0.0, 1.0], [1.0, 1.0]], Vector2(5.0, 11.0), 70.0, Vector3(0, -14.0, 0), 0.5, 720.0, 0.15)
+	debris.particle_flag_rotate_y = true
 	root.add_child(debris)
+	# A scorch mark left on the floor.
+	var mark_root := Node3D.new()
+	parent.add_child(mark_root)
+	mark_root.global_position = pos
+	FxKit.ground_mark(mark_root, FxKit.scorch_texture(), 3.2, 18.0)
+	mark_root.get_tree().create_timer(22.0).timeout.connect(mark_root.queue_free)
 	Audio.play_3d(&"explosion", pos, 2.0, 140.0, randf_range(0.95, 1.08), 12.0)
 	_shake_nearby(root, pos)
-	root.get_tree().create_timer(LIFETIME).timeout.connect(root.queue_free)
+	root.get_tree().create_timer(LIFETIME + 1.5).timeout.connect(root.queue_free)
 	return root
 
 
@@ -165,16 +204,22 @@ static func flash(parent: Node, pos: Vector3) -> Node3D:
 	root.global_position = pos + Vector3.UP * 0.1
 	var light := OmniLight3D.new()
 	light.light_color = Color(0.95, 0.97, 1.0)
-	light.light_energy = 14.0
-	light.omni_range = 14.0
+	light.light_energy = 18.0
+	light.omni_range = 16.0
 	root.add_child(light)
-	var sparks := _burst(14, 0.25, 0.5, 5.0, Color(1, 1, 1), 5.0, 2.0, true)
-	root.add_child(sparks)
-	var smoke := _burst(8, 1.4, 0.4, 1.2, Color(0.55, 0.55, 0.55, 0.45), 0.0, 3.0, false)
-	smoke.gravity = Vector3(0, 0.4, 0)
+	# Blinding white core, a ring of white-hot sparks, a puff of grey smoke.
+	root.add_child(FxKit.emitter(FxKit.quad(FxKit.fire_texture(), 1.8, true, 4.0), 3, 0.15, true,
+		[[0.0, Color(1, 1, 1, 1)], [1.0, Color(0.85, 0.9, 1, 0)]], [[0.0, 0.5], [1.0, 1.8]],
+		Vector2(0, 0.2), 180.0, Vector3.ZERO, 0.0, 0.0, 0.05))
+	root.add_child(FxKit.emitter(FxKit.quad(FxKit.spark_texture(), 0.06, true, 3.5), FxKit.count(30, 8), 0.5, true,
+		[[0.0, Color(1, 1, 1, 1)], [1.0, Color(0.8, 0.85, 1, 0)]], [[0.0, 1.0], [1.0, 0.5]],
+		Vector2(5.0, 10.0), 180.0, Vector3(0, -6.0, 0), 2.0, 0.0, 0.05))
+	var smoke := FxKit.emitter(FxKit.quad(FxKit.smoke_texture(), 0.8, false), FxKit.count(10, 4), 2.2, true,
+		[[0.0, Color(0.7, 0.7, 0.72, 0)], [0.1, Color(0.7, 0.7, 0.72, 0.6)], [1.0, Color(0.75, 0.75, 0.77, 0)]],
+		[[0.0, 0.5], [1.0, 2.2]], Vector2(0.5, 1.5), 180.0, Vector3(0, 0.4, 0), 1.5, 20.0, 0.1)
 	root.add_child(smoke)
 	var tween := root.create_tween()
-	tween.tween_property(light, "light_energy", 0.0, 0.3).set_ease(Tween.EASE_OUT)
+	tween.tween_property(light, "light_energy", 0.0, 0.35).set_trans(Tween.TRANS_EXPO).set_ease(Tween.EASE_OUT)
 	Audio.play_3d(&"flash_bang", pos, 2.0, 100.0, randf_range(0.97, 1.05), 10.0)
 	var me := _local_player(parent)
 	if me and not me.health.is_dead:

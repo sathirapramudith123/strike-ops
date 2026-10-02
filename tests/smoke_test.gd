@@ -990,7 +990,11 @@ func _test_grenades() -> void:
 	_check(is_instance_valid(nade) and nade.global_position.distance_to(thrown_from) > 5.0, "grenade still flying before the fuse")
 	await _frames(40)
 	_check(not is_instance_valid(nade) or nade.is_queued_for_deletion(), "grenade explodes after its fuse")
-	_check(_level.find_child("Explosion", true, false) != null, "explosion effect spawned")
+	var boom := _level.find_child("Explosion", true, false)
+	_check(boom != null, "explosion effect spawned")
+	_check(boom != null and boom.find_children("*", "CPUParticles3D", true, false).size() >= 6
+		and FxKit.smoke_texture().get_width() == 128,
+		"explosion: core flash, fireball, sparks, smoke, dust and debris (noise-textured)")
 	_press_action(&"throw_grenade")
 	await _frames(2)
 	_check(_level.find_child("Grenade_*", true, false) == null, "no second throw with none left")

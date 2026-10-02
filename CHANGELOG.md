@@ -20,6 +20,14 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Real-looking grenade effects:** the HE goes off with a white-hot flash,
+an orange fireball, flying sparks and debris, dust swept along the floor,
+black smoke that hangs for a few seconds and a scorch mark; the
+flashbang bursts white with sparks; smoke grenades hiss out a jet and
+billow into a lit, rolling cloud; Molotovs burst and burn with flame
+tongues, embers, black smoke and a scorched floor. All particles, no big
+textures, and they follow the Particles setting.
+
 **A real knife:** the K-1 is now a dark combat knife (Sketchfab,
 Relowsky) held in the fist with the blade forward; the left arm drops
 out of view instead of hanging in the air.
