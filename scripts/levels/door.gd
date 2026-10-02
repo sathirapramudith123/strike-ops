@@ -198,7 +198,7 @@ func _target_angle(i: int, count: int) -> float:
 # -----------------------------------------------------------------------------
 
 ## Server: a bullet (or the knife) hit `body` at world `point` for `damage`.
-func server_hit(body: Node, point: Vector3, damage: float) -> void:
+func server_hit(body: Node, point: Vector3, damage: float, _by: Node = null) -> void:
 	if not multiplayer.is_server() or not body.has_meta(&"leaf"):
 		return
 	var li: int = body.get_meta(&"leaf")

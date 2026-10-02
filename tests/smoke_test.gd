@@ -1850,10 +1850,12 @@ func _test_maps() -> void:
 	var occluders := _level.find_children("*", "OccluderInstance3D", true, false).size()
 	_check(art_batched and occluders > 20, "factory: art merged by StaticBatcher, %d occluders kept" % occluders)
 	_check(_player.is_on_floor(), "factory: the player stands on the greybox collision under the art")
-	# Real props (barrels, crate, forklift, painted containers) and the window texture.
-	var has_mats := ["Barrel_01", "Crate", "ForkLift_01", "Mat_glass", "Mat_sack"].all(
+	# Real props (blue drums, crates, forklifts, delivery trucks, palms, air-con
+	# units, boxes of goods) and the window texture.
+	var has_mats := ["barrel_03", "Crate", "ForkLift_01", "07___Default", "Palm_Hamza", "exterior_aircon_unit_rusted_01",
+			"cardboard_box_01", "Mat_glass"].all(
 		func(n: String) -> bool: return _level.art_materials.has(n))
-	_check(has_mats, "factory: real barrels, crates and forklifts, textured windows (%s)" % str(_level.art_materials.keys().slice(0, 40)))
+	_check(has_mats, "factory: real drums, crates, forklifts, trucks, palms, air-con units, goods, textured windows (%s)" % str(_level.art_materials.keys().slice(0, 40)))
 	var flags := _level.find_children("Flag*", "", true, false).size() + _level.art.find_children("Flag*", "", true, false).size()
 	_check(flags == 0, "factory: no flag (removed), in the greybox or the art (%d)" % flags)
 	Level.art_disabled = true
@@ -1894,6 +1896,32 @@ func _test_maps() -> void:
 	await _load_map("res://scenes/levels/factory.tscn")
 	await _frames(40)
 	_open_all_doors()
+
+	# Explosive barrels: shooting one blows it up (fireball, blast damage to
+	# a player nearby, no collision left); it comes back on reset.
+	var barrels := get_tree().get_nodes_in_group(ExplosiveBarrel.GROUP)
+	var barrel: ExplosiveBarrel = null
+	for b: ExplosiveBarrel in barrels:
+		if b.global_position.distance_to(Vector3(-19.5, 0, -3.2)) < 0.5:
+			barrel = b
+	_check(barrels.size() >= 6 and barrel != null and barrel.find_children("*", "MeshInstance3D", true, false).size() > 0,
+		"factory: %d explosive barrels with the real drum model" % barrels.size())
+	if barrel:
+		_reset_player(Vector3(-17.0, 0.1, -1.5), 0.0)
+		_player.health.revive()
+		await _frames(5)
+		barrel.server_hit(barrel.get_node(^"Body"), barrel.global_position + Vector3.UP * 0.5, 25.0, null)
+		var survived := not barrel.exploded
+		barrel.server_hit(barrel.get_node(^"Body"), barrel.global_position + Vector3.UP * 0.5, 25.0, null)
+		await _frames(3)
+		var shape := barrel.get_node(^"Body").get_child(0) as CollisionShape3D
+		_check(survived and barrel.exploded and shape.disabled and _player.health.current < _player.health.max_health
+			and barrel.get_parent().find_child("Explosion", true, false) != null,
+			"factory: shooting a red barrel twice blows it up (player at 2.9 m: %.0f hp)" % _player.health.current)
+		barrel.server_reset()
+		await _frames(2)
+		_check(not barrel.exploded and not shape.disabled and barrel.get_node(^"Body").visible, "factory: the barrel comes back")
+		_player.health.revive()
 
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [

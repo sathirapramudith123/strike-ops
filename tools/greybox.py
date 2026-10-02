@@ -135,6 +135,7 @@ class Map:
         self.zones = []  # (pos, size, bus, amount, priority)
         self.doors = []  # (bottom-centre pos, yaw, width, height) — scripts/levels/door.gd
         self.panes = []  # (centre pos, yaw, width, height) — breakable glass, scripts/levels/glass_pane.gd
+        self.barrels = []  # bottom-centre pos — explosive red drums, scripts/levels/explosive_barrel.gd
         self._n = {}
 
     def _id(self, prefix):
@@ -175,6 +176,11 @@ class Map:
     def pane(self, pos, yaw, width, height):
         """A breakable glass pane centred on pos; yaw 0 = it spans X."""
         self.panes.append((pos, yaw, width, height))
+
+    def barrel(self, pos):
+        """An explosive red oil drum (shoot it and it blows up); pos is its
+        bottom centre."""
+        self.barrels.append(pos)
 
     def blocker(self, pos, size, name="Blocker"):
         """Invisible collision box (e.g. one collider for a pile of sandbags)."""
@@ -398,6 +404,7 @@ class Map:
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="6_player"]
 [ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
 [ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
+[ext_resource type="Script" path="res://scripts/levels/explosive_barrel.gd" id="9_barrel"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color({sky[0]}, {sky[1]}, {sky[2]}, 1)
@@ -440,6 +447,11 @@ fog_density = {fog}
             pane_nodes.append(f'[node name="Pane{i + 1}" type="Node3D" parent="Glass"]\n'
                               f'transform = Transform3D({b}, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n'
                               f'script = ExtResource("8_glass")\nwidth = {w:.3f}\nheight = {h:.3f}\n')
+        barrel_nodes = []
+        for i, pos in enumerate(self.barrels):
+            barrel_nodes.append(f'[node name="Barrel{i + 1}" type="Node3D" parent="Barrels"]\n'
+                                f'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n'
+                                f'script = ExtResource("9_barrel")\n')
         site_nodes, site_paths = [], []
         for name, pos in self.sites:
             site_nodes.append(f'[node name="{name}" type="Marker3D" parent="BombSites"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]}, {pos[1]}, {pos[2]})\n')
@@ -482,6 +494,7 @@ directional_shadow_max_distance = 100.0
                + ('\n[node name="Signs" type="Node3D" parent="."]\n\n' + "\n".join(sign_nodes) if sign_nodes else "")
                + ('\n[node name="Doors" type="Node3D" parent="."]\n\n' + "\n".join(door_nodes) if door_nodes else "")
                + ('\n[node name="Glass" type="Node3D" parent="."]\n\n' + "\n".join(pane_nodes) if pane_nodes else "")
+               + ('\n[node name="Barrels" type="Node3D" parent="."]\n\n' + "\n".join(barrel_nodes) if barrel_nodes else "")
                + "\n" + tail)
         with open(os.path.join(ROOT, path), "w") as f:
             f.write(out)
@@ -1550,6 +1563,22 @@ def _shutter_door(m, x, y, z, face, w=4.0, h=4.2):
         m.box((px, y + h / 2, pz), (0.2, h, 0.2), "yellow", "ShutterPost", collide=False)
 
 
+def _delivery_truck(m, x, z, yaw=0.0, mat="steel_blue"):
+    """Box delivery truck (one solid body, too tall to jump on), its front
+    towards local -Z. The art puts a real truck model over it."""
+    m.box((x, 1.4, z), (2.4, 2.8, 6.5), mat, "Truck", yaw=yaw)
+
+
+def _palm_tree(m, x, z, h=8.0):
+    """Coconut palm: the trunk collides; the art puts a real palm over it."""
+    m.cyl((x, h / 2, z), 0.22, h, "wood", "PalmTrunk", segments=8)
+
+
+def _aircon(m, x, z, yaw=0.0):
+    """Outdoor air-conditioning unit against a wall (low cover)."""
+    m.box((x, 0.465, z), (0.8, 0.93, 0.37), "metal", "AirCon", yaw=yaw)
+
+
 def _facade_block(m, x, y0, y1, z, face, w, mat, name="Facade"):
     """Wall panel above a covered doorway (from y0 to y1), on the boundary
     at x or z, `w` wide along the wall."""
@@ -1611,13 +1640,16 @@ def factory():
     _facade_block(m, 0.0, 5.0, 8.0, -22.0, "n", 6.0, "concrete")           # Mid Doors, CT side
     _facade_block(m, 10.0, 3.8, 9.0, -7.0, "e", 6.0, "brick")              # Workshop from Mid
     _facade_block(m, 25.0, 3.6, 8.0, 36.0, "s", 6.0, "concrete")           # Tunnel mouth (T)
-    m.sign((-21.78, 5.6, -1.0), "e", "LANKA STEEL", color=(0.92, 0.94, 0.96), pixel=0.0032)
+    # Inside the Press Hall, over its three ways in (hall-coloured walls).
+    _facade_block(m, 25.0, 3.6, 10.0, 3.75, "s", 6.0, "corrugated")        # the Tunnel
+    _facade_block(m, 18.25, 3.8, 10.0, -7.0, "e", 6.0, "corrugated")       # the Workshop
+    _facade_block(m, 29.0, 4.5, 10.0, -33.8, "n", 10.0, "corrugated")      # B Back
     m.sign((25.0, 5.4, 36.22), "s", "TUNNEL", color=(0.9, 0.86, 0.7), pixel=0.003)
     m.sign((10.22, 5.2, -7.0), "e", "WORKSHOP", color=(0.9, 0.86, 0.7), pixel=0.003)
 
     # --- T spawn: the truck yard ------------------------------------------------------
-    _truck(m, -9, 40, 90, "steel_blue")
-    _truck(m, 9.5, 41, -90, "red")
+    _delivery_truck(m, -8.5, 42.6, 90)
+    _delivery_truck(m, 9.5, 42.4, -90)
     _container(m, -1, 44.5, 90, "green")
     _crates(m, 4, 34.5, 2)
     _pallets(m, -6, 34)
@@ -1630,16 +1662,15 @@ def factory():
     # Outside Long / Outside Tunnel: lanes off the yard.
     _pallets(m, -24, 37.2)
     _drum(m, -30, 42.6, "blue")
-    _drum(m, -29.2, 43.1, "rust")
+    m.barrel((-29.2, 0.0, 43.1))
     _crates(m, -18, 42.8, 1)
     _crates(m, 19, 37.3, 1)
-    _drum(m, 16, 42.8, "yellow")
-    m.sign((-33.98, 3.0, 40.0), "e", "A", toward=(-39, 30), color=(0.75, 0.1, 0.07))
-    m.sign((27.98, 3.0, 40.0), "w", "B", toward=(25, 30), color=(0.75, 0.1, 0.07))
+    m.barrel((16, 0.0, 42.8))
+    _aircon(m, 5.0, 45.6)
 
     # --- A Long and the Long Doors ----------------------------------------------------
     _pipe_rack_z(m, -35.6, -4, 42, 6.5)
-    _pickup(m, -41.5, 30, 0, "steel_blue")
+    _delivery_truck(m, -41.6, 30, 0)
     _container(m, -36.6, 14, 0, "rust")
     _crates(m, -42.5, 3, 2)
     _crates(m, -36, -3.5, 1)
@@ -1676,9 +1707,9 @@ def factory():
     _forklift(m, -24.5, -28, 15)
     for (x, z) in ((-31.5, -38.8), (-30.3, -38.9)):
         _drum(m, x, z, "blue")
+    m.barrel((-31.6, 0.0, -22.4))
+    m.barrel((-44.2, 0.0, -29.0))
     m.site("A", (-35.0, 0.0, -25.0))
-    m.sign((-35.0, 6.5, -39.98), "s", "A", color=(0.75, 0.1, 0.07), pixel=0.024)
-    m.sign((-20.02, 3.2, -14.0), "w", "A", color=(0.75, 0.1, 0.07), pixel=0.016)
     _pipe_rack(m, -49, -21, -39.2, 7.0)
     _flood_light(m, -21, -11)
     _flood_light(m, -49, -39)
@@ -1686,8 +1717,8 @@ def factory():
 
     # --- Short: the alley and the Lanka Steel hall ---------------------------------------
     _crates(m, -15, 1.2, 1)
-    _drum(m, -19.5, -3.2, "rust")
-    m.box((-13, 2.6, -3.85), (2.0, 1.2, 0.3), "metal", "ACUnit", collide=False)
+    m.barrel((-19.5, 0.0, -3.2))
+    _aircon(m, -13.0, -3.6)
     # Lanka Steel: a workbench, a lathe and shelves (a clear path down the middle).
     m.box((-28.4, 0.5, -4), (1.2, 1.0, 6.0), "steel_blue", "LedgeBench")
     m.box((-23.6, 0.6, -6.5), (1.0, 1.2, 2.5), "metal", "Lathe")
@@ -1704,6 +1735,7 @@ def factory():
     _container(m, 6.5, -6, 0, "green", 1)
     _crates(m, 2.5, -12.5, 2)
     _crates(m, -7.8, -12, 1)
+    m.barrel((-6.4, 0.0, -13.3))
     _forklift(m, 3.5, 6, -30)
     _pallets(m, -8, 18.5)
     _pipe_rack(m, -10, 10, -2.0, 6.8)
@@ -1715,22 +1747,20 @@ def factory():
     m.box((0, 4.65, -20.4), (6.0, 0.2, 0.3), "metal", "GateRail", collide=False)
     _flood_light(m, 9, 21)
     _flood_light(m, -9, -17)
-    m.sign((-9.98, 3.2, -8.0), "e", "A", toward=(-14, -1), color=(0.75, 0.1, 0.07))
-    m.sign((9.98, 3.2, -12.0), "w", "B", toward=(14, -7), color=(0.75, 0.1, 0.07))
 
     # --- CT Mid / CT spawn -------------------------------------------------------------------
     _crates(m, 3.5, -30, 1)
     _drum(m, -4.5, -25, "blue")
     _house(m, -11.5, -5.5, -47.5, -42.5, "plaster", floors=1, fh=3.4, doors=[("e", 1.5, 1.4)], windows="es")
-    _pickup(m, 7.5, -44, 90, "silver")
+    _delivery_truck(m, 7.5, -44.2, 90)
     m.box((0, 0.5, -37.5), (4.0, 1.0, 0.6), "hazard", "LowWall")
     m.sign((0.0, 4.2, -47.98), "s", "CT", color=(0.25, 0.45, 0.85), pixel=0.014)
     _flood_light(m, 11, -37)
-    m.sign((-12.02, 3.2, -40.0), "w", "A", toward=(-16, -40), color=(0.75, 0.1, 0.07))
-    m.sign((12.02, 3.2, -40.0), "e", "B", toward=(16, -40), color=(0.75, 0.1, 0.07))
     _crates(m, -15, -43.8, 1)
     _container(m, 18, -44.6, 90, "rust")
     _crates(m, 31.5, -37.5, 1)
+    _aircon(m, 33.6, -42.0, 90)
+    _aircon(m, 13.0, -45.6)
 
     # --- The Tunnel and the Workshop -----------------------------------------------------------
     for (z, side) in ((30, 1), (21, -1), (12, 1)):
@@ -1779,9 +1809,9 @@ def factory():
         _strip_light(m, x, 9.5, z, 3.0)
         m.omni((x, 7.5, z), 1.0, 14.0, (1.0, 0.94, 0.85))
     m.reverb((34, 5, -15), (32, 10, 38), "hall", 0.45)
+    m.barrel((33.4, 0.0, -10.0))
+    m.barrel((22.5, 0.0, -21.0))
     m.site("B", (35.0, 0.0, -14.0))
-    m.sign((49.98, 6.0, -15.0), "w", "B", color=(0.75, 0.1, 0.07), pixel=0.024)
-    m.sign((18.02, 3.0, -15.0), "e", "B", color=(0.75, 0.1, 0.07), pixel=0.016)
     m.sign((34.0, 6.5, 3.98), "n", "PRESS HALL", color=(0.92, 0.94, 0.96), pixel=0.004)
 
     # --- Background: chimneys, water tower, pylons -------------------------------------------
@@ -1791,9 +1821,8 @@ def factory():
     _water_tower(m, -58, 20, 16.0)
     for (x, z) in ((-62, -10), (62, 0), (0, 62)):
         _pylon(m, x, z)
-    for (x, z, h, lean) in ((-36.5, 44.5, 7.0, (0.5, -0.4)), (13.0, 31.5, 6.5, (-0.4, 0.4)),
-                            (-12.5, -36.5, 6.0, (0.4, 0.4))):
-        _palm(m, x, z, h, lean)
+    for (x, z) in ((11.0, 35.0), (8.5, -38.6), (-24.5, 38.8)):
+        _palm_tree(m, x, z)
 
     # --- Spawns, callouts -----------------------------------------------------------------------
     for (x, z) in ((-6, 38), (-2, 36.5), (2, 38), (6, 36.5), (0, 40.5)):

@@ -587,8 +587,8 @@ func _server_fire(render_time: float, origin: Vector3, dirs: PackedVector3Array)
 
 
 ## Server: one pellet through breakable glass (it cracks or shatters and
-## the bullet goes on) up to what it stops at; a door piece it hits takes the
-## damage (Door / GlassPane.server_hit).
+## the bullet goes on) up to what it stops at; a door piece or an explosive
+## barrel it hits takes the damage (Door / GlassPane / ExplosiveBarrel.server_hit).
 func _trace_through_breakables(space: PhysicsDirectSpaceState3D, origin: Vector3, dir: Vector3, players: Array,
 		render_time: float, teammates: Array) -> Dictionary:
 	var skip: Array[RID] = []
@@ -600,7 +600,7 @@ func _trace_through_breakables(space: PhysicsDirectSpaceState3D, origin: Vector3
 			break
 		var falloff := remap(hit.distance, data.falloff_start, data.max_range, 1.0, data.min_damage_multiplier)
 		var target: Object = col.get_meta(&"breakable")
-		target.server_hit(col, hit.position, data.damage * clampf(falloff, data.min_damage_multiplier, 1.0))
+		target.server_hit(col, hit.position, data.damage * clampf(falloff, data.min_damage_multiplier, 1.0), _player)
 		if not target is GlassPane:
 			break
 		skip.append((col as CollisionObject3D).get_rid())

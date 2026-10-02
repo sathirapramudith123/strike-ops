@@ -58,7 +58,7 @@ func _ready() -> void:
 
 
 ## Server: a bullet or the knife hit the pane at `point`.
-func server_hit(_body_node: Node, point: Vector3, damage: float) -> void:
+func server_hit(_body_node: Node, point: Vector3, damage: float, _by: Node = null) -> void:
 	if not multiplayer.is_server() or broken:
 		return
 	var local := to_local(point)

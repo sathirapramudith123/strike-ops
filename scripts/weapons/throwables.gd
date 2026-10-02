@@ -409,14 +409,10 @@ func server_detonate(id: int, pos: Vector3) -> void:
 		_blast_breakables(pos, 3.0, 0.0) # the bang shatters nearby windows
 
 
-## Server: doors splinter and windows shatter round an explosion.
+## Server: doors splinter, windows shatter and explosive barrels go off
+## round an explosion.
 func _blast_breakables(pos: Vector3, radius: float, damage: float) -> void:
-	for pane in get_tree().get_nodes_in_group(GlassPane.GROUP):
-		(pane as GlassPane).server_blast(pos, radius, damage)
-	if damage > 0.0:
-		for door in get_tree().get_nodes_in_group(Door.GROUP):
-			if (door as Node3D).global_position.distance_to(pos) < radius + 2.0:
-				(door as Door).server_blast(pos, radius * 0.6, damage)
+	ExplosiveBarrel.blast_breakables(get_tree(), pos, radius, damage, _player)
 
 
 @rpc("any_peer", "call_remote", "reliable")

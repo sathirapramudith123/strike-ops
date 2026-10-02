@@ -20,6 +20,17 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Explosive barrels and a cleaner Factory:** the red oil drums on
+Factory now blow up when you shoot them (two or three hits) or when an
+HE grenade goes off next to them — a fireball, blast damage to anyone
+close (the kill goes to whoever shot it), shattered windows and other
+barrels going off in a chain. They come back every round. Factory also
+loses the painted A / B arrows and the LANKA STEEL sign; the blocky
+trucks, palms, wall AC box and plain goods boxes are now real models (a
+delivery truck, coconut palms, rusty air-con units, stacked cardboard
+boxes); and the gaps and odd beige panel above the Press Hall entrances
+are closed with hall walls.
+
 **Factory, redesigned:** a new CS-style layout for the Lanka Steel
 works. T start in the truck yard, CT behind the gate. Mid is a long yard
 closed off by the half-open Mid Doors. A is the open silo yard under the

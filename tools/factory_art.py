@@ -148,6 +148,8 @@ def world_uv(o):
 
 def import_blockout():
     before = set(bpy.data.objects)
+    # Into the scene's own collection (not whichever one was left active).
+    bpy.context.view_layer.active_layer_collection = bpy.context.view_layer.layer_collection
     old = sys.stdout
     sys.stdout = io.StringIO()
     try:
@@ -193,7 +195,8 @@ def replace_props(art):
     """Swaps greybox props for the real models, fitted to each prop's box
     (its collision stays the greybox's): drums (red oil drum, blue steel or
     blue plastic by colour), crates, containers (in the greybox colour, as
-    textured copies), forklifts. Returns the new art list."""
+    textured copies), forklifts, delivery trucks, coconut palms, air-con
+    units and boxes of goods on the pallets. Returns the new art list."""
     from mathutils import Matrix, Vector
     out, n = [], 0
     for o in art:
@@ -201,7 +204,7 @@ def replace_props(art):
         if base in PROP_PARTS:
             bpy.data.objects.remove(o, do_unlink=True)
             continue
-        if base not in ("Drum", "Crate", "Container", "Forklift"):
+        if base not in ("Drum", "Crate", "Container", "Forklift", "Truck", "PalmTrunk", "AirCon", "Goods"):
             out.append(o)
             continue
         vs = [v.co for v in o.data.vertices]
@@ -221,6 +224,20 @@ def replace_props(art):
             fit = Matrix.Translation(bottom) @ Matrix.Diagonal((size.x / d.x, size.y / d.y, size.z / d.z, 1.0))
         elif base == "Container":
             src = bpy.data.objects["Prop_container"]
+            d = src.dimensions
+            fit = Matrix.Translation(bottom) @ Matrix.Diagonal((size.x / d.x, size.y / d.y, size.z / d.z, 1.0))
+        elif base == "Truck":
+            # Front towards local +Y in Blender (the greybox's -Z), like the model.
+            src = bpy.data.objects["Prop_truck"]
+            fit = Matrix.Translation(bottom) @ Matrix.Scale(size.y / src.dimensions.y, 4)
+        elif base == "PalmTrunk":
+            src = bpy.data.objects["Prop_palm"]
+            fit = Matrix.Translation(bottom) @ Matrix.Rotation(n * 2.1, 4, "Z") @ Matrix.Scale(size.z / src.dimensions.z, 4)
+        elif base == "AirCon":
+            src = bpy.data.objects["Prop_aircon"]
+            fit = Matrix.Translation(bottom) @ Matrix.Scale(size.z / src.dimensions.z, 4)
+        elif base == "Goods":
+            src = bpy.data.objects["Prop_boxes"]
             d = src.dimensions
             fit = Matrix.Translation(bottom) @ Matrix.Diagonal((size.x / d.x, size.y / d.y, size.z / d.z, 1.0))
         else:
