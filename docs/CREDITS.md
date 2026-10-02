@@ -20,6 +20,7 @@ Every third-party asset (model, texture, sound, music, font, plugin) must be lis
 | [M249 LightMachineGun](https://sketchfab.com/3d-models/3b743fa56cca42788d63d003118c678d) | Model (bipod removed, turned, box magazine split off, textures 2k→512, flat third-person version) | NotNathanModel — Sketchfab | CC BY 4.0 | `assets/weapons/lmg` |
 | [German KSK operator - rigged](https://sketchfab.com/3d-models/110daf3d1884412989e41dc95866c579) | Rigged character (turned, scaled, team armbands added; first-person arms cut from it) | 42manako — Sketchfab | CC BY 4.0 | `assets/characters/ksk` |
 | [Combat Knife](https://sketchfab.com/3d-models/5aa8bd11a7a64b3ab778664106d379f6) | Model (turned, textures 4k→1k) | Relowsky — Sketchfab | CC BY 4.0 | `assets/weapons/knife` |
+| [FPS Red Dot Sight (Game Model)](https://sketchfab.com/3d-models/0cf999d9363940c2b149dcd80c448554) | Model (centred, textures 2k→512, own glass) | makivic — Sketchfab | CC BY 4.0 | `assets/weapons/red_dot` |
 | [M67 Grenade](https://sketchfab.com/3d-models/36a23ce20b8d47beb1fa26cfe9b0a129) | Model | nickolasa.mcintosh — Sketchfab | CC BY 4.0 | `assets/weapons/grenades` |
 | [M84 Stun Grenade (Low-Poly)](https://sketchfab.com/3d-models/1e380c943a3b4f0e8b065e96ce32b4bc) | Model | GoldbergR — Sketchfab | CC BY 4.0 | `assets/weapons/grenades` |
 | [M18 Smoke Grenade](https://sketchfab.com/3d-models/6dbb48151a9147b4830aa7bf55fc8282) | Model (textures 2k→512) | RedRogueXIII — Sketchfab | CC BY 4.0 | `assets/weapons/grenades` |

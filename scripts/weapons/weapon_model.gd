@@ -107,16 +107,39 @@ static func hands(weapon_id: String) -> Dictionary:
 
 
 ## Height of the red-dot window's centre above its mount (m, at scale 1).
-const RED_DOT_EYE := 0.038
+const RED_DOT_EYE := 0.049
+## A real reflex sight (makivic, Sketchfab; docs/CREDITS.md): mount bottom
+## at the origin, the window (0.031–0.059 m up) facing -Z; the eye sits
+## just above its centre, over the emitter housing.
+const RED_DOT_MODEL := "res://assets/weapons/red_dot/red_dot.glb"
 static var _red_dot: ArrayMesh
 
 
-## A compact red-dot sight (mount at y = 0, window centred RED_DOT_EYE
-## above, looking down -Z): a low mount, a squared hood round the window, a
-## faint blue-green glass and a brightness knob.
+## The red-dot sight (mount at y = 0, window centred RED_DOT_EYE above,
+## looking down -Z): the real model with a faint clear glass, or — if it is
+## missing — a code-built one (low mount, squared hood, glass, knob).
 static func red_dot_mesh() -> ArrayMesh:
 	if _red_dot:
 		return _red_dot
+	var glass_mat := StandardMaterial3D.new()
+	glass_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glass_mat.albedo_color = Color(0.45, 0.75, 0.8, 0.12)
+	glass_mat.roughness = 0.05
+	glass_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if ResourceLoader.exists(RED_DOT_MODEL):
+		var scene := (load(RED_DOT_MODEL) as PackedScene).instantiate()
+		var body: Mesh
+		var glass: Mesh
+		for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
+			if String(mi.name).contains("glass"):
+				glass = mi.mesh
+			else:
+				body = mi.mesh
+		scene.free()
+		if body and glass:
+			_red_dot = _with_mesh(body, glass, Transform3D.IDENTITY)
+			_red_dot.surface_set_material(_red_dot.get_surface_count() - 1, glass_mat)
+			return _red_dot
 	var b := MeshBuilder.new()
 	b.define(&"sight", Color(0.06, 0.065, 0.07), 0.5)
 	var e := RED_DOT_EYE
@@ -133,12 +156,7 @@ static func red_dot_mesh() -> ArrayMesh:
 	var frame := b.build()
 	var glass := QuadMesh.new()
 	glass.size = Vector2(w, w)
-	var gm := StandardMaterial3D.new()
-	gm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	gm.albedo_color = Color(0.45, 0.75, 0.8, 0.12)
-	gm.roughness = 0.05
-	gm.cull_mode = BaseMaterial3D.CULL_DISABLED
-	glass.material = gm
+	glass.material = glass_mat
 	_red_dot = _with_mesh(frame, glass, Transform3D(Basis.IDENTITY, Vector3(0, e, -d * 0.3)))
 	return _red_dot
 
@@ -164,7 +182,14 @@ static func _with_mesh(base: Mesh, extra: Mesh, at: Transform3D) -> ArrayMesh:
 					for j in n.size():
 						n[j] = (xf.basis * n[j]).normalized()
 					arrays[Mesh.ARRAY_NORMAL] = n
-				arrays[Mesh.ARRAY_TANGENT] = null
+				if arrays[Mesh.ARRAY_TANGENT] != null:
+					var tg: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+					for j in range(0, tg.size(), 4):
+						var tv := (xf.basis * Vector3(tg[j], tg[j + 1], tg[j + 2])).normalized()
+						tg[j] = tv.x
+						tg[j + 1] = tv.y
+						tg[j + 2] = tv.z
+					arrays[Mesh.ARRAY_TANGENT] = tg
 			out.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 			out.surface_set_material(out.get_surface_count() - 1, m.surface_get_material(i))
 	return out

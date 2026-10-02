@@ -15,6 +15,18 @@ static func smoke_texture() -> ImageTexture:
 	return _cached(&"smoke", func() -> Image: return _puff(128, 0.55, 3.0, true))
 
 
+## Four different wispy smoke puffs in a 2×2 atlas (one picked per
+## particle, see `quad(frames = 2)`): domain-warped noise with soft, torn
+## edges, lit from above. For the smoke grenade's cloud.
+static func smoke_atlas() -> ImageTexture:
+	return _cached(&"smoke_atlas", func() -> Image:
+		var n := 128
+		var img := Image.create(n * 2, n * 2, false, Image.FORMAT_RGBA8)
+		for i in 4:
+			img.blit_rect(_puff(n, 0.6, 2.6, true, 11 + i * 37, 16.0), Rect2i(0, 0, n, n), Vector2i((i % 2) * n, (i / 2) * n))
+		return img)
+
+
 ## A ragged flame / fireball blob: hotter (whiter) core, noisy edge.
 static func fire_texture() -> ImageTexture:
 	return _cached(&"fire", func() -> Image: return _puff(96, 0.8, 4.5, false))
@@ -62,13 +74,19 @@ static func _cached(key: StringName, make: Callable) -> ImageTexture:
 
 ## Noise inside a round falloff. `fill` = how far the dense part reaches,
 ## `rough` = how much the noise eats the edge; `shade` bakes a light top.
-static func _puff(n: int, fill: float, rough: float, shade: bool) -> Image:
+## `warp` > 0 swirls the noise (wispy, torn smoke).
+static func _puff(n: int, fill: float, rough: float, shade: bool, noise_seed: int = -1, warp: float = 0.0) -> Image:
 	var noise := FastNoiseLite.new()
-	noise.seed = n
+	noise.seed = n if noise_seed < 0 else noise_seed
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	noise.frequency = 3.2 / n
 	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
 	noise.fractal_octaves = 5
+	if warp > 0.0:
+		noise.domain_warp_enabled = true
+		noise.domain_warp_type = FastNoiseLite.DOMAIN_WARP_SIMPLEX
+		noise.domain_warp_amplitude = warp
+		noise.domain_warp_frequency = 2.0 / n
 	var img := Image.create(n, n, false, Image.FORMAT_RGBA8)
 	for y in n:
 		for x in n:
@@ -88,7 +106,11 @@ static func _puff(n: int, fill: float, rough: float, shade: bool) -> Image:
 
 ## A camera-facing quad textured with `tex`. `additive` for light (fire,
 ## sparks); otherwise alpha blended. `glow` brightens unshaded additive ones.
-static func quad(tex: Texture2D, size: float, additive: bool, glow: float = 1.0, stretch: float = 1.0) -> QuadMesh:
+## `frames` > 1: `tex` is a frames × frames atlas, one cell per particle
+## (pick_frame). `soft` > 0 (m): fades where it meets walls and floor
+## instead of a hard line (soft particles; Forward+ only, as it reads depth).
+static func quad(tex: Texture2D, size: float, additive: bool, glow: float = 1.0, stretch: float = 1.0,
+		frames: int = 1, soft: float = 0.0) -> QuadMesh:
 	var q := QuadMesh.new()
 	q.size = Vector2(size, size * stretch)
 	var mat := StandardMaterial3D.new()
@@ -102,8 +124,32 @@ static func quad(tex: Texture2D, size: float, additive: bool, glow: float = 1.0,
 	if additive:
 		mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 		mat.albedo_color = Color(glow, glow, glow)
+	if frames > 1:
+		mat.particles_anim_h_frames = frames
+		mat.particles_anim_v_frames = frames
+		mat.particles_anim_loop = false
+	if soft > 0.0 and SettingsManager.graphics.rendering_method == "forward_plus":
+		mat.proximity_fade_enabled = true
+		mat.proximity_fade_distance = soft
 	q.material = mat
 	return q
+
+
+## Each particle of `p` shows a random cell of its quad's atlas (see quad).
+static func pick_frame(p: CPUParticles3D) -> void:
+	p.anim_speed_min = 0.0
+	p.anim_speed_max = 0.0
+	p.anim_offset_min = 0.0
+	p.anim_offset_max = 1.0
+
+
+## Each particle of `p` gets a random grey between `dark` and `light`
+## (multiplies its colour ramp).
+static func shade_range(p: CPUParticles3D, dark: Color, light: Color) -> void:
+	var g := Gradient.new()
+	g.set_color(0, dark)
+	g.set_color(1, light)
+	p.color_initial_ramp = g
 
 
 ## How many particles for `n` at the current Particles setting (at least `lo`).

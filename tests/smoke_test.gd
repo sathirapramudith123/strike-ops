@@ -912,6 +912,11 @@ func _test_weapon_animations() -> void:
 				ok = ok and is_equal_approx(-(h.ads as Vector3).y, eye) \
 					and (WeaponModel.real_parts(id).Gun as Mesh).get_surface_count() > (WeaponModel.red_dot_mesh().get_surface_count())
 			_check(ok, "%s aims through a red dot (eye at %.3f)" % [id, -(h.ads as Vector3).y])
+		# The mounted red dot is a real reflex sight (not a box) with clear glass.
+		var rd := WeaponModel.red_dot_mesh()
+		_check(ResourceLoader.exists(WeaponModel.RED_DOT_MODEL) and rd.get_surface_count() == 2
+			and rd.get_aabb().size.z > 0.09 and (rd.surface_get_material(1) as BaseMaterial3D).albedo_color.a < 0.3,
+			"the red dot is a real sight model with clear glass (%s)" % str(rd.get_aabb().size))
 		for id: String in ["smg", "shotgun", "sniper", "lmg"]:
 			var rp := WeaponModel.real_parts(id)
 			_check(rp.has("Gun") and rp.has("Magazine") and rp.has("GunFull") and WeaponModel.hands(id).has("ads")
@@ -1194,6 +1199,18 @@ func _test_flash_and_smoke() -> void:
 		_check(SmokeCloud.blocks_line(get_tree(), c + Vector3(-8, 0, 0), c + Vector3(8, 0, 0))
 			and not SmokeCloud.blocks_line(get_tree(), c + Vector3(-8, 0, 8), c + Vector3(8, 0, 8)),
 			"smoke blocks lines through it, not beside it")
+		# Real-looking smoke: atlas puffs in a rolling ground layer and a body,
+		# dense enough to stay opaque, soft where they meet the floor.
+		var layers := cloud.find_children("*", "CPUParticles3D", true, false)
+		var dense := 0
+		var real_look := true
+		for n: String in ["Ground", "Body"]:
+			var e := cloud.find_child(n, true, false) as CPUParticles3D
+			var m := (e.mesh as QuadMesh).material as BaseMaterial3D if e else null
+			real_look = real_look and m != null and m.particles_anim_h_frames == 2 and e.anim_offset_max == 1.0 				and e.color_initial_ramp != null and (m.proximity_fade_enabled or SettingsManager.graphics.rendering_method != "forward_plus")
+			dense += e.amount if e else 0
+		_check(layers.size() >= 4 and real_look and dense >= 72,
+			"smoke cloud: wispy atlas puffs, ground layer + body (%d puffs), soft edges" % dense)
 		var bottle := FireZone.new()
 		_level.add_child(bottle)
 		bottle.ignite(cloud.global_position + Vector3.UP * 0.5)

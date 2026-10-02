@@ -20,6 +20,15 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Real red-dot sight and real smoke:** the red dot on the SMG, shotgun,
+LMG and pistol is now a real reflex-sight model instead of a black box,
+and you look just over its emitter through clear glass. Smoke grenades
+now pour out a thick, wispy grey cloud over about three seconds — a
+heavy layer rolling along the ground and a billowing body above it, in
+mixed shades of grey, with torn wisps drifting off the edges — that
+fades softly into the floor and walls instead of looking like cotton
+balls. It still blocks sight completely.
+
 **Real-looking grenade effects:** the HE goes off with a white-hot flash,
 an orange fireball, flying sparks and debris, dust swept along the floor,
 black smoke that hangs for a few seconds and a scorch mark; the
