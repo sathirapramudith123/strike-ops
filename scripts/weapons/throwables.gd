@@ -75,6 +75,11 @@ var _live: Dictionary = {}
 var _hand_model: Node3D
 
 
+## The grenade in hand (first person), or null.
+func hand_model() -> Node3D:
+	return _hand_model if is_instance_valid(_hand_model) else null
+
+
 func _ready() -> void:
 	_player = get_parent() as PlayerController
 	# Same rule on every peer: Bomb Defusal players buy their grenades.
@@ -225,7 +230,9 @@ func _hold(kind: int) -> void:
 	_hand_model.name = "GrenadeInHand"
 	_hand_model.position = Vector3(0.2, -0.24, -0.42)
 	_hand_model.rotation = Vector3(0.3, 0.4, 0.0)
-	_hand_model.scale = Vector3.ONE * 1.4
+	# (The code-built grenades are small; the real models are real size.)
+	var real_scale := 0.75 if kind == Kind.MOLOTOV else 1.0
+	_hand_model.scale = Vector3.ONE * (real_scale if SettingsManager.graphics.realistic_characters else 1.4)
 	_player.camera.add_child(_hand_model)
 	if not switching:
 		_player.play_equip_sound()

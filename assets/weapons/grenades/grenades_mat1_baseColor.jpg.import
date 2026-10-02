@@ -1,0 +1,39 @@
+[remap]
+
+importer="texture"
+type="CompressedTexture2D"
+uid="uid://bod0w42ssm5u8"
+path.s3tc="res://.godot/imported/grenades_mat1_baseColor.jpg-d7654ddd530c2f99ba1339d7438889ce.s3tc.ctex"
+path.etc2="res://.godot/imported/grenades_mat1_baseColor.jpg-d7654ddd530c2f99ba1339d7438889ce.etc2.ctex"
+metadata={
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
+}
+generator_parameters={
+"md5": "5dfafa6e1e8a67ea04f198a9aa322d8a"
+}
+
+[deps]
+
+source_file="res://assets/weapons/grenades/grenades_mat1_baseColor.jpg"
+dest_files=["res://.godot/imported/grenades_mat1_baseColor.jpg-d7654ddd530c2f99ba1339d7438889ce.s3tc.ctex", "res://.godot/imported/grenades_mat1_baseColor.jpg-d7654ddd530c2f99ba1339d7438889ce.etc2.ctex"]
+
+[params]
+
+compress/mode=2
+compress/high_quality=false
+compress/lossy_quality=0.7
+compress/hdr_compression=1
+compress/normal_map=0
+compress/channel_pack=0
+mipmaps/generate=true
+mipmaps/limit=-1
+roughness/mode=0
+roughness/src_normal=""
+process/fix_alpha_border=true
+process/premult_alpha=false
+process/normal_map_invert_y=false
+process/hdr_as_srgb=false
+process/hdr_clamp_exposure=false
+process/size_limit=0
+detect_3d/compress_to=1

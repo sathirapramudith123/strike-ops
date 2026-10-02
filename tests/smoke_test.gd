@@ -923,6 +923,12 @@ func _test_weapon_animations() -> void:
 		var blade := ((kref.rhand_from_gun as Transform3D).affine_inverse().basis * Vector3.FORWARD).normalized()
 		_check(WeaponModel.real_parts("knife").has("Gun") and kref.has("rhand_from_gun"),
 			"the knife is a real model held in the fist (blade dir in hand %s)" % blade.snapped(Vector3.ONE * 0.01))
+		for k: int in [Throwables.Kind.HE, Throwables.Kind.FLASH, Throwables.Kind.SMOKE, Throwables.Kind.MOLOTOV]:
+			var gm := GrenadeProjectile.build_model(k)
+			_check(gm.get_child(0) is MeshInstance3D and (gm.get_child(0) as MeshInstance3D).mesh is ArrayMesh
+				and ((gm.get_child(0) as MeshInstance3D).mesh as ArrayMesh).get_surface_count() >= 1,
+				"real %s model" % Throwables.NAMES[k])
+			gm.free()
 		var real_rifle := WeaponModel.real_parts("rifle")
 		_check(real_rifle.has("Gun") and real_rifle.has("Magazine") and real_rifle.has("GunFull")
 			and w.ads_position == WeaponModel.hands("rifle").ads and w.muzzle.position == WeaponModel.hands("rifle").muzzle,

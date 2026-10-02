@@ -55,9 +55,16 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	# Shown with the gun's own model (not while scoped or holding a grenade).
+	# Shown with the gun's own model (not while scoped), or holding a grenade.
 	var model := weapon.get_node_or_null(^"Model") as Node3D if is_instance_valid(weapon) else null
-	visible = model != null and model.is_visible_in_tree()
+	visible = (model != null and model.is_visible_in_tree()) or grenade() != null
+
+
+## The grenade in the player's hand (first person), or null.
+func grenade() -> Node3D:
+	if not is_instance_valid(weapon) or weapon._player == null or weapon._player.throwables == null:
+		return null
+	return weapon._player.throwables.hand_model()
 
 
 ## How far each wrist is from where the gun wants it (m), after the last frame.
@@ -80,6 +87,19 @@ class _ArmIK extends SkeletonModifier3D:
 		var ref := RifleGrip.hold(s, FPArms.SCENE, arms._lib, id)
 		var to_skel := s.global_transform.affine_inverse()
 		var cam := arms.get_parent_node_3d().global_basis if arms.get_parent_node_3d() else Basis.IDENTITY
+		var g := arms.grenade()
+		if g:
+			# A grenade: the right fist closes round it (the knife's grip,
+			# the grenade where the knife's handle would be), the left drops.
+			var kref := RifleGrip.hold(s, FPArms.SCENE, arms._lib, "knife")
+			var grip: Vector3 = WeaponModel.hands("knife").grip
+			var gx := g.global_transform.orthonormalized()
+			var t := to_skel * gx * Transform3D(Basis.IDENTITY, -grip) * (kref.rhand_from_gun as Transform3D)
+			miss.Right = RifleGrip.solve_arm(s, "Right", t, _pole(s, "Right", to_skel, cam * Vector3(1, -1, 0.3)))
+			var low := Transform3D(s.get_bone_global_pose(s.find_bone(FPArms.BONE + "LeftHand")).basis,
+				to_skel * (arms.get_parent_node_3d().global_transform * Vector3(-0.3, -0.75, 0.05)))
+			RifleGrip.solve_arm(s, "Left", low, _pole(s, "Left", to_skel, cam * Vector3(-1, -0.3, 0.3)))
+			return
 		if w._right_arm:
 			var t := to_skel * w.global_transform * w._right_arm.transform * (ref.rhand_from_gun as Transform3D)
 			miss.Right = RifleGrip.solve_arm(s, "Right", t, _pole(s, "Right", to_skel, cam * Vector3(1, -1, 0.3)))

@@ -108,6 +108,9 @@ func _on_body_entered(_body: Node) -> void:
 ## burning rag, or a can (flash: grey with a white top; smoke: green-grey
 ## with a dark band).
 static func build_model(grenade_kind: int) -> Node3D:
+	var real := _real_model(grenade_kind)
+	if real:
+		return real
 	var root := Node3D.new()
 	root.name = "Model"
 	if grenade_kind == Throwables.Kind.FLASH or grenade_kind == Throwables.Kind.SMOKE:
@@ -147,6 +150,49 @@ static func build_model(grenade_kind: int) -> Node3D:
 		light.light_energy = 1.2
 		light.omni_range = 3.0
 		light.position = Vector3(0, 0.22, 0)
+		root.add_child(light)
+	return root
+
+
+## Real models (README → Grenade effects) while Realistic soldiers is on:
+## M67 frag, M84 flashbang, M18 smoke, a bottle with a rag
+## (assets/weapons/grenades/grenades.glb), centred on the origin, upright.
+const REAL_MODELS := "res://assets/weapons/grenades/grenades.glb"
+const REAL_NAMES := { Throwables.Kind.HE: "grenade_he", Throwables.Kind.FLASH: "grenade_flash",
+	Throwables.Kind.SMOKE: "grenade_smoke", Throwables.Kind.MOLOTOV: "grenade_molotov" }
+static var _real_meshes := {}
+
+
+static func _real_model(grenade_kind: int) -> Node3D:
+	if not SettingsManager.graphics.realistic_characters or not ResourceLoader.exists(REAL_MODELS):
+		return null
+	if _real_meshes.is_empty():
+		var scene := (load(REAL_MODELS) as PackedScene).instantiate()
+		for mi: MeshInstance3D in scene.find_children("*", "MeshInstance3D", true, false):
+			_real_meshes[String(mi.name)] = mi.mesh
+		scene.free()
+	var mesh: Mesh = _real_meshes.get(REAL_NAMES.get(grenade_kind, ""))
+	if mesh == null:
+		return null
+	var root := Node3D.new()
+	root.name = "Model"
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	root.add_child(mi)
+	if grenade_kind == Throwables.Kind.MOLOTOV:
+		# The rag burns: a small flame and its light on top.
+		var top := mesh.get_aabb().end.y
+		var flame := FxKit.emitter(FxKit.quad(FxKit.fire_texture(), 0.06, true, 1.4, 1.5), 10, 0.25, false,
+			[[0.0, Color(1, 0.75, 0.3, 0.0)], [0.2, Color(1, 0.6, 0.2, 1.0)], [1.0, Color(0.8, 0.2, 0.02, 0.0)]],
+			[[0.0, 1.0], [1.0, 0.4]], Vector2(0.2, 0.5), 15.0, Vector3(0, 0.6, 0), 0.0, 30.0, 0.01)
+		flame.local_coords = false
+		flame.position = Vector3(0, top - 0.01, 0)
+		root.add_child(flame)
+		var light := OmniLight3D.new()
+		light.light_color = Color(1.0, 0.6, 0.25)
+		light.light_energy = 1.2
+		light.omni_range = 3.0
+		light.position = Vector3(0, top + 0.03, 0)
 		root.add_child(light)
 	return root
 

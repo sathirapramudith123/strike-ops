@@ -26,7 +26,9 @@ black smoke that hangs for a few seconds and a scorch mark; the
 flashbang bursts white with sparks; smoke grenades hiss out a jet and
 billow into a lit, rolling cloud; Molotovs burst and burn with flame
 tongues, embers, black smoke and a scorched floor. All particles, no big
-textures, and they follow the Particles setting.
+textures, and they follow the Particles setting. The grenades themselves
+are real models — M67 frag, M84 flashbang, M18 smoke, a bottle with a
+burning rag — held in your fist.
 
 **A real knife:** the K-1 is now a dark combat knife (Sketchfab,
 Relowsky) held in the fist with the blade forward; the left arm drops
