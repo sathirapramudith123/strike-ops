@@ -13,6 +13,9 @@ section before changing a system.
   guns and maps are built from code — no skeletons or big textures) and
   keep the Low preset fast.
 - Keep README.md and CHANGELOG.md up to date with each feature.
+- **Sathira Pramudith is the only contributor.** Commit as the repo's git
+  user, and never add `Co-Authored-By` lines, "Generated with Claude Code"
+  or any other Claude / Anthropic attribution to commits or pull requests.
 
 ## Layout
 - `scripts/core/` — autoloads `SettingsManager` and `Match` (match rules,
