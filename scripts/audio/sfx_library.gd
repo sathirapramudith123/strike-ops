@@ -28,6 +28,10 @@ const NAMES: Array[StringName] = [
 	&"bomb_beep", &"explosion", &"bomb_planted", &"bomb_defused",
 	&"round_start", &"round_win", &"round_lose", &"match_win", &"match_lose", &"match_draw",
 ]
+## Map ambience (AmbientFx: water drips, electrical shorts, failing lamps,
+## rats). Small, so they are made the first time they play rather than in
+## the startup prewarm (prewarming them made Godot crash on exit).
+const AMBIENT: Array[StringName] = [&"drip", &"spark", &"lamp_buzz", &"rat_squeak", &"rat_scurry"]
 const FILE_DIRS: PackedStringArray = ["res://assets/audio/sfx/", "res://assets/audio/ui/"]
 const FILE_EXTENSIONS: PackedStringArray = ["ogg", "wav", "mp3"]
 
@@ -222,6 +226,36 @@ static func generate(sound: StringName) -> AudioStreamWAV:
 			PS.add_noise(b, 0.0, 0.05, 0.6, 0.95, 0.3, 80.0, 0.0003, 311)
 			PS.add_tone(b, 0.0, 0.2, 0.25, 3300.0, -1.0, 30.0)
 			PS.add_tone(b, 0.01, 0.15, 0.15, 4100.0, -1.0, 35.0)
+		# --- Map ambience ---
+		&"drip":
+			# A drop hitting a puddle: a short falling "plink" and a tiny splash.
+			b = PS.buffer(0.25)
+			PS.add_tone(b, 0.0, 0.12, 0.7, 1700.0, 950.0, 40.0, 0.001)
+			PS.add_noise(b, 0.0, 0.06, 0.25, 0.9, 0.5, 70.0, 0.0005, 401)
+		&"spark":
+			# An electrical short: crackling snaps over a mains buzz.
+			b = PS.buffer(0.5)
+			PS.add_tone(b, 0.0, 0.45, 0.25, 100.0, -1.0, 6.0, 0.005, PS.Shape.SOFT_SQUARE)
+			var srng := RandomNumberGenerator.new()
+			srng.seed = 402
+			for i in 9:
+				PS.add_noise(b, srng.randf_range(0.0, 0.35), 0.02, srng.randf_range(0.5, 1.0), 0.95, 0.6, 120.0, 0.0003, 410 + i)
+		&"lamp_buzz":
+			# A failing fluorescent tube: a buzzing hum that stutters.
+			b = PS.buffer(0.8)
+			PS.add_tone(b, 0.0, 0.8, 0.35, 100.0, -1.0, 2.0, 0.01, PS.Shape.SOFT_SQUARE)
+			PS.add_tone(b, 0.0, 0.8, 0.15, 200.0, -1.0, 2.0, 0.01, PS.Shape.SOFT_SQUARE)
+			PS.add_noise(b, 0.2, 0.05, 0.3, 0.9, 0.5, 60.0, 0.0005, 420)
+			PS.add_noise(b, 0.5, 0.04, 0.25, 0.9, 0.5, 60.0, 0.0005, 421)
+		&"rat_squeak":
+			b = PS.buffer(0.3)
+			PS.add_tone(b, 0.0, 0.07, 0.6, 3200.0, 4200.0, 25.0, 0.003)
+			PS.add_tone(b, 0.1, 0.09, 0.5, 3600.0, 2900.0, 25.0, 0.003)
+		&"rat_scurry":
+			# Tiny claws pattering over concrete.
+			b = PS.buffer(0.6)
+			for i in 14:
+				PS.add_noise(b, i * 0.04, 0.02, 0.4, 0.8, 0.6, 150.0, 0.0003, 430 + i)
 		&"glass_break":
 			b = PS.buffer(0.6)
 			PS.add_noise(b, 0.0, 0.5, 0.8, 0.95, 0.4, 9.0, 0.0005, 85)

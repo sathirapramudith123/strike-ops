@@ -140,6 +140,7 @@ class Map:
         self.doors = []  # (bottom-centre pos, yaw, width, height) — scripts/levels/door.gd
         self.panes = []  # (centre pos, yaw, width, height) — breakable glass, scripts/levels/glass_pane.gd
         self.barrels = []  # bottom-centre pos — explosive red drums, scripts/levels/explosive_barrel.gd
+        self.ambience = []  # (kind, pos, props) — flickering lamps, drips, sparks, rats: scripts/levels/ambient_fx.gd
         self._n = {}
 
     def _id(self, prefix):
@@ -185,6 +186,16 @@ class Map:
         """An explosive red oil drum (shoot it and it blows up); pos is its
         bottom centre."""
         self.barrels.append(pos)
+
+    AMBIENT_KINDS = {"lamp": 0, "drip": 1, "sparks": 2, "rats": 3}
+
+    def ambient(self, kind, pos, **props):
+        """Looks-and-sound-only life (AmbientFx): "lamp" (a failing lamp at
+        pos: energy, light_range, color), "drip" (water dripping from
+        `height` above pos into a puddle of size `puddle`), "sparks" (a
+        shorting cable hanging from `height` above pos), "rats" (`count` rats
+        running along the wall from pos to `run_to`)."""
+        self.ambience.append((self.AMBIENT_KINDS[kind], pos, props))
 
     def blocker(self, pos, size, name="Blocker"):
         """Invisible collision box (e.g. one collider for a pile of sandbags)."""
@@ -409,6 +420,7 @@ class Map:
 [ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
 [ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
 [ext_resource type="Script" path="res://scripts/levels/explosive_barrel.gd" id="9_barrel"]
+[ext_resource type="Script" path="res://scripts/levels/ambient_fx.gd" id="10_amb"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color({sky[0]}, {sky[1]}, {sky[2]}, 1)
@@ -456,6 +468,19 @@ fog_density = {fog}
             barrel_nodes.append(f'[node name="Barrel{i + 1}" type="Node3D" parent="Barrels"]\n'
                                 f'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})\n'
                                 f'script = ExtResource("9_barrel")\n')
+        amb_nodes = []
+        for i, (kind, pos, props) in enumerate(self.ambience):
+            lines = [f'[node name="Amb{i + 1}" type="Node3D" parent="Ambience"]',
+                     f'transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]:.3f}, {pos[1]:.3f}, {pos[2]:.3f})',
+                     'script = ExtResource("10_amb")', f'kind = {kind}']
+            for k, v in props.items():
+                if k == "color":
+                    lines.append(f"color = Color({v[0]}, {v[1]}, {v[2]}, 1)")
+                elif isinstance(v, tuple):
+                    lines.append(f"{k} = Vector3({v[0]:.3f}, {v[1]:.3f}, {v[2]:.3f})")
+                else:
+                    lines.append(f"{k} = {v}")
+            amb_nodes.append("\n".join(lines) + "\n")
         site_nodes, site_paths = [], []
         for name, pos in self.sites:
             site_nodes.append(f'[node name="{name}" type="Marker3D" parent="BombSites"]\ntransform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, {pos[0]}, {pos[1]}, {pos[2]})\n')
@@ -499,6 +524,7 @@ directional_shadow_max_distance = 100.0
                + ('\n[node name="Doors" type="Node3D" parent="."]\n\n' + "\n".join(door_nodes) if door_nodes else "")
                + ('\n[node name="Glass" type="Node3D" parent="."]\n\n' + "\n".join(pane_nodes) if pane_nodes else "")
                + ('\n[node name="Barrels" type="Node3D" parent="."]\n\n' + "\n".join(barrel_nodes) if barrel_nodes else "")
+               + ('\n[node name="Ambience" type="Node3D" parent="."]\n\n' + "\n".join(amb_nodes) if amb_nodes else "")
                + "\n" + tail)
         with open(os.path.join(ROOT, path), "w") as f:
             f.write(out)
@@ -1752,6 +1778,7 @@ def factory():
     _rubble(m, rng, 16.0, -39.0, 1.2, 1.0)
     _debris(m, rng, 8, 34, -39.5, -36.5, 26)
     m.barrel((32.6, 0.0, -39.2))
+    m.ambient("rats", (31.4, 0.0, -39.6), run_to=(20.5, 0.0, -39.6), count=2)
     _scorch(m, 20.0, -38.0, 3.0)
     _ivy(m, 22.0, 0.0, -40.0, "s", 4.0, 4.5)
 
@@ -1784,7 +1811,10 @@ def factory():
         m.cyl((-13.2, 1.1, z), 1.1, 3.6, "rust", "Boiler", segments=12, roll=90)
     m.box((-8.0, 0.6, -20.0), (1.2, 1.2, 1.6), "metal", "Pump")
     _strip_light(m, -11, 4.1, -20, 2.0, 90)
-    m.omni((-11, 3.6, -20), 0.6, 8.0, (1.0, 0.75, 0.5))
+    m.ambient("lamp", (-11.0, 3.3, -20.0), energy=0.7, light_range=8.0, color=(1.0, 0.78, 0.55))
+    m.ambient("drip", (-7.0, 0.0, -24.5), height=4.1, puddle=1.4)
+    m.ambient("sparks", (-15.4, 0.6, -16.0), height=3.6, energy=1.0, light_range=6.0)
+    m.ambient("rats", (-6.6, 0.0, -25.4), run_to=(-6.6, 0.0, -14.8), count=2)
     m.reverb((-11, 2.1, -20), (10, 4.2, 12), "room", 0.45, priority=1)
     _debris(m, rng, -15.5, -6.5, -25.5, -14.5, 14)
 
@@ -1817,9 +1847,14 @@ def factory():
         m.box((x, (MZ - 0.24) / 2, -44.3), (0.3, MZ - 0.24, 0.3), "metal", "MezzPost")
     # Its broken end hangs down into the collapse.
     m.box((-15.0, MZ - 0.9, -46.0), (2.2, 0.24, 4.0), "metal", "MezzBroken", roll=-28, collide=False)
-    for (x, z) in ((-23, -36), (1, -36)):
-        _strip_light(m, x, HALL - 0.5, z, 3.0)
-        m.omni((x, HALL - 3.0, z), 0.7, 14.0, (1.0, 0.92, 0.8))
+    _strip_light(m, -23, HALL - 0.5, -36, 3.0)
+    m.omni((-23, HALL - 3.0, -36), 0.7, 14.0, (1.0, 0.92, 0.8))
+    _strip_light(m, 1, HALL - 0.5, -36, 3.0)
+    m.ambient("lamp", (1.0, HALL - 2.2, -36.0), energy=0.9, light_range=14.0, color=(1.0, 0.92, 0.8))
+    m.ambient("drip", (-25.0, 0.0, -40.0), height=HALL - 0.3, puddle=1.8)
+    m.ambient("drip", (3.0, 0.0, -28.5), height=HALL - 0.3, puddle=1.2)
+    m.ambient("sparks", (-2.0, 3.5, -47.6), height=6.0, energy=1.4, light_range=9.0)
+    m.ambient("rats", (-29.6, 0.0, -27.0), run_to=(-29.6, 0.0, -32.0), count=1)
     m.omni((-10.0, 6.0, -37.0), 0.5, 12.0, (1.0, 0.95, 0.85))
     m.reverb((-12, HALL / 2, -37), (36, HALL, 22), "hall", 0.4)
     _ivy(m, -16.0, 0.0, -48.0, "s", 4.0, 7.0)
@@ -1863,7 +1898,10 @@ def factory():
     _pallets(m, 33.0, 14.8, 20)
     m.barrel((34.5, 0.0, 19.0))
     _strip_light(m, 31, 5.9, 20, 2.4)
-    m.omni((31, 5.0, 20), 0.6, 10.0, (1.0, 0.85, 0.65))
+    m.ambient("lamp", (31.0, 5.2, 20.0), energy=0.8, light_range=10.0, color=(1.0, 0.85, 0.65))
+    m.ambient("drip", (28.0, 0.0, 16.0), height=5.9, puddle=1.5)
+    m.ambient("sparks", (35.6, 1.8, 13.0), height=4.0, energy=1.2, light_range=7.0)
+    m.ambient("rats", (26.4, 0.0, 12.4), run_to=(35.5, 0.0, 12.4), count=2)
     m.reverb((31, 3, 21), (10, 6, 18), "room", 0.4, priority=1)
     _debris(m, rng, 27, 45, 13, 29, 30)
     _rubble(m, rng, 15.0, 27.0, 1.2, 1.0)
@@ -1871,6 +1909,7 @@ def factory():
     _weeds(m, rng, 8.0, 29.0, 4)
     _ivy(m, 12.0, 0.0, 30.0, "n", 4.0, 5.0)
     _rubble(m, rng, -8.0, 15.0, 1.0, 0.9)
+    m.ambient("rats", (-13.6, 0.0, 11.0), run_to=(-13.6, 0.0, 21.0), count=2)
     _weeds(m, rng, -13.0, 21.0, 3)
 
     # --- CT: the admin yard, CT Mid, the Offices, the Pump House -------------------
@@ -1891,7 +1930,10 @@ def factory():
     m.box((-36.0, 1.0, -25.0), (5.0, 2.0, 0.1), "office_wall", "Partition", yaw=18, roll=4)
     _debris(m, rng, -43.5, -30.5, -31.5, -16.5, 20, ("concrete", "office_wall"))
     _strip_light(m, -37, 3.3, -24, 1.6, 90)
-    m.omni((-37, 2.9, -24), 0.5, 7.0, (0.95, 0.97, 1.0))
+    m.ambient("lamp", (-37.0, 2.7, -24.0), energy=0.6, light_range=7.0, color=(0.92, 0.96, 1.0))
+    m.ambient("sparks", (-32.0, 0.8, -18.5), height=2.5, energy=1.0, light_range=6.0)
+    m.ambient("drip", (-41.5, 0.0, -29.5), height=3.3, puddle=1.2)
+    m.ambient("rats", (-43.6, 0.0, -31.6), run_to=(-43.6, 0.0, -20.0), count=2)
     m.reverb((-37, 1.7, -24), (14, 3.4, 16), "room", 0.4, priority=1)
     # Pump House: pumps, pipes, a puddle.
     for z in (19.5, 24.5):
@@ -1899,7 +1941,10 @@ def factory():
         m.cyl((-36.0, 0.5, z), 0.35, 4.0, "rust", "PumpPipe", segments=8, roll=90, collide=False)
     m.box((-33.5, 0.005, 22.0), (2.4, 0.01, 3.0), "water", "Puddle", collide=False)
     _strip_light(m, -37, 4.4, 22, 1.6, 90)
-    m.omni((-37, 3.8, 22), 0.5, 8.0, (1.0, 0.85, 0.6))
+    m.ambient("lamp", (-37.0, 3.7, 22.0), energy=0.6, light_range=8.0, color=(1.0, 0.85, 0.6))
+    m.ambient("drip", (-33.5, 0.0, 22.0), height=4.4, puddle=0.0)
+    m.ambient("drip", (-42.5, 0.0, 17.5), height=4.4, puddle=1.0)
+    m.ambient("rats", (-43.6, 0.0, 27.6), run_to=(-31.0, 0.0, 27.6), count=3)
     m.reverb((-37, 2.2, 22), (14, 4.5, 12), "room", 0.45, priority=1)
 
     # --- Background: dead chimneys, a water tower, pylons ----------------------------

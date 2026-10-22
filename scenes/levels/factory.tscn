@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/levels/door.gd" id="7_door"]
 [ext_resource type="Script" path="res://scripts/levels/glass_pane.gd" id="8_glass"]
 [ext_resource type="Script" path="res://scripts/levels/explosive_barrel.gd" id="9_barrel"]
+[ext_resource type="Script" path="res://scripts/levels/ambient_fx.gd" id="10_amb"]
 
 [sub_resource type="ProceduralSkyMaterial" id="SkyMat"]
 sky_top_color = Color(0.42, 0.46, 0.52, 1)
@@ -15467,52 +15468,22 @@ transform = Transform3D(1.000000, 0, 0.000000, 0, 1, 0, -0.000000, 0, 1.000000, 
 [node name="Lights" type="Node3D" parent="."]
 
 [node name="Lamp1" type="OmniLight3D" parent="Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11, 3.6, -20)
-light_color = Color(1.0, 0.75, 0.5, 1)
-light_energy = 0.6
-omni_range = 8.0
-
-[node name="Lamp2" type="OmniLight3D" parent="Lights"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -23, 9.0, -36)
 light_color = Color(1.0, 0.92, 0.8, 1)
 light_energy = 0.7
 omni_range = 14.0
 
-[node name="Lamp3" type="OmniLight3D" parent="Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 9.0, -36)
-light_color = Color(1.0, 0.92, 0.8, 1)
-light_energy = 0.7
-omni_range = 14.0
-
-[node name="Lamp4" type="OmniLight3D" parent="Lights"]
+[node name="Lamp2" type="OmniLight3D" parent="Lights"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10.0, 6.0, -37.0)
 light_color = Color(1.0, 0.95, 0.85, 1)
 light_energy = 0.5
 omni_range = 12.0
 
-[node name="Lamp5" type="OmniLight3D" parent="Lights"]
+[node name="Lamp3" type="OmniLight3D" parent="Lights"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14.0, 8.0, 34.0)
 light_color = Color(1.0, 0.85, 0.65, 1)
 light_energy = 0.8
 omni_range = 18.0
-
-[node name="Lamp6" type="OmniLight3D" parent="Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31, 5.0, 20)
-light_color = Color(1.0, 0.85, 0.65, 1)
-light_energy = 0.6
-omni_range = 10.0
-
-[node name="Lamp7" type="OmniLight3D" parent="Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37, 2.9, -24)
-light_color = Color(0.95, 0.97, 1.0, 1)
-light_energy = 0.5
-omni_range = 7.0
-
-[node name="Lamp8" type="OmniLight3D" parent="Lights"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37, 3.8, 22)
-light_color = Color(1.0, 0.85, 0.6, 1)
-light_energy = 0.5
-omni_range = 8.0
 
 [node name="BombSites" type="Node3D" parent="."]
 
@@ -15745,6 +15716,178 @@ script = ExtResource("9_barrel")
 [node name="Barrel7" type="Node3D" parent="Barrels"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 34.500, 0.000, 19.000)
 script = ExtResource("9_barrel")
+
+[node name="Ambience" type="Node3D" parent="."]
+
+[node name="Amb1" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.400, 0.000, -39.600)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(20.500, 0.000, -39.600)
+count = 2
+
+[node name="Amb2" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -11.000, 3.300, -20.000)
+script = ExtResource("10_amb")
+kind = 0
+energy = 0.7
+light_range = 8.0
+color = Color(1.0, 0.78, 0.55, 1)
+
+[node name="Amb3" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.000, 0.000, -24.500)
+script = ExtResource("10_amb")
+kind = 1
+height = 4.1
+puddle = 1.4
+
+[node name="Amb4" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15.400, 0.600, -16.000)
+script = ExtResource("10_amb")
+kind = 2
+height = 3.6
+energy = 1.0
+light_range = 6.0
+
+[node name="Amb5" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.600, 0.000, -25.400)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(-6.600, 0.000, -14.800)
+count = 2
+
+[node name="Amb6" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.000, 9.800, -36.000)
+script = ExtResource("10_amb")
+kind = 0
+energy = 0.9
+light_range = 14.0
+color = Color(1.0, 0.92, 0.8, 1)
+
+[node name="Amb7" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -25.000, 0.000, -40.000)
+script = ExtResource("10_amb")
+kind = 1
+height = 11.7
+puddle = 1.8
+
+[node name="Amb8" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.000, 0.000, -28.500)
+script = ExtResource("10_amb")
+kind = 1
+height = 11.7
+puddle = 1.2
+
+[node name="Amb9" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.000, 3.500, -47.600)
+script = ExtResource("10_amb")
+kind = 2
+height = 6.0
+energy = 1.4
+light_range = 9.0
+
+[node name="Amb10" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -29.600, 0.000, -27.000)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(-29.600, 0.000, -32.000)
+count = 1
+
+[node name="Amb11" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 31.000, 5.200, 20.000)
+script = ExtResource("10_amb")
+kind = 0
+energy = 0.8
+light_range = 10.0
+color = Color(1.0, 0.85, 0.65, 1)
+
+[node name="Amb12" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 28.000, 0.000, 16.000)
+script = ExtResource("10_amb")
+kind = 1
+height = 5.9
+puddle = 1.5
+
+[node name="Amb13" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35.600, 1.800, 13.000)
+script = ExtResource("10_amb")
+kind = 2
+height = 4.0
+energy = 1.2
+light_range = 7.0
+
+[node name="Amb14" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 26.400, 0.000, 12.400)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(35.500, 0.000, 12.400)
+count = 2
+
+[node name="Amb15" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.600, 0.000, 11.000)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(-13.600, 0.000, 21.000)
+count = 2
+
+[node name="Amb16" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.000, 2.700, -24.000)
+script = ExtResource("10_amb")
+kind = 0
+energy = 0.6
+light_range = 7.0
+color = Color(0.92, 0.96, 1.0, 1)
+
+[node name="Amb17" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -32.000, 0.800, -18.500)
+script = ExtResource("10_amb")
+kind = 2
+height = 2.5
+energy = 1.0
+light_range = 6.0
+
+[node name="Amb18" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -41.500, 0.000, -29.500)
+script = ExtResource("10_amb")
+kind = 1
+height = 3.3
+puddle = 1.2
+
+[node name="Amb19" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.600, 0.000, -31.600)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(-43.600, 0.000, -20.000)
+count = 2
+
+[node name="Amb20" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -37.000, 3.700, 22.000)
+script = ExtResource("10_amb")
+kind = 0
+energy = 0.6
+light_range = 8.0
+color = Color(1.0, 0.85, 0.6, 1)
+
+[node name="Amb21" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -33.500, 0.000, 22.000)
+script = ExtResource("10_amb")
+kind = 1
+height = 4.4
+puddle = 0.0
+
+[node name="Amb22" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -42.500, 0.000, 17.500)
+script = ExtResource("10_amb")
+kind = 1
+height = 4.4
+puddle = 1.0
+
+[node name="Amb23" type="Node3D" parent="Ambience"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -43.600, 0.000, 27.600)
+script = ExtResource("10_amb")
+kind = 3
+run_to = Vector3(-31.000, 0.000, 27.600)
+count = 3
 
 [node name="HUD" parent="." instance=ExtResource("2_hud")]
 

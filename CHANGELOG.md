@@ -20,6 +20,14 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**The ruins come alive:** on Factory, failing lamps flicker, buzz and
+sometimes go dark; water drips from the broken roof into puddles with a
+little splash and a "plink"; cut cables hanging from the ceiling short
+out in showers of sparks with a blue flash and a crackle; and rats
+scurry along the walls of the Boiler Room, Offices, Pump House, Loading
+Bays and alleys, stopping to sniff, and bolt squeaking when you come
+close.
+
 **Factory in ruins (new layout):** Factory is now the abandoned Lanka
 Steel works after the war. T come in from the rail siding in the east,
 CT from the old admin yard in the west. A is inside the Production Hall

@@ -1924,6 +1924,51 @@ func _test_maps() -> void:
 		_check(not barrel.exploded and not shape.disabled and barrel.get_node(^"Body").visible, "factory: the barrel comes back")
 		_player.health.revive()
 
+	# Ambience (AmbientFx): failing lamps flicker, water drips, cables short,
+	# rats run off when a player comes close.
+	var fx := get_tree().get_nodes_in_group(AmbientFx.GROUP)
+	var by_kind := {}
+	for a: AmbientFx in fx:
+		by_kind[a.kind] = by_kind.get(a.kind, []) + [a]
+	_check(by_kind.get(AmbientFx.Kind.FLICKER_LAMP, []).size() >= 4 and by_kind.get(AmbientFx.Kind.DRIP, []).size() >= 4
+		and by_kind.get(AmbientFx.Kind.SPARKS, []).size() >= 3 and by_kind.get(AmbientFx.Kind.RATS, []).size() >= 5,
+		"factory: ambience — %d failing lamps, %d drips, %d shorting cables, %d rat runs" % [
+			by_kind.get(AmbientFx.Kind.FLICKER_LAMP, []).size(), by_kind.get(AmbientFx.Kind.DRIP, []).size(),
+			by_kind.get(AmbientFx.Kind.SPARKS, []).size(), by_kind.get(AmbientFx.Kind.RATS, []).size()])
+	var built := by_kind.size() == 4 and fx.all(func(a: AmbientFx) -> bool:
+		return a.light != null or a.kind == AmbientFx.Kind.DRIP or a.kind == AmbientFx.Kind.RATS)
+	_check(built, "factory: every lamp and shorting cable built its light")
+	if built:
+		var lamp: AmbientFx = by_kind[AmbientFx.Kind.FLICKER_LAMP][0]
+		var drip: AmbientFx = by_kind[AmbientFx.Kind.DRIP][0]
+		var short: AmbientFx = by_kind[AmbientFx.Kind.SPARKS][0]
+		lamp._timer = 0.0
+		drip._timer = 0.0
+		var lo := INF
+		var hi := 0.0
+		var drops := drip.drops
+		var until := Time.get_ticks_msec() + 3000
+		while Time.get_ticks_msec() < until and (drip.drops == drops or lamp.bursts == 0 or lo > lamp.energy * 0.3):
+			await _frames(1)
+			lo = minf(lo, lamp.light.light_energy)
+			hi = maxf(hi, lamp.light.light_energy)
+		_check(hi > lamp.energy * 0.8 and lo < lamp.energy * 0.3 and lamp.bursts > 0,
+			"factory: a failing lamp flickers (%.2f..%.2f)" % [lo, hi])
+		_check(drip.drops > drops, "factory: a drop falls and splashes into the puddle")
+		var burst := short.bursts
+		short.spark_burst()
+		await _frames(1)
+		_check(short.bursts > burst and short.light.light_energy > 0.1, "factory: a shorting cable sparks and flashes")
+		var runs: AmbientFx = by_kind[AmbientFx.Kind.RATS][0]
+		var rat := runs.rat_positions()[0]
+		var along := (runs.run_to - runs.global_position).normalized()
+		_reset_player(rat + along * 1.2 + Vector3(0, 0.1, 0), 0.0)
+		var wait_until := Time.get_ticks_msec() + 600
+		while Time.get_ticks_msec() < wait_until:
+			await _frames(1)
+		var moved := runs.rat_positions()[0].distance_to(rat)
+		_check(runs.fleeing() > 0 and moved > 0.3, "factory: rats bolt when a player comes close (%.1f m)" % moved)
+
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
 			# Factory (the ruins): every way onto A and B, Mid, the mezzanine.
@@ -2020,11 +2065,12 @@ func _test_audio() -> void:
 		var idx := AudioServer.get_bus_index(bus)
 		_check(idx >= 0 and AudioServer.get_bus_send(idx) == &"SFX", "bus %s exists and feeds SFX" % bus)
 	var bad := PackedStringArray()
-	for sound in SfxLibrary.NAMES:
+	for sound in SfxLibrary.NAMES + SfxLibrary.AMBIENT:
 		var st := SfxLibrary.get_sound(sound)
 		if st == null or st.get_length() < 0.02:
 			bad.append(sound)
-	_check(bad.is_empty(), "all %d placeholder sounds generate (%s)" % [SfxLibrary.NAMES.size(), ", ".join(bad)])
+	_check(bad.is_empty(), "all %d placeholder sounds generate, %d ambience sounds too (%s)" % [SfxLibrary.NAMES.size(),
+		SfxLibrary.AMBIENT.size(), ", ".join(bad)])
 
 	# Background generation → the level's match music starts.
 	var t := 0.0
