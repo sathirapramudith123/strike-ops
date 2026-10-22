@@ -375,6 +375,8 @@ def clear_old():
             continue
         if PROPS_SRC in o.users_collection:
             continue
+        if any(c.name == "Showcase" for c in o.users_collection):
+            continue  # the sun and cameras for viewing / rendering the map in Blender
         bpy.data.objects.remove(o, do_unlink=True)
     for me in list(bpy.data.meshes):
         if me.users == 0:
