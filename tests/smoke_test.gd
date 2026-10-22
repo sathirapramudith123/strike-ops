@@ -1852,10 +1852,10 @@ func _test_maps() -> void:
 	_check(_player.is_on_floor(), "factory: the player stands on the greybox collision under the art")
 	# Real props (blue drums, crates, forklifts, delivery trucks, palms, air-con
 	# units, boxes of goods) and the window texture.
-	var has_mats := ["barrel_03", "Crate", "ForkLift_01", "07___Default", "Palm_Hamza", "exterior_aircon_unit_rusted_01",
-			"cardboard_box_01", "Mat_glass"].all(
+	var has_mats := ["Crate", "ForkLift_01", "07___Default", "Truck_burnt", "Palm_Hamza", "exterior_aircon_unit_rusted_01",
+			"cardboard_box_01", "Mat_glass", "Mat_weeds", "Mat_ivy", "Mat_scorch"].all(
 		func(n: String) -> bool: return _level.art_materials.has(n))
-	_check(has_mats, "factory: real drums, crates, forklifts, trucks, palms, air-con units, goods, textured windows (%s)" % str(_level.art_materials.keys().slice(0, 40)))
+	_check(has_mats, "factory: real crates, forklift, trucks (one burnt out), palms, air-con, goods; broken windows, weeds, creepers, burn marks (%s)" % str(_level.art_materials.keys().slice(0, 40)))
 	var flags := _level.find_children("Flag*", "", true, false).size() + _level.art.find_children("Flag*", "", true, false).size()
 	_check(flags == 0, "factory: no flag (removed), in the greybox or the art (%d)" % flags)
 	Level.art_disabled = true
@@ -1872,8 +1872,9 @@ func _test_maps() -> void:
 	await _load_map("res://scenes/levels/factory.tscn")
 	var env := _level.world_environment.environment
 	_check(_level.detail != null and env.sky.sky_material is PanoramaSkyMaterial
-		and _level.detail.find_children("*", "CPUParticles3D", true, false).size() == 7,
-		"factory: map detail adds the photo sky, skyline and chimney smoke")
+		and _level.detail.find_children("*", "CPUParticles3D", true, false).size() == _level.detail.smoke_points.size()
+		and _level.detail.smoke_points.size() >= 7,
+		"factory: map detail adds the photo sky, skyline and smoke (chimneys, burning wrecks)")
 	var puff := _level.detail.find_children("*", "CPUParticles3D", true, false)[0] as CPUParticles3D
 	var puff_mat := (puff.mesh as QuadMesh).material as StandardMaterial3D
 	_check(puff_mat.albedo_color.is_equal_approx(Color(_level.detail.smoke_color, 1.0))
@@ -1902,12 +1903,12 @@ func _test_maps() -> void:
 	var barrels := get_tree().get_nodes_in_group(ExplosiveBarrel.GROUP)
 	var barrel: ExplosiveBarrel = null
 	for b: ExplosiveBarrel in barrels:
-		if b.global_position.distance_to(Vector3(-19.5, 0, -3.2)) < 0.5:
+		if b.global_position.distance_to(Vector3(-19.0, 0, -12.5)) < 0.5:
 			barrel = b
 	_check(barrels.size() >= 6 and barrel != null and barrel.find_children("*", "MeshInstance3D", true, false).size() > 0,
 		"factory: %d explosive barrels with the real drum model" % barrels.size())
 	if barrel:
-		_reset_player(Vector3(-17.0, 0.1, -1.5), 0.0)
+		_reset_player(Vector3(-16.5, 0.1, -11.9), 0.0)
 		_player.health.revive()
 		await _frames(5)
 		barrel.server_hit(barrel.get_node(^"Body"), barrel.global_position + Vector3.UP * 0.5, 25.0, null)
@@ -1917,7 +1918,7 @@ func _test_maps() -> void:
 		var shape := barrel.get_node(^"Body").get_child(0) as CollisionShape3D
 		_check(survived and barrel.exploded and shape.disabled and _player.health.current < _player.health.max_health
 			and barrel.get_parent().find_child("Explosion", true, false) != null,
-			"factory: shooting a red barrel twice blows it up (player at 2.9 m: %.0f hp)" % _player.health.current)
+			"factory: shooting a red barrel twice blows it up (player at 2.6 m: %.0f hp)" % _player.health.current)
 		barrel.server_reset()
 		await _frames(2)
 		_check(not barrel.exploded and not shape.disabled and barrel.get_node(^"Body").visible, "factory: the barrel comes back")
@@ -1925,17 +1926,18 @@ func _test_maps() -> void:
 
 	# The other new maps: the player lands; a few routes are open.
 	for route: Array in [
-			# Factory: both ways onto A and B, Mid Doors, the dock and the mezzanine, the CT routes.
-			["factory", Vector3(-39, 0.1, 10), 0.0, func(p: Vector3) -> bool: return p.z < -11.5, "A Long through the Long Doors into A"],
-			["factory", Vector3(-5, 0.1, -1.5), PI / 2, func(p: Vector3) -> bool: return p.x < -23.0, "Mid along Short into Lanka Steel"],
-			["factory", Vector3(-26, 0.1, 1), 0.0, func(p: Vector3) -> bool: return p.z < -13.0, "through the Lanka Steel hall into A"],
-			["factory", Vector3(-47.5, 0.1, -10.5), 0.0, func(p: Vector3) -> bool: return p.y > 1.1, "up the ramp onto the A dock"],
-			["factory", Vector3(0, 0.1, -30), PI, func(p: Vector3) -> bool: return p.z > -10.0, "CT Mid through the Mid Doors"],
-			["factory", Vector3(25, 0.1, 22), 0.0, func(p: Vector3) -> bool: return p.z < 2.0, "through the Tunnel into the Press Hall (B)"],
-			["factory", Vector3(11.5, 0.1, -7), -PI / 2, func(p: Vector3) -> bool: return p.x > 22.0, "through the Workshop into B"],
-			["factory", Vector3(47, 0.1, 1), 0.0, func(p: Vector3) -> bool: return p.y > 3.8, "stairs up to the B mezzanine"],
-			["factory", Vector3(29, 0.1, -44), PI, func(p: Vector3) -> bool: return p.z > -30.0, "CT through B Back into B"],
-			["factory", Vector3(-14, 0.1, -37), PI / 2, func(p: Vector3) -> bool: return p.x < -24.0, "CT A into the silo yard"],
+			# Factory (the ruins): every way onto A and B, Mid, the mezzanine.
+			["factory", Vector3(20, 0.1, -38), PI / 2, func(p: Vector3) -> bool: return p.x < 4.0, "A Long through the Breach into the hall (A)"],
+			["factory", Vector3(-9.5, 0.1, -12), 0.0, func(p: Vector3) -> bool: return p.z < -27.0, "Mid through the Boiler Room into A"],
+			["factory", Vector3(-42, 0.1, -14), 0.0, func(p: Vector3) -> bool: return p.z < -26.0, "CT into the ruined Offices"],
+			["factory", Vector3(-36, 0.1, -29), -PI / 2, func(p: Vector3) -> bool: return p.x > -28.0, "the Offices into the hall (A)"],
+			["factory", Vector3(-29, 0.1, -32.8), 0.0, func(p: Vector3) -> bool: return p.y > 4.3, "stairs up to the A mezzanine"],
+			["factory", Vector3(-10, 0.1, 8), PI, func(p: Vector3) -> bool: return p.z > 24.0, "Mid down B Short into the Furnace Yard (B)"],
+			["factory", Vector3(24, 0.1, 23.5), PI / 2, func(p: Vector3) -> bool: return p.x < 2.0, "B Long into the Furnace Yard (B)"],
+			["factory", Vector3(-42, 0.1, 26.5), -PI / 2, func(p: Vector3) -> bool: return p.x > -27.0, "the Pump House into B"],
+			["factory", Vector3(-38, 0.1, -5), -PI / 2, func(p: Vector3) -> bool: return p.x > -18.0, "CT Mid into Mid"],
+			["factory", Vector3(34, 0.1, 6.5), PI / 2, func(p: Vector3) -> bool: return p.x < 14.0, "T Mid into Mid"],
+			["factory", Vector3(38.5, 0.1, -12), 0.0, func(p: Vector3) -> bool: return p.z < -33.0, "T North to A Long"],
 			["office", Vector3(0, 0.1, 40), 0.0, func(p: Vector3) -> bool: return p.z < 24.0, "front doors into the lobby"],
 			["office", Vector3(20, 0.1, 4), 0.0, func(p: Vector3) -> bool: return p.y > 3.5, "stairs up to the mezzanine"],
 			# Subway: A Long into A, through a train from Mid, out of a track bed, CT and T routes.

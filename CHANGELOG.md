@@ -20,6 +20,21 @@ armour, and one bottom-right with the gun, its name and big ammo
 numbers, each with a thin amber line. The weapon slots (1–4) pop up as
 small tabs above the ammo when you switch, then fade away.
 
+**Factory in ruins (new layout):** Factory is now the abandoned Lanka
+Steel works after the war. T come in from the rail siding in the east,
+CT from the old admin yard in the west. A is inside the Production Hall
+where the roof caved in — the site sits on the rubble under the open
+sky, with a mezzanine on the standing half; get there along A Long and
+through a shell hole in the hall wall, up through the Boiler Room from
+Mid, or (CT) through the ruined Offices. B is the Furnace Yard round a
+rusted blast furnace, with a burnt-out truck, a toppled container and a
+fallen crane; get there through the half-roofless Loading Bays and B
+Long, down B Short from Mid, or (CT) through the Pump House. Mid is a
+courtyard with a shell crater and a fallen pipe bridge. Everything is
+rusted, sooty and stained, the windows are smashed, weeds and creepers
+grow over the walls, there are burn marks and rubble everywhere (you can
+climb the rubble), and the sky is hazy with smoke from burning wrecks.
+
 **Explosive barrels and a cleaner Factory:** the red oil drums on
 Factory now blow up when you shoot them (two or three hits) or when an
 HE grenade goes off next to them — a fireball, blast damage to anyone

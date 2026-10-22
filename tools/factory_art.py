@@ -13,7 +13,10 @@ each mesh the textured material of its greybox kind (Mat_brick, Mat_concrete
 real size (`tex_size`, metres per tile), and exports the meshes that have
 art to factory.glb. Then it dresses the walls for the Detail layer
 (near_detail: gutters, downpipes, electrical boxes, pipes along low indoor
-walls) and exports factory_detail.glb. Meshes whose kind has no texture (glass, lamps, signs'
+walls) and exports factory_detail.glb. For the ruins it bakes age into the
+textures once (age_materials: rust on metal, soot on masonry, stains on
+floors), smashes the windows (make_glass), makes the alpha-clipped weeds,
+creepers and burn marks (make_ruin_cards) and a charred truck. Meshes whose kind has no texture (glass, lamps, signs'
 paint ...) stay greybox in the game. Far scenery (Far_*) is kept.
 """
 import bpy, bmesh, os, sys, io
@@ -41,6 +44,7 @@ DERIVED = {
     "Mat_silver": ("Mat_cable", (0.42, 0.44, 0.46, 1)),
     "Mat_office_wall": ("Mat_sandstone", (0.66, 0.65, 0.6, 1)),
     "Mat_sack": ("Mat_sandstone", (0.42, 0.3, 0.17, 1)),
+    "Mat_gravel": ("Mat_ground", (0.3, 0.27, 0.22, 1)),
 }
 # Objects (by name prefix) that get a different material than their kind.
 FLOORS = ("Floor", "Ground")
@@ -50,6 +54,9 @@ def derive():
     for name, (src, color) in DERIVED.items():
         if name in bpy.data.materials:
             continue
+        mixes = [n for n in bpy.data.materials[src].node_tree.nodes if n.type == "MIX"]
+        if not mixes:
+            continue  # the source is already aged (baked); this kind stays greybox
         m = bpy.data.materials[src].copy()
         m.name = name
         mix = next(n for n in m.node_tree.nodes if n.type == "MIX")
@@ -57,30 +64,41 @@ def derive():
 
 
 def make_glass():
-    """Mat_glass: an industrial window made in code - 2 x 2 grimy panes per
-    1.1 m tile in dark steel glazing bars, lighter towards the top (the sky
-    in it), glossy glass and rough frames. 512 px."""
+    """Mat_glass: an abandoned factory window made in code - 4 x 4 grimy
+    panes per 2.2 m tile in dark steel glazing bars, lighter towards the top
+    (the sky in it); about half the panes smashed (dark inside, jagged
+    shards left in the frame). Glossy glass, rough frames. 512 px."""
     import numpy as np
-    if "Mat_glass" in bpy.data.materials and "tex_size" in bpy.data.materials["Mat_glass"]:
+    if "Mat_glass" in bpy.data.materials and bpy.data.materials["Mat_glass"].get("broken"):
         return
     n = 512
     rng = np.random.default_rng(5)
     y, x = np.mgrid[0:n, 0:n] / n
-    bar = 0.035
-    fx = np.minimum((x % 0.5), 0.5 - (x % 0.5)) < bar / 2 + 0.004
-    fy = np.minimum((y % 0.5), 0.5 - (y % 0.5)) < bar / 2 + 0.004
+    bar = 0.02
+    fx = np.minimum((x % 0.25), 0.25 - (x % 0.25)) < bar / 2 + 0.002
+    fy = np.minimum((y % 0.25), 0.25 - (y % 0.25)) < bar / 2 + 0.002
     frame = fx | fy
     # Soft grime: blurred noise (sum of a few upsampled random grids).
     grime = np.zeros((n, n))
     for k, w in ((8, 0.5), (32, 0.3), (128, 0.2)):
         g = rng.random((k, k))
         grime += w * np.kron(g, np.ones((n // k, n // k)))
-    pane_y = (y % 0.5) / 0.5  # 0 at the top of each pane (image row 0 = top)
-    sky = 0.42 - 0.22 * pane_y
-    col = np.stack([sky * 0.82, sky * 0.92, sky * 1.0], -1)
-    col *= (0.75 + 0.35 * grime)[..., None]
-    col[frame] = (0.09, 0.09, 0.1)
-    rough = np.where(frame, 0.65, 0.08 + 0.3 * grime)
+    pane_y = (y % 0.25) / 0.25  # 0 at the top of each pane (image row 0 = top)
+    sky = 0.36 - 0.18 * pane_y
+    col = np.stack([sky * 0.85, sky * 0.9, sky * 0.92], -1)
+    col *= (0.6 + 0.35 * grime)[..., None]
+    # Smashed panes: dark inside, a ragged rim of glass left in the frame.
+    broken = np.zeros((n, n), bool)
+    for py in range(4):
+        for px in range(4):
+            if rng.random() < 0.5:
+                cx, cy = (px + 0.5) * 0.25, (py + 0.5) * 0.25
+                d = np.maximum(abs(x - cx), abs(y - cy)) / 0.125
+                rim = 0.55 + 0.4 * rng.random((n, n)) ** 3
+                broken |= (abs(x - cx) < 0.125) & (abs(y - cy) < 0.125) & (d < rim)
+    col[broken] = (0.03, 0.03, 0.035)
+    col[frame] = (0.07, 0.06, 0.055)
+    rough = np.where(frame | broken, 0.85, 0.12 + 0.35 * grime)
     def img(name, rgb):
         im = bpy.data.images.new(name, n, n, alpha=False)
         a = np.ones((n, n, 4), np.float32)
@@ -107,7 +125,248 @@ def make_glass():
     nt.links.new(tb.outputs["Color"], bsdf.inputs["Base Color"])
     nt.links.new(tr.outputs["Color"], bsdf.inputs["Roughness"])
     bsdf.inputs["Metallic"].default_value = 0.0
-    m["tex_size"] = 1.1
+    m["tex_size"] = 2.2
+    m["broken"] = 1
+
+
+# --- The ruins: aged materials, broken windows, weeds, creepers, burn marks ----------
+# Everything is baked into plain textures (glTF carries one image per slot).
+RUST = ("Mat_corrugated", "Mat_blue", "Mat_red", "Mat_green", "Mat_steel_blue", "Mat_shutter", "Mat_teal",
+        "Mat_metal", "Mat_yellow", "Mat_hazard", "Mat_silver")
+SOOT = ("Mat_brick", "Mat_concrete", "Mat_plaster", "Mat_sandstone", "Mat_office_wall", "Mat_tile")
+STAINS = ("Mat_ground", "Mat_paving", "Mat_floor_dark", "Mat_gravel")
+
+
+def _np_noise(n, k, seed, blur=3):
+    """Tileable soft noise in 0..1: an upsampled random grid, box-blurred with wrap-around."""
+    import numpy as np
+    g = np.random.default_rng(seed).random((k, k))
+    a = np.kron(g, np.ones((n // k, n // k)))
+    r = max(1, n // k // 2)
+    for _ in range(blur):
+        a = (a + np.roll(a, r, 0) + np.roll(a, -r, 0) + np.roll(a, r, 1) + np.roll(a, -r, 1)) / 5.0
+    a -= a.min()
+    return a / max(a.max(), 1e-6)
+
+
+def _np_streaks(mask, seed, length=60):
+    """Dirt / rust running down from `mask` (rows bottom-up), in thin streaks."""
+    import numpy as np
+    n = mask.shape[0]
+    s = mask.copy()
+    for k in range(1, length):
+        s = np.maximum(s, np.roll(mask, -k * 3, 0) * (0.97 ** k))
+    cols = _np_noise(n, 64, seed, 1)[0][None, :]
+    return s * np.clip(cols * 2.0 - 0.6, 0, 1)
+
+
+def _img_rgb(im, n):
+    import numpy as np
+    w, h = im.size
+    px = np.empty(w * h * 4, np.float32)
+    im.pixels.foreach_get(px)
+    a = px.reshape(h, w, 4)[..., :3]
+    if (w, h) != (n, n):
+        ys = (np.arange(n) * h // n)
+        xs = (np.arange(n) * w // n)
+        a = a[ys][:, xs]
+    return a
+
+
+def _new_image(name, rgba, jpeg=True):
+    import numpy as np
+    n = rgba.shape[0]
+    im = bpy.data.images.get(name) or bpy.data.images.new(name, n, n, alpha=not jpeg)
+    if tuple(im.size) != (n, n):
+        im.scale(n, n)
+    a = np.ones((n, n, 4), np.float32)
+    a[..., :rgba.shape[2]] = rgba
+    im.pixels.foreach_set(a.ravel())
+    im.file_format = "JPEG" if jpeg else "PNG"
+    im.pack()
+    return im
+
+
+def _base_source(m):
+    """(image, tint colour or None, the node linked into Base Color)."""
+    nt = m.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == "BSDF_PRINCIPLED")
+    link = bsdf.inputs["Base Color"].links[0]
+    node = link.from_node
+    if node.type == "TEX_IMAGE":
+        return node.image, None, bsdf
+    img = node.inputs[6].links[0].from_node.image
+    return img, tuple(node.inputs[7].default_value)[:3], bsdf
+
+
+def age_materials():
+    """Years of neglect, baked in: rust patches and rust running down the
+    metal and painted cladding, soot and dirt streaks on brick, concrete and
+    plaster, oil and damp stains on the floors; everything a little darker
+    and greyer. Once per material (m["aged"])."""
+    import numpy as np
+    n = 1024
+    rust_img = next(i for i in bpy.data.images if i.name.startswith("rusty_metal_04") and "Diffuse" in i.name)
+    rust = _img_rgb(rust_img, n)
+    for k, name in enumerate(RUST + SOOT + STAINS):
+        m = bpy.data.materials.get(name)
+        if m is None or m.get("aged"):
+            continue
+        img, tint, bsdf = _base_source(m)
+        col = _img_rgb(img, n)
+        if tint:
+            col = col * np.array(tint)
+        patch = _np_noise(n, 8, 100 + k) * 0.6 + _np_noise(n, 32, 200 + k) * 0.4
+        if name in RUST:
+            spots = np.clip(patch * 2.2 - 1.15, 0, 1)
+            amount = np.clip(spots + _np_streaks(spots, 300 + k) * 0.55, 0, 0.92)[..., None]
+            col = col * (1 - amount) + rust * amount
+            col *= 0.86
+        elif name in SOOT:
+            dirt = np.clip(patch * 1.8 - 0.8, 0, 1)
+            amount = np.clip(dirt * 0.5 + _np_streaks(dirt, 400 + k, 80) * 0.45, 0, 0.8)[..., None]
+            col = col * (1 - amount * 0.7)
+            col *= 0.84
+        else:
+            stain = np.clip(_np_noise(n, 16, 500 + k) * 2.4 - 1.4, 0, 1)[..., None]
+            col = col * (1 - stain * 0.6) * 0.88
+        grey = col.mean(-1, keepdims=True)
+        col = col * 0.8 + grey * 0.2
+        new = _new_image(name[4:] + "_aged", np.clip(col, 0, 1))
+        nt = m.node_tree
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = new
+        nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+        for nd in [nd for nd in nt.nodes if nd.type == "MIX"]:
+            nt.nodes.remove(nd)
+        m["aged"] = 1
+
+
+def _alpha_material(name, rgba, tex_size, rough=0.9):
+    """A material with an alpha-clipped colour texture (MASK in glTF)."""
+    m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    for nd in list(nt.nodes):
+        if nd.type != "OUTPUT_MATERIAL":
+            nt.nodes.remove(nd)
+    bsdf = nt.nodes.new("ShaderNodeBsdfPrincipled")
+    nt.links.new(bsdf.outputs[0], next(nd for nd in nt.nodes if nd.type == "OUTPUT_MATERIAL").inputs[0])
+    tex = nt.nodes.new("ShaderNodeTexImage")
+    tex.image = _new_image(name[4:] + "_tex", rgba, jpeg=False)
+    nt.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    less = nt.nodes.new("ShaderNodeMath")
+    less.operation = "LESS_THAN"
+    less.inputs[1].default_value = 0.5
+    nt.links.new(tex.outputs["Alpha"], less.inputs[0])
+    inv = nt.nodes.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0
+    nt.links.new(less.outputs[0], inv.inputs[1])
+    nt.links.new(inv.outputs[0], bsdf.inputs["Alpha"])
+    bsdf.inputs["Roughness"].default_value = rough
+    m.surface_render_method = "DITHERED"
+    m["tex_size"] = tex_size
+    return m
+
+
+def make_ruin_cards():
+    """Mat_weeds (grass and weed blades growing from the bottom of a 0.9 m
+    tile), Mat_ivy (creepers thick at the foot of a 7 m tile, thinning
+    upwards) and Mat_scorch (a ragged burn mark; its objects get their own
+    0..1 UVs)."""
+    import numpy as np
+    if all(n in bpy.data.materials and bpy.data.materials[n].get("cards") == 2 for n in ("Mat_weeds", "Mat_ivy", "Mat_scorch")):
+        return
+    rng = np.random.default_rng(9)
+    # Weeds: 256 px, rows bottom-up.
+    n = 256
+    w = np.zeros((n, n, 4), np.float32)
+    for i in range(140):
+        x0 = rng.uniform(0, n)
+        hgt = rng.uniform(0.25, 0.95) * n
+        lean = rng.uniform(-0.35, 0.35)
+        width = rng.uniform(1.0, 3.0)
+        c = np.array([rng.uniform(0.18, 0.42), rng.uniform(0.3, 0.48), rng.uniform(0.06, 0.15)])
+        if rng.random() < 0.3:
+            c = np.array([0.45, 0.4, 0.2]) * rng.uniform(0.7, 1.1)  # dry blade
+        for y in range(int(hgt)):
+            t = y / hgt
+            x = x0 + lean * y * (0.5 + t)
+            half = width * (1 - t) * 0.5 + 0.4
+            xs = np.arange(int(x - half), int(x + half) + 1) % n
+            w[y, xs, :3] = c * (0.6 + 0.5 * t)
+            w[y, xs, 3] = 1
+    _alpha_material("Mat_weeds", w, 0.9)
+    # Ivy: 512 px over 7 m, rows bottom-up.
+    n = 512
+    v = np.zeros((n, n, 4), np.float32)
+    yy, xx = np.mgrid[0:n, 0:n]
+    for i in range(2600):
+        y = abs(rng.normal(0, 0.55)) * n
+        if y >= n:
+            continue
+        x = rng.uniform(0, n)
+        r = rng.uniform(4, 10) * (1.25 - y / n)
+        y0, y1 = int(max(0, y - r)), int(min(n, y + r + 1))
+        x0, x1 = int(x - r), int(x + r + 1)
+        sub_y, sub_x = np.mgrid[y0:y1, x0:x1]
+        inside = (sub_y - y) ** 2 + (sub_x - x) ** 2 <= r * r
+        c = np.array([rng.uniform(0.08, 0.2), rng.uniform(0.2, 0.36), rng.uniform(0.04, 0.1)])
+        v[sub_y[inside], sub_x[inside] % n, :3] = c
+        v[sub_y[inside], sub_x[inside] % n, 3] = 1
+    _alpha_material("Mat_ivy", v, 7.0, 0.8)
+    # Scorch: 256 px, a dark ragged disc.
+    n = 256
+    d = np.hypot(*(np.mgrid[0:n, 0:n] - n / 2)) / (n / 2)
+    edge = 0.75 + (_np_noise(n, 16, 77) - 0.5) * 0.45
+    s = np.zeros((n, n, 4), np.float32)
+    s[..., :3] = (0.035 + 0.04 * d)[..., None] * np.array([1.0, 0.92, 0.85])
+    s[..., 3] = (d < edge * (0.7 + 0.3 * _np_noise(n, 64, 78))).astype(np.float32)
+    _alpha_material("Mat_scorch", s, 1.0, 1.0)
+    for name in ("Mat_weeds", "Mat_ivy", "Mat_scorch"):
+        bpy.data.materials[name]["cards"] = 2
+
+
+def make_burnt_truck():
+    """Prop_truck_burnt: the delivery truck charred black with rust coming through."""
+    import numpy as np
+    if "Prop_truck_burnt" in bpy.data.objects:
+        return
+    src = bpy.data.objects["Prop_truck"]
+    b = src.copy()
+    b.data = src.data.copy()
+    PROPS_SRC.objects.link(b)
+    b.name = "Prop_truck_burnt"
+    m = src.data.materials[0].copy()
+    m.name = "Truck_burnt"
+    img, _, bsdf = _base_source(m)
+    n = 1024
+    col = _img_rgb(img, n)
+    rust = _img_rgb(next(i for i in bpy.data.images if i.name.startswith("rusty_metal_04") and "Diffuse" in i.name), n)
+    soot = _np_noise(n, 16, 61)
+    amount = np.clip(soot * 1.6 - 0.3, 0, 1)[..., None]
+    col = col * 0.18 * (1 - amount) + rust * 0.7 * amount
+    tex = m.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = _new_image("truck_burnt", np.clip(col, 0, 1))
+    m.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
+    bsdf.inputs["Roughness"].default_value = 0.95
+    bsdf.inputs["Metallic"].default_value = 0.3
+    b.data.materials[0] = m
+
+
+def local_uv(o):
+    """0..1 UVs over the object's own top face (burn marks)."""
+    from mathutils import Vector
+    vs = [v.co for v in o.data.vertices]
+    lo = Vector((min(v.x for v in vs), min(v.y for v in vs), 0))
+    hi = Vector((max(v.x for v in vs), max(v.y for v in vs), 0))
+    me = o.data
+    uv = me.uv_layers.active or me.uv_layers.new()
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            co = me.vertices[me.loops[li].vertex_index].co
+            uv.data[li].uv = ((co.x - lo.x) / max(hi.x - lo.x, 1e-4), (co.y - lo.y) / max(hi.y - lo.y, 1e-4))
 
 
 def clear_old():
@@ -187,7 +446,10 @@ def import_blockout():
         if m.users == 0:
             bpy.data.materials.remove(m)
     for o in art:
-        world_uv(o)
+        if o.name.startswith("Scorch"):
+            local_uv(o)
+        else:
+            world_uv(o)
     return art, plain
 
 
@@ -204,7 +466,8 @@ def replace_props(art):
         if base in PROP_PARTS:
             bpy.data.objects.remove(o, do_unlink=True)
             continue
-        if base not in ("Drum", "Crate", "Container", "Forklift", "Truck", "PalmTrunk", "AirCon", "Goods"):
+        if base not in ("Drum", "Crate", "Container", "Forklift", "Truck", "BurntTruck", "PalmTrunk", "AirCon",
+                        "Goods"):
             out.append(o)
             continue
         vs = [v.co for v in o.data.vertices]
@@ -226,9 +489,9 @@ def replace_props(art):
             src = bpy.data.objects["Prop_container"]
             d = src.dimensions
             fit = Matrix.Translation(bottom) @ Matrix.Diagonal((size.x / d.x, size.y / d.y, size.z / d.z, 1.0))
-        elif base == "Truck":
+        elif base in ("Truck", "BurntTruck"):
             # Front towards local +Y in Blender (the greybox's -Z), like the model.
-            src = bpy.data.objects["Prop_truck"]
+            src = bpy.data.objects["Prop_truck" if base == "Truck" else "Prop_truck_burnt"]
             fit = Matrix.Translation(bottom) @ Matrix.Scale(size.y / src.dimensions.y, 4)
         elif base == "PalmTrunk":
             src = bpy.data.objects["Prop_palm"]
@@ -407,6 +670,9 @@ def export_detail():
 
 derive()
 make_glass()
+age_materials()
+make_ruin_cards()
+make_burnt_truck()
 clear_old()
 art, plain = import_blockout()
 art, props = replace_props(art)

@@ -56,6 +56,10 @@ MATERIALS = {
                    "roughness_value": 1.0, "grime": 0.0},
     "cable": {"kind": 4, "base_color": (0.05, 0.05, 0.05), "line_color": (0.05, 0.05, 0.05), "grime": 0.0},
     "palm": {"kind": 6, "base_color": (0.3, 0.45, 0.16), "line_color": (0.2, 0.3, 0.1), "grime": 0.0},
+    # Ruins (Factory): burn marks, weeds, creepers.
+    "scorch": {"kind": 4, "base_color": (0.06, 0.05, 0.045), "line_color": (0.06, 0.05, 0.045), "grime": 0.0},
+    "weeds": {"kind": 6, "base_color": (0.33, 0.4, 0.17), "line_color": (0.24, 0.3, 0.12), "grime": 0.0},
+    "ivy": {"kind": 6, "base_color": (0.18, 0.32, 0.12), "line_color": (0.12, 0.24, 0.08), "grime": 0.0},
     # Industrial / urban (factory, office, subway, train yard).
     "concrete": {"kind": 1, "base_color": (0.5, 0.5, 0.48), "line_color": (0.38, 0.38, 0.37), "cell_size": 3.0, "grime": 0.3},
     "floor_dark": {"kind": 1, "base_color": (0.36, 0.36, 0.35), "line_color": (0.28, 0.28, 0.27), "cell_size": 4.0, "grime": 0.0},
@@ -118,7 +122,7 @@ SITE_RADIUS = 3.5  # keep in sync with BombRules.SITE_RADIUS
 # go in the "climbable" group: props named with one of these prefixes, no
 # taller than CLIMB_MAX_HEIGHT. Everything else is only reached by jumping
 # (up to ~1.4 m) or by stairs and ramps.
-CLIMBABLE = ("Crate", "Pallet", "Desk", "Stall", "Barrel", "Drum", "Sack", "BagCollider", "Car", "Cart",
+CLIMBABLE = ("Rubble", "Crate", "Pallet", "Desk", "Stall", "Barrel", "Drum", "Sack", "BagCollider", "Car", "Cart",
              "Forklift", "ACUnit", "Tarp", "TankDeck", "Underframe", "LowWall", "Ledge")
 CLIMB_MAX_HEIGHT = 2.3
 
@@ -1588,276 +1592,355 @@ def _facade_block(m, x, y0, y1, z, face, w, mat, name="Facade"):
         m.box((x, (y0 + y1) / 2, z), (0.4, y1 - y0, w), mat, name)
 
 
+def _rubble(m, rng, x, z, r=2.0, h=1.6, mats=("concrete", "brick"), loose=6):
+    """A pile of broken concrete and brick, highest in the middle: a few
+    climbable chunks (Rubble*, at most `h` high) and loose debris round it."""
+    n = max(3, int(r * 2.2))
+    for i in range(n):
+        a = rng.uniform(0, math.tau)
+        d = rng.uniform(0, r * 0.75) * (i / n)
+        sx, sz = rng.uniform(0.7, 1.4), rng.uniform(0.6, 1.3)
+        top = max(0.3, h * (1.0 - d / max(r, 0.1)) * rng.uniform(0.7, 1.0))
+        m.box((x + math.cos(a) * d, top / 2, z + math.sin(a) * d), (sx, top, sz), rng.choice(mats), "Rubble",
+              yaw=rng.uniform(0, 90))
+    for i in range(loose):
+        a = rng.uniform(0, math.tau)
+        d = rng.uniform(r * 0.6, r * 1.3)
+        s = rng.uniform(0.15, 0.45)
+        m.box((x + math.cos(a) * d, s * 0.35, z + math.sin(a) * d), (s, s * 0.7, s * 0.8), rng.choice(mats),
+              "Debris", yaw=rng.uniform(0, 90), pitch=rng.uniform(-20, 20), collide=False)
+
+
+def _debris(m, rng, x0, x1, z0, z1, n, mats=("concrete", "brick", "rust")):
+    """Small loose bits of concrete, brick and metal over an area (visual)."""
+    for i in range(n):
+        s = rng.uniform(0.12, 0.4)
+        m.box((rng.uniform(x0, x1), s * 0.3, rng.uniform(z0, z1)), (s, s * 0.6, s * rng.uniform(0.6, 1.4)),
+              rng.choice(mats), "Debris", yaw=rng.uniform(0, 180), pitch=rng.uniform(-15, 15), collide=False)
+
+
+def _scorch(m, x, z, size=3.0, y=0.0):
+    """Burn mark on the ground (visual)."""
+    m.box((x, y + 0.012, z), (size, 0.01, size), "scorch", "Scorch", yaw=(x * 37 + z * 11) % 90, collide=False)
+
+
+def _weeds(m, rng, x, z, n=3, h=0.7):
+    """A clump of weeds: crossed cards (visual)."""
+    for i in range(n):
+        ox, oz = rng.uniform(-0.5, 0.5), rng.uniform(-0.5, 0.5)
+        hh = h * rng.uniform(0.6, 1.2)
+        yaw = rng.uniform(0, 180)
+        for k in (0, 90):
+            m.box((x + ox, hh / 2, z + oz), (0.9, hh, 0.02), "weeds", "Weeds", yaw=yaw + k, collide=False)
+
+
+def _ivy(m, x, y0, z, face, w, h):
+    """Creepers climbing a wall face from y0 (visual, flat on the wall)."""
+    n = {"s": (0, 1), "n": (0, -1), "e": (1, 0), "w": (-1, 0)}[face]
+    if face in "ns":
+        m.box((x, y0 + h / 2, z + n[1] * 0.04), (w, h, 0.02), "ivy", "Ivy", collide=False)
+    else:
+        m.box((x + n[0] * 0.04, y0 + h / 2, z), (0.02, h, w), "ivy", "Ivy", collide=False)
+
+
+def _fallen_sheet(m, x, y, z, yaw, pitch, w=2.4, l=4.0, mat="corrugated"):
+    """A roof sheet lying where it fell (visual)."""
+    m.box((x, y, z), (w, 0.05, l), mat, "FallenSheet", yaw=yaw, pitch=pitch, collide=False)
+
+
+def _burnt_truck(m, x, z, yaw=0.0):
+    """A burnt-out delivery truck (solid). The art puts a charred truck over it."""
+    m.box((x, 1.4, z), (2.4, 2.8, 6.5), "rust", "BurntTruck", yaw=yaw)
+
+
+def _furnace(m, x, z, h=20.0):
+    """Rusted blast furnace: the shaft (solid), bands, a platform, the
+    downcomer pipe and a ladder (visual)."""
+    m.cyl((x, h / 2, z), 3.2, h, "rust", "Furnace", top=2.4, segments=16)
+    for k in range(5):
+        m.cyl((x, 2.0 + k * 3.6, z), 3.25 - k * 0.15, 0.25, "metal", "FurnaceBand", segments=16, collide=False)
+    m.box((x, h * 0.55, z), (8.0, 0.25, 8.0), "metal", "FurnacePlatform", collide=False)
+    m.beam((x + 2.0, h, z), (x + 9.0, 4.0, z + 2.0), 0.9, "rust", "Downcomer")
+    m.box((x - 3.3, h * 0.45, z), (0.08, h * 0.9, 0.5), "metal", "Ladder", collide=False)
+
+
 def factory():
-    """Factory - the Lanka Steel works (bomb map, CS-style, 3 lanes). T spawn
-    in the truck yard in the south, CT spawn behind the gate in the north.
-    Mid is the long central yard, closed towards CT by the half-open Mid
-    Doors. A (west) is the open silo yard under a gantry crane, with a
-    loading dock: T reach it along A Long and through the Long Doors, or by
-    Short through the Lanka Steel hall. B (east) is indoors in the Press
-    Hall, among the presses and a conveyor line, overlooked by a mezzanine:
-    T reach it through the Tunnel or from Mid through the Workshop. CT get
-    to A by CT A, to B by B Back, and hold Mid from the doors."""
+    """Factory - the abandoned Lanka Steel works after the war (bomb map,
+    CS-style, 3 lanes). T come in from the rail siding in the east, CT from
+    the old admin yard in the west; both sites are on the CT half. A (north)
+    is in the Production Hall, whose roof fell in over the middle: the site
+    is on the rubble under the open sky. T reach it along A Long - a rubble
+    alley ending at a shell hole in the hall wall (the Breach) - or from Mid
+    through the Boiler Room; CT through the ruined Offices. B (south) is the
+    Furnace Yard round the rusted blast furnace, with a burnt-out truck and a
+    toppled container: T come through the Loading Bays (half the roof gone)
+    and along B Long, or from Mid down B Short; CT through the Pump House.
+    Mid is a courtyard with a shell crater and a fallen pipe bridge; CT Mid
+    and T Mid come in offset, so the spawns can't see each other. Rust,
+    grime, broken windows, scorch marks, weeds and creepers everywhere."""
+    import random
+    rng = random.Random(19)
     m = Map("Factory")
 
     def area(name, x0, x1, z0, z1, y=0.0, wall="concrete", floor="concrete", h=8.0, top=None, ceil="corrugated"):
         return dict(name=name, x0=x0, x1=x1, z0=z0, z1=z1, y=y, wall=wall, floor=floor, wall_h=h, top=top, ceil=ceil)
 
+    HALL = 12.0
     rooms = [
-        # Spawns and Mid (one line north - south).
-        area("TSpawn", -14, 14, 32, 46, wall="brick", h=9.0),
-        area("TMid", -4, 4, 22, 32, wall="brick"),
-        area("Mid", -10, 10, -18, 22, wall="corrugated", h=9.0),
-        area("MidDoors", -3, 3, -22, -18, top=5.0, wall="concrete"),
-        area("CTMid", -6, 6, -36, -22, wall="concrete"),
-        area("CTSpawn", -12, 12, -48, -36, wall="concrete", floor="paving", h=9.0),
-        # A: A Long (west), the Long Doors, Short through Lanka Steel, CT A.
-        area("TWest", -34, -14, 36, 44, wall="brick"),
-        area("ALong", -44, -34, -6, 44, wall="corrugated", h=9.0),
-        area("LongDoors", -42, -38, -10, -6, top=4.5, wall="corrugated"),
-        area("AYard", -50, -20, -40, -10, wall="brick", h=10.0),
-        area("AShort", -22, -10, -4, 2, wall="plaster", h=7.0),
-        area("Lanka", -30, -22, -10, 2, top=4.5, wall="steel_blue", floor="floor_dark", ceil="metal"),
-        area("CTA", -20, -12, -46, -34, wall="concrete"),
-        # B: the Tunnel, the Workshop, the Press Hall, B Back.
-        area("TEast", 14, 28, 36, 44, wall="brick"),
-        area("Tunnel", 22, 28, 4, 36, top=3.6, wall="concrete", floor="floor_dark", ceil="concrete"),
-        area("BHall", 18, 50, -34, 4, top=10.0, wall="corrugated", floor="concrete", ceil="corrugated"),
-        area("Workshop", 10, 18, -10, -4, top=3.8, wall="brick", floor="floor_dark", ceil="concrete"),
-        area("CTB", 12, 24, -46, -38, wall="concrete"),
-        area("BBack", 24, 34, -46, -34, wall="concrete"),
+        # T side (east): the siding, A Long, T Mid, the Loading Bays, B Long.
+        area("TSpawn", 46, 58, -12, 16, wall="corrugated", floor="gravel", h=8.0),
+        area("TNorth", 36, 46, -44, -4, wall="brick", floor="gravel", h=8.0),
+        area("ALong", 6, 36, -40, -36, wall="brick", h=7.0),
+        area("TMid", 16, 46, 2, 8, wall="concrete", h=7.0),
+        area("LoadingW", 26, 36, 12, 30, top=6.0, wall="corrugated", ceil="corrugated"),
+        area("LoadingE", 36, 46, 12, 30, wall="corrugated", h=6.0),
+        area("BLong", 4, 26, 22, 30, wall="brick", h=7.0),
+        # Middle: the courtyard, the Boiler Room up to A, B Short down to B.
+        area("Mid", -22, 16, -14, 10, wall="concrete", h=9.0),
+        area("Boiler", -16, -6, -26, -14, top=4.2, wall="brick", floor="floor_dark", ceil="concrete"),
+        area("BShort", -14, -6, 10, 22, wall="brick", h=7.0),
+        # A: the Production Hall, its roof gone over the middle.
+        area("HallW", -30, -16, -48, -26, top=HALL, wall="corrugated", ceil="corrugated"),
+        area("HallMid", -16, -4, -48, -26, wall="corrugated", h=HALL),
+        area("HallE", -4, 6, -48, -26, top=HALL, wall="corrugated", ceil="corrugated"),
+        # B: the Furnace Yard.
+        area("BYard", -30, 4, 22, 46, wall="brick", h=10.0),
+        # CT side (west): the admin yard, CT Mid, the Offices, the Pump House.
+        area("CTSpawn", -58, -40, -16, 16, wall="plaster", floor="paving", h=8.0),
+        area("CTMid", -40, -22, -8, -2, wall="plaster", h=7.0),
+        area("Offices", -44, -30, -32, -16, top=3.4, wall="plaster", floor="tile", ceil="concrete"),
+        area("Pump", -44, -30, 16, 28, top=4.5, wall="brick", floor="floor_dark", ceil="concrete"),
     ]
     _rooms(m, rooms, windows=True)
-    # Ground under everything (the gaps between areas, seen from above).
-    m.box((0, -0.3, 0), (130, 0.5, 130), "concrete", "Ground", collide=False)
+    m.box((0, -0.3, 0), (140, 0.5, 120), "concrete", "Ground", collide=False)
 
-    # Wall panels over covered doorways that open onto open-air areas.
-    _facade_block(m, -22.0, 4.5, 7.0, -1.0, "e", 6.0, "steel_blue")        # Lanka Steel from Short
-    _facade_block(m, -26.0, 4.5, 10.0, -10.0, "n", 8.0, "steel_blue")      # Lanka Steel from A
-    _facade_block(m, -40.0, 4.5, 9.0, -6.0, "n", 4.0, "corrugated")        # Long Doors, A Long side
-    _facade_block(m, -40.0, 4.5, 10.0, -10.0, "n", 4.0, "corrugated")      # Long Doors, A side
-    _facade_block(m, 0.0, 5.0, 9.0, -18.0, "n", 6.0, "concrete")           # Mid Doors, Mid side
-    _facade_block(m, 0.0, 5.0, 8.0, -22.0, "n", 6.0, "concrete")           # Mid Doors, CT side
-    _facade_block(m, 10.0, 3.8, 9.0, -7.0, "e", 6.0, "brick")              # Workshop from Mid
-    _facade_block(m, 25.0, 3.6, 8.0, 36.0, "s", 6.0, "concrete")           # Tunnel mouth (T)
-    # Inside the Press Hall, over its three ways in (hall-coloured walls).
-    _facade_block(m, 25.0, 3.6, 10.0, 3.75, "s", 6.0, "corrugated")        # the Tunnel
-    _facade_block(m, 18.25, 3.8, 10.0, -7.0, "e", 6.0, "corrugated")       # the Workshop
-    _facade_block(m, 29.0, 4.5, 10.0, -33.8, "n", 10.0, "corrugated")      # B Back
-    m.sign((25.0, 5.4, 36.22), "s", "TUNNEL", color=(0.9, 0.86, 0.7), pixel=0.003)
-    m.sign((10.22, 5.2, -7.0), "e", "WORKSHOP", color=(0.9, 0.86, 0.7), pixel=0.003)
+    # Walls over covered doorways that open onto open-air areas.
+    _facade_block(m, 36.0, 6.0, 8.0, 21.0, "e", 18.0, "corrugated")        # Loading roof edge (W | E)
+    _facade_block(m, 26.0, 6.0, 7.0, 26.0, "e", 8.0, "corrugated")         # Loading -> B Long
+    _facade_block(m, -11.0, 4.2, 9.0, -14.0, "n", 10.0, "brick")           # Boiler -> Mid
+    _facade_block(m, -42.0, 3.4, 8.0, -16.0, "n", 4.0, "plaster")          # Offices -> CT yard
+    _facade_block(m, -42.0, 4.5, 8.0, 16.0, "s", 4.0, "brick")            # Pump -> CT yard
+    _facade_block(m, -30.0, 4.5, 10.0, 25.0, "e", 6.0, "brick")           # Pump -> B yard
+    # The Breach: a shell hole in the hall's east wall, ragged at the top.
+    for i, (dz, top) in enumerate(((-3.6, 9.0), (-2.4, 6.8), (-1.2, 5.6), (0.0, 5.2), (1.2, 5.9), (2.4, 7.4), (3.6, 9.4))):
+        m.box((6.0, (top + HALL) / 2, -38.0 + dz * 0.55), (0.4, HALL - top, 0.7), "corrugated", "BreachEdge")
+    _rubble(m, rng, 8.5, -39.5, 1.0, 0.8, ("brick", "concrete", "rust"), 8)
+    _rubble(m, rng, 3.5, -36.5, 0.9, 0.7, ("brick", "concrete"), 6)
 
-    # --- T spawn: the truck yard ------------------------------------------------------
-    _delivery_truck(m, -8.5, 42.6, 90)
-    _delivery_truck(m, 9.5, 42.4, -90)
-    _container(m, -1, 44.5, 90, "green")
-    _crates(m, 4, 34.5, 2)
-    _pallets(m, -6, 34)
-    for x in (-10.5, 10.5):
-        _shutter_door(m, x, 0.0, 45.98, "n", 5.0, 5.0)
-    m.box((0, 0.01, 39), (0.25, 0.02, 12), "yellow", "RoadLine", collide=False)
-    _flood_light(m, -13, 33)
-    _flood_light(m, 13, 45)
-    m.sign((0.0, 4.2, 45.98), "n", "T", color=(0.85, 0.6, 0.1), pixel=0.014)
-    # Outside Long / Outside Tunnel: lanes off the yard.
-    _pallets(m, -24, 37.2)
-    _drum(m, -30, 42.6, "blue")
-    m.barrel((-29.2, 0.0, 43.1))
-    _crates(m, -18, 42.8, 1)
-    _crates(m, 19, 37.3, 1)
-    m.barrel((16, 0.0, 42.8))
-    _aircon(m, 5.0, 45.6)
+    # --- T spawn: the rail siding, weeds, a derailed wagon -----------------------
+    _rails(m, 50, -12, 16, 0.0, 2.4)
+    _rails(m, 54.5, -12, 16, 0.0, 2.4)
+    _freight(m, 54.5, 2, "box", "rust", 10.0)
+    m.box((50.2, 1.6, -7), (2.6, 3.0, 9.0), "rust", "Wagon", yaw=8, roll=6)
+    _crates(m, 48, 12, 2)
+    m.barrel((47.6, 0.0, 9.6))
+    _aircon(m, 57.6, -6.0, 90)
+    for (x, z) in ((56.8, 14.6), (47.0, -11.0), (57.0, -11.2), (52.5, 15.0)):
+        _weeds(m, rng, x, z, 4, 0.9)
+    _palm_tree(m, 56.0, 12.5, 7.5)
+    _scorch(m, 51.5, 7.0, 3.5)
+    m.sign((57.98, 4.0, 2.0), "w", "T", color=(0.85, 0.6, 0.1), pixel=0.014)
 
-    # --- A Long and the Long Doors ----------------------------------------------------
-    _pipe_rack_z(m, -35.6, -4, 42, 6.5)
-    _delivery_truck(m, -41.6, 30, 0)
-    _container(m, -36.6, 14, 0, "rust")
-    _crates(m, -42.5, 3, 2)
-    _crates(m, -36, -3.5, 1)
-    _drum(m, -43, 20, "blue")
-    _drum(m, -42.3, 20.7, "teal")
-    _flood_light(m, -43.3, 38)
-    _flood_light(m, -34.7, 6)
-    # The two door leaves, swung open against the walls.
-    for x in (-41.85, -38.15):
-        m.box((x, 1.9, -7.4), (0.12, 3.8, 1.9), "steel_blue", "LongDoorLeaf", collide=False)
-    m.omni((-40, 3.6, -8), 0.6, 6.0, (1.0, 0.88, 0.7))
+    # --- T North and A Long (the rubble alley to the Breach) ---------------------
+    _burnt_truck(m, 41.5, -24, 0)
+    _crates(m, 38.0, -10.5, 1)
+    _container(m, 43.2, -36, 0, "rust")
+    for (x, z) in ((45.0, -43.0), (37.0, -20.0), (44.8, -6.0)):
+        _weeds(m, rng, x, z, 4, 0.8)
+    _ivy(m, 36.0, 0.0, -16.0, "e", 3.0, 5.5)
+    _rubble(m, rng, 27.0, -37.0, 1.3, 1.1)
+    _rubble(m, rng, 16.0, -39.0, 1.2, 1.0)
+    _debris(m, rng, 8, 34, -39.5, -36.5, 26)
+    m.barrel((32.6, 0.0, -39.2))
+    _scorch(m, 20.0, -38.0, 3.0)
+    _ivy(m, 22.0, 0.0, -40.0, "s", 4.0, 4.5)
 
-    # --- A: the silo yard -------------------------------------------------------------
-    _silo(m, -45.5, -35.5, 3.6, 15.0)
-    _silo(m, -37.5, -36.2, 3.0, 13.0)
-    m.beam((-45.5, 13.5, -35.5), (-37.5, 12.0, -36.2), 0.35, "rust", "SiloPipe")
-    m.beam((-37.5, 11.0, -36.2), (-24, 8.0, -39.6), 0.35, "rust", "SiloPipe")
-    _gantry(m, -48.5, -22.5, -23.0, 10.0)
-    # Loading dock along the west wall (jump or walk the ramp onto it).
-    DOCK = 1.2
-    m.box((-47.5, DOCK / 2, -21.0), (5.0, DOCK, 14.0), "concrete", "LedgeDock")
-    m.box((-44.97, DOCK - 0.05, -21.0), (0.06, 0.1, 14.0), "hazard", "DockEdge", collide=False)
-    m.ramp((-47.5, 0.0, -10.2), (-47.501, DOCK, -14.0), 5.0, "concrete")
-    for z in (-26, -17):
-        _shutter_door(m, -49.98, DOCK, z, "e", 3.6, 4.0)
-    _pallets(m, -48, -25, y=DOCK)
-    m.box((-48.3, DOCK + 0.6, -18.5), (1.2, 1.2, 1.2), "wood", "Crate")
-    # Cover round the site.
-    _container(m, -29, -31, 0, "blue")
-    _container(m, -29, -31, 0, "red", 1)
-    _container(m, -38, -15.5, 90, "green")
-    for (x, z, n) in ((-38.5, -26.5, 2), (-33, -22, 1), (-25.5, -21.5, 1), (-41, -30.5, 1)):
-        _crates(m, x, z, n)
-    _forklift(m, -24.5, -28, 15)
-    for (x, z) in ((-31.5, -38.8), (-30.3, -38.9)):
-        _drum(m, x, z, "blue")
-    m.barrel((-31.6, 0.0, -22.4))
-    m.barrel((-44.2, 0.0, -29.0))
-    m.site("A", (-35.0, 0.0, -25.0))
-    _pipe_rack(m, -49, -21, -39.2, 7.0)
-    _flood_light(m, -21, -11)
-    _flood_light(m, -49, -39)
-    m.omni((-35, 7.0, -25), 1.2, 18.0, (1.0, 0.9, 0.75))
+    # --- T Mid / Mid: the shell crater and the fallen pipe bridge ----------------
+    _burnt_truck(m, 30.0, 4.6, 90)
+    _weeds(m, rng, 18.0, 7.2, 3)
+    _weeds(m, rng, 44.0, 2.8, 3)
+    # Crater: scorched ground ringed with broken concrete.
+    _scorch(m, -2.0, -3.0, 7.0)
+    for k in range(8):
+        a = k * math.tau / 8 + 0.3
+        _rubble(m, rng, -2.0 + math.cos(a) * 3.8, -3.0 + math.sin(a) * 3.8, 0.8, 0.9 if k % 2 else 0.6,
+                ("concrete",), 3)
+    # The pipe bridge that crossed Mid, down at one end.
+    m.beam((-20.0, 7.5, 6.0), (10.0, 0.6, -9.5), 1.0, "rust", "BridgePipe")
+    m.beam((4.0, 2.0, -6.4), (10.0, 0.6, -9.5), 1.0, None, "BridgeEnd", collide=True)  # only its low end blocks
+    m.beam((-20.0, 8.6, 6.4), (10.0, 1.4, -9.0), 0.5, "steel_blue", "BridgePipe2")
+    m.box((-20.5, 3.8, 6.2), (0.6, 7.6, 0.6), "metal", "BridgePost")
+    _container(m, 10.5, 3.0, 0, "green")
+    m.box((-14.0, 1.2, -9.5), (2.4, 2.6, 6.0), "blue", "Container", yaw=90, roll=90)  # on its side
+    _forklift(m, 4.0, 7.0, 40)
+    m.barrel((-19.0, 0.0, -12.5))
+    _debris(m, rng, -20, 14, -12, 8, 30)
+    for (x, z) in ((-21.0, 9.0), (15.0, -13.0), (14.8, 9.0), (-21.0, -13.0)):
+        _weeds(m, rng, x, z, 4, 0.8)
+    _ivy(m, -22.0, 0.0, 4.0, "e", 3.0, 6.0)
 
-    # --- Short: the alley and the Lanka Steel hall ---------------------------------------
-    _crates(m, -15, 1.2, 1)
-    m.barrel((-19.5, 0.0, -3.2))
-    _aircon(m, -13.0, -3.6)
-    # Lanka Steel: a workbench, a lathe and shelves (a clear path down the middle).
-    m.box((-28.4, 0.5, -4), (1.2, 1.0, 6.0), "steel_blue", "LedgeBench")
-    m.box((-23.6, 0.6, -6.5), (1.0, 1.2, 2.5), "metal", "Lathe")
-    m.box((-23.4, 1.6, 0.5), (0.6, 3.2, 2.0), "steel_blue", "Shelving")
-    for z in (-7, -2):
-        _strip_light(m, -26, 4.25, z, 2.4, 90)
-    m.omni((-26, 3.6, -4), 0.8, 9.0, (0.95, 0.97, 1.0))
-    m.reverb((-26, 2.2, -4), (8, 4.5, 12), "room", 0.4, priority=1)
+    # --- Boiler Room (Mid -> A) --------------------------------------------------
+    for z in (-23.0, -17.5):
+        m.cyl((-13.2, 1.1, z), 1.1, 3.6, "rust", "Boiler", segments=12, roll=90)
+    m.box((-8.0, 0.6, -20.0), (1.2, 1.2, 1.6), "metal", "Pump")
+    _strip_light(m, -11, 4.1, -20, 2.0, 90)
+    m.omni((-11, 3.6, -20), 0.6, 8.0, (1.0, 0.75, 0.5))
+    m.reverb((-11, 2.1, -20), (10, 4.2, 12), "room", 0.45, priority=1)
+    _debris(m, rng, -15.5, -6.5, -25.5, -14.5, 14)
 
-    # --- Mid ------------------------------------------------------------------------------
-    _container(m, 0, 14.0, 90, "rust")                    # blocks the long view from T Mid
-    _container(m, -6.5, 3, 0, "blue")
-    _container(m, 6.5, -6, 0, "steel_blue")
-    _container(m, 6.5, -6, 0, "green", 1)
-    _crates(m, 2.5, -12.5, 2)
-    _crates(m, -7.8, -12, 1)
-    m.barrel((-6.4, 0.0, -13.3))
-    _forklift(m, 3.5, 6, -30)
-    _pallets(m, -8, 18.5)
-    _pipe_rack(m, -10, 10, -2.0, 6.8)
-    for x in (-9.6, 9.6):
-        m.box((x, 3.4, -2.0), (0.3, 6.8, 0.3), "metal", "RackPost")
-    # Mid Doors: two sliding gate leaves, one half shut.
-    m.box((-1.9, 2.2, -20.3), (2.2, 4.4, 0.12), "rust", "MidGate")
-    m.box((2.6, 2.2, -20.5), (0.8, 4.4, 0.12), "rust", "MidGateOpen", collide=False)
-    m.box((0, 4.65, -20.4), (6.0, 0.2, 0.3), "metal", "GateRail", collide=False)
-    _flood_light(m, 9, 21)
-    _flood_light(m, -9, -17)
+    # --- A: the Production Hall -------------------------------------------------
+    # The rubble where the roof came down (the site), fallen sheets and trusses.
+    _rubble(m, rng, -10.0, -36.5, 2.4, 2.1)
+    _rubble(m, rng, -13.0, -30.5, 1.6, 1.2, ("concrete", "rust"))
+    _rubble(m, rng, -6.5, -44.0, 1.6, 1.4, ("concrete", "rust"))
+    _fallen_sheet(m, -12.5, 0.6, -41.0, 20, 14)
+    _fallen_sheet(m, -7.0, 0.8, -31.0, -35, -18)
+    _fallen_sheet(m, -9.0, 1.4, -38.5, 70, 25, mat="rust")
+    m.beam((-16.0, HALL - 0.4, -33.0), (-9.0, 0.3, -35.5), 0.35, "rust", "FallenTruss")
+    m.beam((-4.0, HALL - 0.4, -43.0), (-11.0, 0.4, -42.0), 0.35, "rust", "FallenTruss")
+    _scorch(m, -10.0, -36.5, 6.0)
+    # The standing halves: machines, shelving, a mezzanine on the west side.
+    _press(m, -24.0, -32.0, 0)
+    m.box((-27.5, 2.0, -46.8), (4.0, 4.0, 1.2), "steel_blue", "Shelving")
+    _crates(m, -20.0, -45.5, 2)
+    _container(m, 1.5, -44.0, 0, "red")
+    _container(m, 1.5, -44.0, 0, "rust", 1)
+    _crates(m, -1.5, -30.0, 1)
+    m.barrel((2.0, 0.0, -31.5))
+    MZ = 4.5
+    m.box((-23.0, MZ - 0.12, -46.0), (14.0, 0.24, 4.0), "metal", "Mezzanine")
+    # Stairs along the west wall, clear of the Offices doorway (z -32..-26).
+    m.ramp((-29.0, 0.0, -33.4), (-29.001, MZ, -43.9), 2.0, "metal")
+    _rail(m, (-22.0, MZ + 0.5, -44.05), (12.0, 1.0, 0.06), "yellow")
+    _rail(m, (-27.95, MZ / 2 + 0.6, -38.7), (0.06, 1.0, 10.5), "yellow")
+    for x in (-28.0, -22.0, -17.0):
+        m.box((x, (MZ - 0.24) / 2, -44.3), (0.3, MZ - 0.24, 0.3), "metal", "MezzPost")
+    # Its broken end hangs down into the collapse.
+    m.box((-15.0, MZ - 0.9, -46.0), (2.2, 0.24, 4.0), "metal", "MezzBroken", roll=-28, collide=False)
+    for (x, z) in ((-23, -36), (1, -36)):
+        _strip_light(m, x, HALL - 0.5, z, 3.0)
+        m.omni((x, HALL - 3.0, z), 0.7, 14.0, (1.0, 0.92, 0.8))
+    m.omni((-10.0, 6.0, -37.0), 0.5, 12.0, (1.0, 0.95, 0.85))
+    m.reverb((-12, HALL / 2, -37), (36, HALL, 22), "hall", 0.4)
+    _ivy(m, -16.0, 0.0, -48.0, "s", 4.0, 7.0)
+    _ivy(m, -4.0, 0.0, -48.0, "s", 3.0, 5.0)
+    _weeds(m, rng, -14.5, -27.5, 4)
+    _weeds(m, rng, -5.0, -47.0, 4)
+    _debris(m, rng, -15.5, -4.5, -47.5, -26.5, 40)
+    m.site("A", (-10.0, 0.0, -37.0))
 
-    # --- CT Mid / CT spawn -------------------------------------------------------------------
-    _crates(m, 3.5, -30, 1)
-    _drum(m, -4.5, -25, "blue")
-    _house(m, -11.5, -5.5, -47.5, -42.5, "plaster", floors=1, fh=3.4, doors=[("e", 1.5, 1.4)], windows="es")
-    _delivery_truck(m, 7.5, -44.2, 90)
-    m.box((0, 0.5, -37.5), (4.0, 1.0, 0.6), "hazard", "LowWall")
-    m.sign((0.0, 4.2, -47.98), "s", "CT", color=(0.25, 0.45, 0.85), pixel=0.014)
-    _flood_light(m, 11, -37)
-    _crates(m, -15, -43.8, 1)
-    _container(m, 18, -44.6, 90, "rust")
-    _crates(m, 31.5, -37.5, 1)
-    _aircon(m, 33.6, -42.0, 90)
-    _aircon(m, 13.0, -45.6)
+    # --- B: the Furnace Yard ---------------------------------------------------------
+    _furnace(m, -23.5, 39.0)
+    m.beam((-27.0, 9.0, 24.0), (-6.0, 0.4, 30.0), 0.7, "yellow", "FallenCrane")
+    m.beam((-11.0, 1.9, 28.6), (-6.0, 0.4, 30.0), 0.7, None, "CraneEnd", collide=True)  # only its low end blocks
+    m.box((-28.0, 4.5, 23.6), (0.7, 9.0, 0.7), "yellow", "CraneLeg")
+    _burnt_truck(m, -6.0, 40.5, 75)
+    m.box((-1.5, 1.2, 27.0), (2.4, 2.6, 6.0), "rust", "Container", yaw=100, roll=90)  # on its side
+    _rubble(m, rng, -16.0, 42.0, 2.0, 1.8, ("rust", "concrete"))
+    _rubble(m, rng, 1.0, 43.0, 1.6, 1.5, ("rust", "concrete"))
+    _crates(m, -12.0, 29.0, 2)
+    _crates(m, -19.5, 30.5, 1)
+    m.barrel((-9.0, 0.0, 32.0))
+    m.barrel((-27.6, 0.0, 30.0))
+    _scorch(m, -6.0, 40.0, 5.0)
+    _scorch(m, -14.0, 34.0, 4.0)
+    _debris(m, rng, -29, 3, 23, 45, 40)
+    for (x, z) in ((-29.0, 45.0), (3.0, 45.0), (3.0, 23.0), (-20.0, 45.2), (-29.0, 23.5)):
+        _weeds(m, rng, x, z, 5, 1.0)
+    _ivy(m, -30.0, 0.0, 40.0, "e", 4.0, 7.0)
+    _ivy(m, 4.0, 0.0, 38.0, "w", 3.0, 6.0)
+    _palm_tree(m, 1.5, 44.0, 7.0)
+    m.omni((-14.0, 8.0, 34.0), 0.8, 18.0, (1.0, 0.85, 0.65))
+    m.site("B", (-14.0, 0.0, 34.0))
 
-    # --- The Tunnel and the Workshop -----------------------------------------------------------
-    for (z, side) in ((30, 1), (21, -1), (12, 1)):
-        _crates(m, 25 + side * 1.9, z, 1)
-    for z in (32, 24, 16, 8):
-        _strip_light(m, 25, 3.55, z, 2.0, 90)
-    m.omni((25, 3.0, 26), 0.8, 9.0, (1.0, 0.85, 0.6))
-    m.omni((25, 3.0, 12), 0.8, 9.0, (1.0, 0.85, 0.6))
-    m.box((25.5, 0.005, 18), (1.4, 0.01, 2.2), "water", "Puddle", collide=False)
-    m.reverb((25, 1.8, 20), (6, 3.6, 32), "room", 0.5, priority=1)
-    m.box((16.6, 0.5, -9.2), (2.4, 1.0, 1.2), "steel_blue", "LedgeWorkbench")
-    m.box((11.2, 1.0, -4.6), (1.6, 2.0, 0.8), "metal", "Cabinet")
-    _strip_light(m, 14, 3.75, -7, 2.0)
-    m.omni((14, 3.2, -7), 0.7, 7.0, (1.0, 0.9, 0.75))
-    m.reverb((14, 1.9, -7), (8, 3.8, 6), "room", 0.4, priority=1)
+    # --- Loading Bays / B Long / B Short ------------------------------------------
+    m.box((31.0, 0.6, 27.6), (10.0, 1.2, 4.8), "concrete", "LedgeDock")
+    m.ramp((26.6, 0.0, 22.5), (26.601, 1.2, 25.2), 1.0, "concrete")
+    _burnt_truck(m, 41.0, 22.0, 0)
+    _fallen_sheet(m, 39.0, 0.3, 15.0, 10, 6)
+    _fallen_sheet(m, 43.0, 0.5, 27.0, -40, 10)
+    _pallets(m, 29.0, 15.0)
+    _pallets(m, 33.0, 14.8, 20)
+    m.barrel((34.5, 0.0, 19.0))
+    _strip_light(m, 31, 5.9, 20, 2.4)
+    m.omni((31, 5.0, 20), 0.6, 10.0, (1.0, 0.85, 0.65))
+    m.reverb((31, 3, 21), (10, 6, 18), "room", 0.4, priority=1)
+    _debris(m, rng, 27, 45, 13, 29, 30)
+    _rubble(m, rng, 15.0, 27.0, 1.2, 1.0)
+    _debris(m, rng, 5, 25, 23, 29, 20)
+    _weeds(m, rng, 8.0, 29.0, 4)
+    _ivy(m, 12.0, 0.0, 30.0, "n", 4.0, 5.0)
+    _rubble(m, rng, -8.0, 15.0, 1.0, 0.9)
+    _weeds(m, rng, -13.0, 21.0, 3)
 
-    # --- B: the Press Hall --------------------------------------------------------------------
-    _press(m, 27, -20, 0)
-    _press(m, 43, -6.5, 90)
-    _conveyor(m, 21, 38, -2.5)
-    _crates(m, 38.5, -21, 2)
-    _crates(m, 32, -10.5, 1)
-    _pallets(m, 22, -29)
-    _forklift(m, 31, -28.5, 90)
-    for x in (21, 26):
-        m.box((x, 2.0, -33.2), (4.0, 4.0, 1.2), "steel_blue", "Shelving")
-    # Mezzanine along the east wall, a stair up from the south end.
-    MZ = 4.0
-    m.box((47, MZ - 0.12, -24), (6.0, 0.24, 20.0), "metal", "Mezzanine")
-    m.ramp((47, 0.0, -1.0), (47.001, MZ, -14.0), 2.2, "metal")
-    _rail(m, (44.05, MZ + 0.5, -24), (0.06, 1.0, 20.0), "yellow")
-    _rail(m, (47, MZ + 0.5, -33.9), (6.0, 1.0, 0.06), "yellow")
-    _rail(m, (45.85, MZ / 2 + 0.6, -7.5), (0.06, 1.0, 13.0), "yellow")
-    for z in (-32, -24, -16):
-        m.box((44.3, (MZ - 0.24) / 2, z), (0.3, MZ - 0.24, 0.3), "metal", "MezzPost")
-    m.box((48.5, MZ + 1.0, -30), (1.6, 2.0, 2.4), "metal", "Cabinet", collide=False)
-    # Overhead crane rails, skylights, lights.
-    for x in (19.5, 48.5):
-        m.box((x, 8.2, -15), (0.5, 0.6, 38), "yellow", "CraneRail", collide=False)
-    m.box((34, 8.6, -12), (29.0, 0.9, 1.4), "yellow", "HallCrane", collide=False)
-    m.box((30, 7.8, -12), (1.6, 0.8, 1.8), "metal", "Trolley", collide=False)
-    for z in (-28, -18, -8, 2):
-        m.box((34, 10.0, z), (26, 0.06, 2.0), "glass", "Skylight", collide=False)
-        m.box((34, 9.6, z + 2.6), (31.0, 0.4, 0.3), "metal", "Truss", collide=False)
-    for (x, z) in ((26, -26), (40, -26), (26, -8), (40, -8)):
-        _strip_light(m, x, 9.5, z, 3.0)
-        m.omni((x, 7.5, z), 1.0, 14.0, (1.0, 0.94, 0.85))
-    m.reverb((34, 5, -15), (32, 10, 38), "hall", 0.45)
-    m.barrel((33.4, 0.0, -10.0))
-    m.barrel((22.5, 0.0, -21.0))
-    m.site("B", (35.0, 0.0, -14.0))
-    m.sign((34.0, 6.5, 3.98), "n", "PRESS HALL", color=(0.92, 0.94, 0.96), pixel=0.004)
+    # --- CT: the admin yard, CT Mid, the Offices, the Pump House -------------------
+    _sandbags(m, (-48.0, -2.0), (-48.0, 4.0))
+    _sandbags(m, (-44.0, 9.0), (-40.6, 9.0))
+    _delivery_truck(m, -54.0, -8.0, 0)
+    _crates(m, -56.5, 12.0, 2)
+    _aircon(m, -57.6, 4.0, 90)
+    _palm_tree(m, -42.5, -13.5, 7.0)
+    for (x, z) in ((-57.0, -15.0), (-41.0, 15.0)):
+        _weeds(m, rng, x, z, 4)
+    m.sign((-57.98, 4.0, 0.0), "e", "CT", color=(0.25, 0.45, 0.85), pixel=0.014)
+    _crates(m, -30.0, -6.5, 1)
+    _debris(m, rng, -39, -23, -7.5, -2.5, 14)
+    # Offices: overturned desks, a fallen partition, ceiling tiles down.
+    for (x, z, yaw) in ((-40.0, -28.0, 20), (-34.0, -22.0, -70), (-38.5, -19.5, 95)):
+        _desk(m, x, z, yaw, partition=False)
+    m.box((-36.0, 1.0, -25.0), (5.0, 2.0, 0.1), "office_wall", "Partition", yaw=18, roll=4)
+    _debris(m, rng, -43.5, -30.5, -31.5, -16.5, 20, ("concrete", "office_wall"))
+    _strip_light(m, -37, 3.3, -24, 1.6, 90)
+    m.omni((-37, 2.9, -24), 0.5, 7.0, (0.95, 0.97, 1.0))
+    m.reverb((-37, 1.7, -24), (14, 3.4, 16), "room", 0.4, priority=1)
+    # Pump House: pumps, pipes, a puddle.
+    for z in (19.5, 24.5):
+        m.box((-39.0, 0.55, z), (2.4, 1.1, 1.4), "steel_blue", "Pump")
+        m.cyl((-36.0, 0.5, z), 0.35, 4.0, "rust", "PumpPipe", segments=8, roll=90, collide=False)
+    m.box((-33.5, 0.005, 22.0), (2.4, 0.01, 3.0), "water", "Puddle", collide=False)
+    _strip_light(m, -37, 4.4, 22, 1.6, 90)
+    m.omni((-37, 3.8, 22), 0.5, 8.0, (1.0, 0.85, 0.6))
+    m.reverb((-37, 2.2, 22), (14, 4.5, 12), "room", 0.45, priority=1)
 
-    # --- Background: chimneys, water tower, pylons -------------------------------------------
-    _chimney(m, -56, -54, 0.0, 26.0, 1.2)
-    _chimney(m, 58, -50, 0.0, 22.0, 1.0)
-    _chimney(m, 54, 50, 0.0, 20.0, 0.9)
-    _water_tower(m, -58, 20, 16.0)
-    for (x, z) in ((-62, -10), (62, 0), (0, 62)):
+    # --- Background: dead chimneys, a water tower, pylons ----------------------------
+    _chimney(m, -66, -54, 0.0, 26.0, 1.2)
+    _chimney(m, 66, -40, 0.0, 22.0, 1.0)
+    _chimney(m, 30, 56, 0.0, 20.0, 0.9)
+    _water_tower(m, -66, 26, 16.0)
+    for (x, z) in ((-70, -10), (70, 20), (0, 66)):
         _pylon(m, x, z)
-    for (x, z) in ((11.0, 35.0), (8.5, -38.6), (-24.5, 38.8)):
-        _palm_tree(m, x, z)
 
-    # --- Spawns, callouts -----------------------------------------------------------------------
-    for (x, z) in ((-6, 38), (-2, 36.5), (2, 38), (6, 36.5), (0, 40.5)):
-        m.spawn("red", (x, 0.1, z), 0)
-    for (x, z) in ((-6, -40), (-2, -41.5), (2, -40), (6, -41.5), (0, -44)):
-        m.spawn("blue", (x, 0.1, z), 180)
-    for (x, y, z, yaw) in ((0, 0.1, 8, 0), (-39, 0.1, 20, 0), (-35, 0.1, -18, 0), (-26, 0.1, -2, 0),
-                           (25, 0.1, 20, 0), (30, 0.1, -12, 90), (47, MZ + 0.1, -26, 90), (0, 0.1, -28, 180),
-                           (-16, 0.1, -40, 90), (28, 0.1, -40, 180), (-24, 0.1, 40, 90), (20, 0.1, 40, -90)):
+    # --- Spawns, callouts ----------------------------------------------------------
+    for (x, z) in ((48, 1), (51.5, 1), (48, 5), (51.5, 5), (53.5, 11)):
+        m.spawn("red", (x, 0.1, z), 90)
+    for (x, z) in ((-52, 0), (-50, -6), (-50, 7), (-55, 4), (-45, -12)):
+        m.spawn("blue", (x, 0.1, z), -90)
+    for (x, y, z, yaw) in ((0, 0.1, -10, 0), (40, 0.1, -30, 0), (20, 0.1, -38, 90), (-22, 0.1, -36, 90),
+                           (-23, MZ + 0.1, -46, 90), (-11, 0.1, -20, 0), (-10, 0.1, 16, 180), (14, 0.1, 26, 90),
+                           (31, 1.3, 27, 90), (-20, 0.1, 30, 0), (-37, 0.1, -24, 0), (-37, 0.1, 22, 0),
+                           (-30, 0.1, -5, 90), (30, 0.1, 5, -90), (40, 0.1, 20, 0)):
         m.spawn("ffa", (x, y, z), yaw)
     for (label, pos, size) in (
-            ("T Spawn", (0, 3, 39), (28, 6, 14)),
-            ("CT Spawn", (0, 3, -42), (24, 6, 12)),
-            ("T Mid", (0, 3, 27), (8, 6, 10)),
-            ("Mid", (0, 3, 2), (20, 8, 40)),
-            ("Mid Doors", (0, 2.5, -20), (6, 5, 4)),
-            ("CT Mid", (0, 3, -29), (12, 6, 14)),
-            ("Outside Long", (-24, 3, 40), (20, 6, 8)),
-            ("A Long", (-39, 3, 19), (10, 8, 50)),
-            ("Long Doors", (-40, 2.2, -8), (4, 4.5, 4)),
-            ("Bombsite A", (-35, 4, -25), (30, 10, 30)),
-            ("Short", (-16, 3, -1), (12, 6, 6)),
-            ("Lanka Steel", (-26, 2.2, -4), (8, 4.5, 12)),
-            ("CT A", (-16, 3, -40), (8, 6, 12)),
-            ("Outside Tunnel", (21, 3, 40), (14, 6, 8)),
-            ("Tunnel", (25, 1.8, 20), (6, 3.6, 32)),
-            ("Workshop", (14, 1.9, -7), (8, 3.8, 6)),
-            ("Bombsite B", (34, 5, -15), (32, 10, 38)),
-            ("B Mezzanine", (47, 5.5, -24), (6, 3, 20)),
-            ("CT B", (18, 3, -42), (12, 6, 8)),
-            ("B Back", (29, 3, -40), (10, 6, 12))):
+            ("T Spawn", (52, 3, 2), (12, 6, 28)),
+            ("CT Spawn", (-49, 3, 0), (18, 6, 32)),
+            ("T North", (41, 3, -24), (10, 6, 40)),
+            ("A Long", (21, 3, -38), (30, 6, 4)),
+            ("Bombsite A", (-12, 6, -37), (36, 12, 22)),
+            ("A Mezzanine", (-23, 6, -46), (14, 3, 4)),
+            ("Boiler Room", (-11, 2.1, -20), (10, 4.2, 12)),
+            ("Mid", (-3, 3, -2), (38, 8, 24)),
+            ("T Mid", (31, 3, 5), (30, 6, 6)),
+            ("CT Mid", (-31, 3, -5), (18, 6, 6)),
+            ("Loading Bays", (36, 3, 21), (20, 6, 18)),
+            ("B Long", (15, 3, 26), (22, 6, 8)),
+            ("B Short", (-10, 3, 16), (8, 6, 12)),
+            ("Bombsite B", (-13, 4, 34), (34, 10, 24)),
+            ("Offices", (-37, 1.7, -24), (14, 3.4, 16)),
+            ("Pump House", (-37, 2.2, 22), (14, 4.5, 12))):
         m.callout(label, pos, size)
-    m.write("scenes/levels/factory.tscn", sun_rot=(-42.0, 130.0), sky=(0.28, 0.5, 0.82), horizon=(0.72, 0.76, 0.82),
-            sun_color=(1.0, 0.94, 0.84), sun_energy=1.25, ambient=0.8, ambient_color=(0.66, 0.68, 0.7),
-            fog=0.002, fog_color=(0.78, 0.8, 0.84))
+    m.write("scenes/levels/factory.tscn", sun_rot=(-32.0, 140.0), sky=(0.42, 0.46, 0.52), horizon=(0.7, 0.68, 0.64),
+            sun_color=(1.0, 0.88, 0.72), sun_energy=1.0, ambient=0.75, ambient_color=(0.62, 0.6, 0.58),
+            fog=0.006, fog_color=(0.66, 0.62, 0.56))
 
 
 def office():

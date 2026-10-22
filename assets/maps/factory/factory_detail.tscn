@@ -8,10 +8,12 @@
 script = ExtResource("1_detail")
 sky_texture = ExtResource("3_sky")
 sky_sun_u = 0.595
-sun_color = Color(1, 0.93, 0.8, 1)
-sun_energy = 1.35
-smoke_points = PackedVector3Array(-56, 26.5, -54, 58, 22.5, -50, 54, 20.5, 50, -120, 42.5, 105, 150, 38.5, 25, 75, 45.5, -160, -160, 36.5, -75)
-fog_density = 0.0009
-fog_color = Color(0.62, 0.72, 0.86, 1)
+sun_color = Color(1, 0.86, 0.7, 1)
+sun_energy = 1.05
+sky_energy = 0.72
+smoke_points = PackedVector3Array(-66, 26.5, -54, 66, 22.5, -40, 30, 20.5, 56, 41.5, 3, -24, 30, 3, 4.6, -6, 3, 40.5, 41, 3, 22, -120, 42.5, 105, 150, 38.5, 25, 75, 45.5, -160, -160, 36.5, -75, -95, 8, -30, 110, 6, -90)
+smoke_color = Color(0.1, 0.095, 0.09, 0.95)
+fog_density = 0.0042
+fog_color = Color(0.6, 0.57, 0.52, 1)
 
 [node name="Skyline" parent="." instance=ExtResource("2_far")]
