@@ -879,3 +879,4 @@ In game: **Esc → Report a bug** (or on the main menu). It opens a pre-filled G
 License not yet selected — **choose one before the public release** (e.g. MIT for the code). Until a `LICENSE` file is added, all rights are reserved by the project owner.
 
 Third-party assets (models, sounds, fonts) must list their source and license in `docs/CREDITS.md`.
+
